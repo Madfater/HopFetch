@@ -20,23 +20,31 @@ DOMAINS = [
     # "fast-download.me"
 ]
 
-def generate_from_key(url: str, key: str, proxy: str) -> str:
 
+def generate_from_key(url: str, key: str, proxy: str, max_retries: int = 5) -> str:
+    """使用 free_download_key 產生下載連結"""
     if proxy:
         prox = {'https': f'http://{proxy}'}
     else:
         prox = None
-    
-    while True:
-        with contextlib.suppress(Exception):
+
+    for attempt in range(max_retries):
+        try:
             r = requests.post(f"https://{choice(DOMAINS)}/api/v2/getUrl", json={
                 "file_id": url,
                 "free_download_key": key
-            }, proxies=prox).json()
+            }, proxies=prox, timeout=10).json()
             return r['url']
+        except (requests.RequestException, KeyError, ValueError):
+            if attempt < max_retries - 1:
+                time.sleep(min(2 ** attempt, 10))
+            continue
+
+    raise RuntimeError(f"嘗試 {max_retries} 次後仍無法產生下載連結")
+
 
 def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
-
+    """產生多個下載連結"""
     if skip > 0:
         proxy_urls = get_working_proxies()[skip:]
     else:
@@ -48,7 +56,7 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
     r = requests.get(captcha["captcha_url"])
     im = Image.open(BytesIO(r.content))
     im.show()
-    response = input(f"Enter captcha response: ")
+    response = input("Enter captcha response: ")
 
     for url in proxy_urls:
         print(f"\033[KTrying {url}", end='\r')
@@ -64,7 +72,7 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
                 }, proxies=prox, timeout=5).json()
             except KeyboardInterrupt:
                 sys.exit()
-            except :
+            except (requests.RequestException, ValueError):
                 break
 
             if free_r['status'] == "error":
@@ -72,7 +80,7 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
                     r = requests.get(captcha["captcha_url"])
                     im = Image.open(BytesIO(r.content))
                     im.show()
-                    response = input(f"Enter captcha response: ")
+                    response = input("Enter captcha response: ")
                     continue
                 elif free_r["message"] == "File not found":
                     sys.exit("File not found")
@@ -87,16 +95,15 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
             for i in range(free_r['time_wait'] - 1):
                 print(f"\033[K[{url}] Waiting {free_r['time_wait'] - i} seconds...", end='\r')
                 time.sleep(1)
-            
+
             free_download_key = free_r['free_download_key']
             working_link = True
 
         if working_link:
 
             session = FuturesSession(max_workers=5)
-            futures = []
 
-            # Generate links
+            # 產生下載連結
             while len(urls) < count:
                 futures = []
                 to_generate = count - len(urls)
@@ -113,15 +120,17 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
                         urls.append(result.json()['url'])
                     except KeyboardInterrupt:
                         sys.exit()
-                    except:
+                    except (requests.RequestException, KeyError, ValueError):
                         continue
 
     if not working_link:
-        raise Exception("No working links found")
+        raise Exception("找不到可用的連結")
 
     return urls[:count]
 
+
 def get_name(file_id: str) -> str:
+    """取得檔案名稱"""
     r = requests.post(f"https://{choice(DOMAINS)}/api/v2/getFilesInfo", json={
         "ids": [file_id]
     }).json()

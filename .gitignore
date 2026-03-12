@@ -1,0 +1,7 @@
+tmp/
+downloads/
+*.lock
+proxies.txt
+urls.json
+__pycache__/
+.venv/
