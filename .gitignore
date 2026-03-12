@@ -1,5 +1,6 @@
 tmp/
 downloads/
+img/
 *.lock
 proxies.txt
 urls.json
