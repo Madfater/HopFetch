@@ -175,7 +175,7 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
         downloaded_bytes = 0
 
         try:
-            proxy_idx, prox = _acquire_proxy()
+            proxy_idx, prox, _ = _acquire_proxy()
 
             try:
                 req = requests.get(
