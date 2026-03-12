@@ -7,6 +7,7 @@ from random import choice
 from concurrent.futures import as_completed
 
 from PIL import Image
+from pathlib import Path
 from tqdm import tqdm
 from requests_futures.sessions import FuturesSession
 
@@ -55,7 +56,10 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
     captcha = requests.post(f"https://{choice(DOMAINS)}/api/v2/requestCaptcha").json()
     r = requests.get(captcha["captcha_url"])
     im = Image.open(BytesIO(r.content))
-    im.show()
+
+    path = Path("img")
+    path.mkdir(parents=True, exist_ok=True)
+    im.save(path / "captcha.png")
     response = input("Enter captcha response: ")
 
     for url in proxy_urls:
@@ -79,7 +83,7 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
                 if free_r["message"] == "Invalid captcha code":
                     r = requests.get(captcha["captcha_url"])
                     im = Image.open(BytesIO(r.content))
-                    im.show()
+                    im.save(path / "captcha.png")
                     response = input("Enter captcha response: ")
                     continue
                 elif free_r["message"] == "File not found":
