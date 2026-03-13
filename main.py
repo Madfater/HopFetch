@@ -132,7 +132,7 @@ def _part_path(file_id: str, filename: str, idx, total_digits: int) -> pathlib.P
     return TMP_DIR / f"{file_id}_{filename}.part{str(idx).zfill(total_digits)}"
 
 
-def main(urls: List[str], filename: str, file_id: str = "") -> None:
+def main(urls: List[str], filename: str, file_id: str = "", batch_count: int = 20) -> None:
 
     if not urls:
         print("請提供 URL 以開始下載。")
@@ -425,7 +425,7 @@ def cmd_continue(args):
 
         URL_LOCKS = [threading.Lock() for _ in range(batch_count)]
         START_TIME = time.time()
-        main(urls, filename, fid)
+        main(urls, filename, fid, batch_count)
 
 
 def cmd_download(args):
@@ -472,7 +472,7 @@ def cmd_download(args):
     redownloaded = False
 
     while True:
-        main(urls, file_name, file_id)
+        main(urls, file_name, file_id, batch_count)
         if which("ffmpeg"):
             output_path = DOWNLOAD_DIR / file_name
             if not check_vid(output_path):
