@@ -172,7 +172,18 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
         chunk_start_time = time.time()
         tmp_path = _part_path(file_id, filename, idx, total_digits)
         proxy_idx = None
-        downloaded_bytes = 0
+        expected_bytes = ranges[idx]["bytes"]
+
+        # 斷點續傳：計算已下載的 bytes
+        existing_bytes = tmp_path.stat().st_size if tmp_path.exists() else 0
+        range_start, range_end = irange.split("-")
+        resume_start = int(range_start) + existing_bytes
+
+        # 將已存在的部分計入進度條
+        if existing_bytes > 0:
+            total_iter.update(existing_bytes)
+
+        downloaded_bytes = existing_bytes
 
         try:
             proxy_idx, prox, _ = _acquire_proxy()
@@ -180,15 +191,18 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
             try:
                 req = requests.get(
                     urls[th_idx],
-                    headers={"Range": f"bytes={irange}", "User-Agent": headers["User-Agent"]},
+                    headers={
+                        "Range": f"bytes={resume_start}-{range_end}",
+                        "User-Agent": headers["User-Agent"],
+                    },
                     stream=True,
                     proxies=prox,
                     timeout=20,
                 )
                 req.raise_for_status()
 
-                # 直接串流寫入磁碟，避免佔用記憶體
-                with tmp_path.open("wb") as f:
+                # 以 append 模式寫入，支援斷點續傳
+                with tmp_path.open("ab") as f:
                     for data in req.iter_content(BLOCK_SIZE):
                         if stop:
                             break
@@ -203,11 +217,11 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
                 pass  # 下載失敗，交由下方邏輯處理重試
 
             # 檢查下載完整性
-            if not math.isclose(downloaded_bytes, ranges[idx]["bytes"], abs_tol=1):
-                total_iter.update(-downloaded_bytes)
-                # 清理不完整的暫存檔
-                if tmp_path.exists():
-                    tmp_path.unlink()
+            if not math.isclose(downloaded_bytes, expected_bytes, abs_tol=1):
+                # 回退本次新增的進度（保留已存在的部分不算）
+                new_bytes = downloaded_bytes - existing_bytes
+                total_iter.update(-new_bytes)
+                # 保留不完整的 part 檔，下次可續傳
                 ranges[idx]["inUse"] = False
             else:
                 if proxy_idx is not None and proxy_idx not in WORKING_PROXY_LIST:
@@ -237,7 +251,7 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
                     continue
 
                 tmp_path = _part_path(file_id, filename, idx, total_digits)
-                # 檢查是否已有完整的暫存檔（支援斷點續傳）
+                # 檢查是否已有完整的暫存檔
                 if tmp_path.exists():
                     file_size = tmp_path.stat().st_size
                     if math.isclose(file_size, ranges[idx]["bytes"], abs_tol=1):
@@ -248,8 +262,7 @@ def main(urls: List[str], filename: str, file_id: str = "") -> None:
                             total_iter.desc = f"[{done_count}/{len(ranges)}] Downloaded"
                             irange["downloaded"] = True
                         continue
-                    else:
-                        tmp_path.unlink()
+                    # 不完整的 part 檔保留，交給 download_chunk 續傳
 
                 for th_idx in range(batch_count):
                     if URL_LOCKS[th_idx].locked():
@@ -316,19 +329,108 @@ def check_vid(video_path: pathlib.Path) -> bool:
         return False
 
 
-if __name__ == '__main__':
+def _find_incomplete_downloads() -> Dict[str, Dict]:
+    """找出 tmp/ 中所有未完成的下載，回傳 {file_id: {filename, files, total_size}}"""
+    result = {}
+    if not TMP_DIR.exists():
+        return result
 
-    parser = argparse.ArgumentParser(description='K2S Downloader')
-    parser.add_argument('url', help='k2s url to download', action='store')
-    parser.add_argument('--filename', type=str,
-                        help='filename to save as',
-                        action='store', dest='filename')
-    parser.add_argument('--threads', dest='batch_count', action='store',
-                        help='number of connections to use (default 20)', default=20)
-    parser.add_argument('--split-size', dest='size', action='store',
-                        help='Size to split at (default 20M)', default=1024 * 1024 * 20)
+    # 從 tmp/ 中找出所有 part 檔，依 file_id 分組
+    part_files: Dict[str, List[pathlib.Path]] = {}
+    for f in sorted(TMP_DIR.iterdir()):
+        if '.part' in f.name:
+            # 檔名格式: {file_id}_{filename}.partXX
+            name_without_part = f.name.rsplit('.part', 1)[0]
+            parts = name_without_part.split('_', 1)
+            if len(parts) == 2:
+                fid = parts[0]
+                if fid not in part_files:
+                    part_files[fid] = []
+                part_files[fid].append(f)
 
-    args = parser.parse_args()
+    for fid, files in part_files.items():
+        name_without_part = files[0].name.rsplit('.part', 1)[0]
+        filename = name_without_part.split('_', 1)[1] if '_' in name_without_part else name_without_part
+
+        # 跳過已完成的
+        if (DOWNLOAD_DIR / filename).exists():
+            continue
+
+        total_size = sum(f.stat().st_size for f in files)
+        result[fid] = {
+            "filename": filename,
+            "files": files,
+            "total_size": total_size,
+        }
+
+    return result
+
+
+def cmd_ls():
+    """列出所有未完成下載的檔案"""
+    incomplete = _find_incomplete_downloads()
+    if not incomplete:
+        print("沒有未完成的下載。")
+        return
+
+    past_urls = read_urls_json()
+
+    print(f"{'檔案 ID':<20} {'檔案名稱':<40} {'已下載 parts':<15} {'已下載大小'}")
+    print("-" * 90)
+
+    for fid, info in incomplete.items():
+        status = "有連結" if fid in past_urls else "需重新取得連結"
+        print(
+            f"{fid:<20} {info['filename']:<40} "
+            f"{len(info['files']):<15} "
+            f"{human_readable_bytes(info['total_size'])}  ({status})"
+        )
+
+
+def cmd_continue(args):
+    """繼續下載未完成的檔案"""
+    global URL_LOCKS, START_TIME, BYTES_PER_SPLIT
+
+    TMP_DIR.mkdir(parents=True, exist_ok=True)
+    DOWNLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+    incomplete = _find_incomplete_downloads()
+    if not incomplete:
+        print("沒有未完成的下載。")
+        return
+
+    past_urls = read_urls_json()
+    batch_count = int(args.batch_count)
+    BYTES_PER_SPLIT = parse_size(args.size)
+
+    # 如果有指定 file_id，只繼續那一個
+    if args.file_id:
+        if args.file_id not in incomplete:
+            print(f"找不到 file_id: {args.file_id} 的未完成下載。")
+            return
+        targets = {args.file_id: incomplete[args.file_id]}
+    else:
+        targets = incomplete
+
+    for fid, info in targets.items():
+        filename = info["filename"]
+        print(f"\n繼續下載: {filename} (ID: {fid})")
+
+        urls = past_urls.get(fid, [])
+        if len(urls) < batch_count:
+            print("連結不足或已過期，重新取得連結...")
+            urls = k2s.generate_download_urls(fid, batch_count)
+            past_urls[fid] = urls
+            write_urls_json(past_urls)
+
+        URL_LOCKS = [threading.Lock() for _ in range(batch_count)]
+        START_TIME = time.time()
+        main(urls, filename, fid)
+
+
+def cmd_download(args):
+    """執行下載"""
+    global URL_LOCKS, START_TIME, BYTES_PER_SPLIT
 
     if "k2s.cc" not in args.url:
         print("無效的 URL")
@@ -382,3 +484,42 @@ if __name__ == '__main__':
                 else:
                     print("影片仍然損壞，跳過。")
         break
+
+
+if __name__ == '__main__':
+
+    parser = argparse.ArgumentParser(description='K2S Downloader')
+    subparsers = parser.add_subparsers(dest='command')
+
+    # 下載指令
+    dl_parser = subparsers.add_parser('dl', help='下載檔案')
+    dl_parser.add_argument('url', help='k2s url to download')
+    dl_parser.add_argument('--filename', type=str,
+                           help='filename to save as', dest='filename')
+    dl_parser.add_argument('--threads', dest='batch_count',
+                           help='number of connections to use (default 20)', default=20)
+    dl_parser.add_argument('--split-size', dest='size',
+                           help='Size to split at (default 20M)', default=1024 * 1024 * 20)
+
+    # 列出未完成下載
+    subparsers.add_parser('ls', help='列出未完成的下載')
+
+    # 繼續下載未完成的檔案
+    cont_parser = subparsers.add_parser('continue', help='繼續下載未完成的檔案')
+    cont_parser.add_argument('file_id', nargs='?', default=None,
+                             help='指定要繼續的 file_id（不指定則全部繼續）')
+    cont_parser.add_argument('--threads', dest='batch_count',
+                             help='number of connections to use (default 20)', default=20)
+    cont_parser.add_argument('--split-size', dest='size',
+                             help='Size to split at (default 20M)', default=1024 * 1024 * 20)
+
+    args = parser.parse_args()
+
+    if args.command == 'ls':
+        cmd_ls()
+    elif args.command == 'dl':
+        cmd_download(args)
+    elif args.command == 'continue':
+        cmd_continue(args)
+    else:
+        parser.print_help()
