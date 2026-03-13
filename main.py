@@ -161,9 +161,26 @@ def main(urls: List[str], filename: str, file_id: str = "", batch_count: int = 2
     splitBy = math.ceil(sizeInBytes / BYTES_PER_SPLIT)
     ranges = build_range(sizeInBytes, splitBy)
     total_digits = len(str(splitBy))
+
+    # 統計已下載的 bytes 和已完成的 parts，初始化進度條
+    initial_bytes = 0
+    for idx in ranges:
+        tmp_path = _part_path(file_id, filename, idx, total_digits)
+        if tmp_path.exists():
+            file_size = tmp_path.stat().st_size
+            initial_bytes += file_size
+            if math.isclose(file_size, ranges[idx]["bytes"], abs_tol=1):
+                ranges[idx]["downloaded"] = True
+                done_count += 1
+
+    remaining = sizeInBytes - initial_bytes
+    if initial_bytes > 0:
+        print(f"已下載 {human_readable_bytes(initial_bytes)}，剩餘 {human_readable_bytes(remaining)}。")
+
     total_iter = tqdm(
         desc=f"[{done_count}/{len(ranges)}] Downloaded",
-        total=sizeInBytes, unit='iB', unit_scale=True, unit_divisor=1024,
+        total=sizeInBytes, initial=initial_bytes,
+        unit='iB', unit_scale=True, unit_divisor=1024,
     )
 
     def download_chunk(idx, irange, th_idx):
@@ -174,15 +191,10 @@ def main(urls: List[str], filename: str, file_id: str = "", batch_count: int = 2
         proxy_idx = None
         expected_bytes = ranges[idx]["bytes"]
 
-        # 斷點續傳：計算已下載的 bytes
+        # 斷點續傳：計算已下載的 bytes（已在初始化時計入進度條）
         existing_bytes = tmp_path.stat().st_size if tmp_path.exists() else 0
         range_start, range_end = irange.split("-")
         resume_start = int(range_start) + existing_bytes
-
-        # 將已存在的部分計入進度條
-        if existing_bytes > 0:
-            total_iter.update(existing_bytes)
-
         downloaded_bytes = existing_bytes
 
         try:
@@ -250,19 +262,9 @@ def main(urls: List[str], filename: str, file_id: str = "", batch_count: int = 2
                 if irange["inUse"] or irange["downloaded"]:
                     continue
 
-                tmp_path = _part_path(file_id, filename, idx, total_digits)
-                # 檢查是否已有完整的暫存檔
-                if tmp_path.exists():
-                    file_size = tmp_path.stat().st_size
-                    if math.isclose(file_size, ranges[idx]["bytes"], abs_tol=1):
-                        if not irange["downloaded"]:
-                            total_iter.update(ranges[idx]["bytes"])
-                            with done_lock:
-                                done_count += 1
-                            total_iter.desc = f"[{done_count}/{len(ranges)}] Downloaded"
-                            irange["downloaded"] = True
-                        continue
-                    # 不完整的 part 檔保留，交給 download_chunk 續傳
+                # 已完成的 part 已在初始化時標記，直接跳過
+                if irange["downloaded"]:
+                    continue
 
                 for th_idx in range(batch_count):
                     if URL_LOCKS[th_idx].locked():
