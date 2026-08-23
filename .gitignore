@@ -1,7 +1,8 @@
 tmp/
 downloads/
 img/
-*.lock
+urls.json.lock
+proxies.txt.lock
 proxies.txt
 urls.json
 __pycache__/
