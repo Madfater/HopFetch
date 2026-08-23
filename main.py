@@ -425,9 +425,18 @@ def cmd_continue(args):
             past_urls[fid] = urls
             write_urls_json(past_urls)
 
-        URL_LOCKS = [threading.Lock() for _ in range(batch_count)]
+        if not urls:
+            print("無法取得任何下載連結，跳過此檔案。")
+            continue
+
+        # 取得的連結可能不足，以實際數量決定連線數（不影響下一個檔案）
+        effective_count = min(batch_count, len(urls))
+        if effective_count < batch_count:
+            print(f"僅取得 {len(urls)} 個連結，改以 {effective_count} 個連線下載。")
+
+        URL_LOCKS = [threading.Lock() for _ in range(effective_count)]
         START_TIME = time.time()
-        main(urls, filename, fid, batch_count)
+        main(urls, filename, fid, effective_count)
 
 
 def cmd_download(args):
@@ -468,6 +477,15 @@ def cmd_download(args):
 
     past_urls[file_id] = urls
     write_urls_json(past_urls)
+
+    if not urls:
+        print("無法取得任何下載連結。")
+        return
+
+    # 取得的連結可能不足，以實際數量決定連線數
+    if len(urls) < batch_count:
+        print(f"僅取得 {len(urls)} 個連結，改以 {len(urls)} 個連線下載。")
+        batch_count = len(urls)
 
     URL_LOCKS = [threading.Lock() for _ in range(batch_count)]
     START_TIME = time.time()

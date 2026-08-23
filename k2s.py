@@ -21,6 +21,9 @@ DOMAINS = [
     # "fast-download.me"
 ]
 
+# 每個 proxy 最多嘗試幾輪產生連結，避免無限重試
+MAX_ROUNDS = 3
+
 
 def generate_from_key(url: str, key: str, proxy: str, max_retries: int = 5) -> str:
     """使用 free_download_key 產生下載連結"""
@@ -107,17 +110,21 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
 
             session = FuturesSession(max_workers=5)
 
-            # 產生下載連結
-            while len(urls) < count:
+            # 產生下載連結，最多嘗試 MAX_ROUNDS 輪
+            for _ in range(MAX_ROUNDS):
+                if len(urls) >= count:
+                    break
+
                 futures = []
                 to_generate = count - len(urls)
                 for _ in range(to_generate):
                     future = session.post(f"https://{choice(DOMAINS)}/api/v2/getUrl", json={
                         "file_id": file_id,
                         "free_download_key": free_download_key
-                    }, proxies=prox)
+                    }, proxies=prox, timeout=15)
                     futures.append(future)
 
+                before = len(urls)
                 for future in tqdm(as_completed(futures), total=len(futures), leave=False):
                     try:
                         result = future.result()
@@ -127,8 +134,21 @@ def generate_download_urls(file_id: str, count: int = 1, skip: int = 0) -> list:
                     except (requests.RequestException, KeyError, ValueError):
                         continue
 
+                # 這一輪毫無進展，換下一個 proxy 再試
+                if len(urls) == before:
+                    break
+
+        if len(urls) >= count:
+            break
+
     if not working_link:
         raise Exception("找不到可用的連結")
+
+    if not urls:
+        raise Exception("無法產生任何下載連結")
+
+    if len(urls) < count:
+        print(f"\033[K僅取得 {len(urls)}/{count} 個下載連結。")
 
     return urls[:count]
 
