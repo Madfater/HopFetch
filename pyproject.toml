@@ -1,0 +1,15 @@
+[project]
+name = "k2s-downloader"
+version = "0.1.0"
+description = "Multi-threaded downloader for k2s links"
+readme = "Readme.md"
+requires-python = ">=3.10"
+dependencies = [
+    "pillow",
+    "requests",
+    "requests-futures",
+    "tqdm",
+]
+
+[tool.uv]
+package = false
