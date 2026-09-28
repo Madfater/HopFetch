@@ -52,5 +52,5 @@ python3 script/check.py                                  # harness tests, then p
 
 Invariants, detailed in [docs/architecture.md](docs/architecture.md#invariants):
 - `urls.json` and `proxies.txt` are only touched under `file_lock`.
-- Importing `main.py` fetches proxies over the network. Never import it from checks or tests.
+- Importing `main.py` loads proxies, and fetches and tests them over the network when `proxies.txt` is missing. Never import it from checks or tests.
 - A part file in `tmp/` holds exactly the bytes downloaded so far for its range, which is what makes resuming work.
