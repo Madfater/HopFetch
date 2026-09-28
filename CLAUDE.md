@@ -40,7 +40,17 @@ Ship changes with `/ship`. Work a GitHub issue with `/issue <number>`. Clean up 
 
 ## Project
 
-Fill in the following for this repository:
-- A one-line description of what the project is.
-- The commands to run, build and test it.
-- The invariants that must never break.
+Multi-threaded command line downloader for k2s.cc free links, using public proxies and resumable part files.
+
+```bash
+uv sync                                                  # install dependencies
+uv run main.py dl <url> [--filename F] [--threads N] [--split-size 20mb]
+uv run main.py ls                                        # list unfinished downloads
+uv run main.py continue [file_id]                        # resume unfinished downloads
+python3 script/check.py                                  # harness tests, then py_compile through uv
+```
+
+Invariants, detailed in [docs/architecture.md](docs/architecture.md#invariants):
+- `urls.json` and `proxies.txt` are only touched under `file_lock`.
+- Importing `main.py` fetches proxies over the network. Never import it from checks or tests.
+- A part file in `tmp/` holds exactly the bytes downloaded so far for its range, which is what makes resuming work.
