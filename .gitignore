@@ -11,3 +11,7 @@ __pycache__/
 .claude/worktrees/
 .claude/settings.local.json
 .playwright-cli/
+data/
+web/node_modules/
+web/dist/
+.pytest_cache/
