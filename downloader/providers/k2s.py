@@ -46,13 +46,13 @@ class K2SProvider(Provider):
     - One image captcha buys a `free_download_key`; each proxy (a different IP) may have to wait
       up to MAX_WAIT seconds first, and a longer wait moves on to the next proxy.
     - The key is exchanged for many links in parallel, up to MAX_ROUNDS rounds per proxy.
-    - Each link allows one connection and is rate limited, so speed comes from many links.
+    - Each link allows one connection, is rate limited, and binds to the first IP that fetches it,
+      so speed comes from many links downloaded over the direct connection.
     """
 
     name = "k2s"
     label = "Keep2Share"
     hosts = ("k2s.cc", "keep2share.cc")
-    use_proxies = True
     link_ttl = 12 * 3600
 
     def match(self, url: str) -> str | None:

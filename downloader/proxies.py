@@ -1,4 +1,4 @@
-"""Shared pool of public HTTP proxies used for link generation and chunk downloads."""
+"""Shared pool of public HTTP proxies, used to request download keys from different IPs."""
 
 from __future__ import annotations
 
@@ -32,8 +32,6 @@ class ProxyPool:
 
     - `load()` reads the cache file, or fetches proxy lists and keeps the ones that answer TEST_URL.
     - The cache file is read and written under a cross-process lock.
-    - `acquire()` hands out one proxy per caller: known-good proxies first, then any idle one,
-      then it blocks on the direct connection.
     - `enabled=False` makes the pool hold only the direct connection.
     """
 
@@ -41,8 +39,6 @@ class ProxyPool:
         self.cache_path = cache_path
         self.enabled = enabled
         self._proxies: list[str | None] = [None]
-        self._locks: list[threading.Lock] = [threading.Lock()]
-        self._working: list[int] = []
         self._loaded = threading.Event()
         self._load_lock = threading.Lock()
 
@@ -58,8 +54,6 @@ class ProxyPool:
                 return
             proxies = self._read_or_build(refresh, on_status) if self.enabled else []
             self._proxies = [None, *proxies]
-            self._locks = [threading.Lock() for _ in self._proxies]
-            self._working = []
             self._loaded.set()
             log.info("proxy pool ready with %d proxies", len(proxies))
 
@@ -67,30 +61,6 @@ class ProxyPool:
         """Return the proxy list, loading it first when needed."""
         self.load()
         return list(self._proxies)
-
-    def acquire(self) -> tuple[int, str | None]:
-        """Reserve a proxy and return `(index, proxy)`; release it with `release(index)`."""
-        self.load()
-        for i in list(self._working):
-            if self._locks[i].acquire(blocking=False):
-                return i, self._proxies[i]
-        for i, lock in enumerate(self._locks):
-            if lock.acquire(blocking=False):
-                return i, self._proxies[i]
-        self._locks[0].acquire()
-        return 0, None
-
-    def release(self, index: int) -> None:
-        """Release a proxy reserved by `acquire`."""
-        try:
-            self._locks[index].release()
-        except RuntimeError:
-            pass
-
-    def mark_working(self, index: int) -> None:
-        """Remember a proxy that completed a download so `acquire` prefers it."""
-        if index not in self._working:
-            self._working.append(index)
 
     def _read_or_build(self, refresh: bool, on_status: Callable[[str], None] | None) -> list[str]:
         """Read the cache file, or fetch and test proxies and write the cache."""

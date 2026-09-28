@@ -17,7 +17,7 @@ class Settings:
     - `download_dir` receives assembled files.
     - `web_dist` is the built frontend; it is served at `/` when it exists.
     - `captcha_ocr` enables automatic captcha solving before falling back to the UI.
-    - `use_proxies` routes link generation and chunk downloads through the public proxy pool.
+    - `use_proxies` lets link generation try public proxies when this IP must wait.
     - `max_active_jobs` caps how many jobs run at once; the rest stay queued.
     """
 

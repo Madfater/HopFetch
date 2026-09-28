@@ -374,7 +374,6 @@ class JobManager:
         SegmentedDownload(
             links=job.links, size=job.size, part_dir=self._part_dir(job),
             split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
-            proxies=self.proxies if provider.use_proxies and self.settings.use_proxies else None,
             on_progress=on_progress,
         ).run()
 

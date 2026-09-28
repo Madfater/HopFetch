@@ -14,7 +14,6 @@ from typing import Callable
 import requests
 
 from .providers.base import Cancelled
-from .proxies import ProxyPool, proxy_dict
 
 log = logging.getLogger(__name__)
 
@@ -97,7 +96,6 @@ class SegmentedDownload:
     - Each part file holds exactly the bytes already received for its range, so a later run
       resumes every range where it stopped. Bytes are only appended, never rewritten.
     - Each link carries at most one connection at a time.
-    - When `proxies` is given, each connection reserves a proxy from the pool.
     - A link answering 401/403/404/410 three times in a row is dropped; when every link is
       dropped, `run` raises `LinksExpired`.
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
@@ -106,7 +104,6 @@ class SegmentedDownload:
 
     def __init__(self, links: list[str], size: int, part_dir: Path, split_size: int,
                  headers: dict[str, str], cancelled: threading.Event,
-                 proxies: ProxyPool | None = None,
                  on_progress: Callable[[Progress], None] | None = None,
                  read_timeout: float = 20, stall_timeout: float = 600,
                  progress_interval: float = 0.5):
@@ -116,7 +113,6 @@ class SegmentedDownload:
         self.parts = build_parts(size, split_size)
         self.headers = headers
         self.cancelled = cancelled
-        self.proxies = proxies
         self.on_progress = on_progress
         self.read_timeout = read_timeout
         self.stall_timeout = stall_timeout
@@ -211,12 +207,11 @@ class SegmentedDownload:
         if have >= part.size:
             return 206
         start = part.start + have
-        proxy_index, proxy = self.proxies.acquire() if self.proxies else (None, None)
         try:
             resp = requests.get(
                 self.links[link],
                 headers={**self.headers, "Range": f"bytes={start}-{part.end}"},
-                proxies=proxy_dict(proxy), stream=True, timeout=(10, self.read_timeout),
+                stream=True, timeout=(10, self.read_timeout),
             )
             with resp:
                 if resp.status_code != 206:
@@ -237,14 +232,9 @@ class SegmentedDownload:
                             self._last_byte_at = time.monotonic()
                         if remaining <= 0:
                             break
-            if remaining <= 0 and proxy_index is not None:
-                self.proxies.mark_working(proxy_index)
             return 206
         except (requests.RequestException, OSError):
             return None
-        finally:
-            if proxy_index is not None:
-                self.proxies.release(proxy_index)
 
     def _report(self) -> None:
         """Send a progress snapshot to `on_progress`."""

@@ -108,14 +108,12 @@ class Provider(ABC):
     - `name` is the stable id stored in jobs; `label` is shown in the UI.
     - `hosts` are the domains this provider owns; a URL on one of them that `match` rejects is
       reported as unsupported instead of falling through to the generic provider.
-    - `use_proxies` routes chunk downloads through the proxy pool.
     - `link_ttl` is how long generated links stay reusable, in seconds.
     """
 
     name: str = ""
     label: str = ""
     hosts: tuple[str, ...] = ()
-    use_proxies: bool = False
     link_ttl: float = float("inf")
 
     @abstractmethod
