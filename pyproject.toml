@@ -1,15 +1,27 @@
 [project]
 name = "k2s-downloader"
-version = "0.1.0"
-description = "Multi-threaded downloader for k2s links"
+version = "0.2.0"
+description = "Web app for multi-connection downloads from file hosting platforms"
 readme = "Readme.md"
 requires-python = ">=3.10"
 dependencies = [
+    "ddddocr",
+    "fastapi",
     "pillow",
     "requests",
     "requests-futures",
-    "tqdm",
+    "uvicorn[standard]",
+]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "pytest",
 ]
 
 [tool.uv]
 package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
