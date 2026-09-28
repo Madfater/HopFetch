@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 API_DOMAINS = ["k2s.cc"]
 CAPTCHA = CaptchaSpec(length=6, charset="[a-z0-9]", lowercase=True)
 MAX_WAIT = 30
+MAX_COOLDOWN = 3600
 MAX_ROUNDS = 3
 URL_PATTERN = re.compile(
     r"^https?://(?:www\.)?(?:k2s\.cc|keep2share\.cc)/file/(?P<id>[A-Za-z0-9]+)(?:[/?#].*)?$"
@@ -71,52 +72,80 @@ class K2SProvider(Provider):
         return FileInfo(name=files[0]["name"], size=files[0].get("size"))
 
     def generate_links(self, ref: FileRef, count: int, ctx: LinkContext) -> list[str]:
-        """Solve the captcha, get a free download key through some proxy, then mint links."""
-        file_id = ref.file_id
+        """Solve the captcha, get a free download key through some proxy, then mint links.
+
+        - Each proxy is a different IP; k2s makes an IP wait between free downloads.
+        - When every IP must wait longer than MAX_WAIT, the job waits for the shortest cooldown,
+          up to MAX_COOLDOWN, then tries that IP once more.
+        """
         ctx.set_status(STATUS_PREPARING, "Loading proxy list")
-        proxies = ctx.proxies.all()
-        challenge, answer = self._solve_captcha(ctx)
+        candidates = ctx.proxies.all()
+        captcha = list(self._solve_captcha(ctx))
         links: list[str] = []
         last_error = "No proxy could obtain a free download key"
 
-        for proxy in proxies:
-            ctx.check_cancelled()
-            where = proxy or "direct connection"
-            ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
-            key = None
-            while key is None:
-                try:
-                    reply = requests.post(_api("getUrl"), json={
-                        "file_id": file_id,
-                        "captcha_challenge": challenge,
-                        "captcha_response": answer,
-                    }, proxies=proxy_dict(proxy), timeout=10).json()
-                except (requests.RequestException, ValueError):
+        for attempt in range(2):
+            cooldowns: dict[str | None, int] = {}
+            for proxy in candidates:
+                ctx.check_cancelled()
+                key, wait, error = self._request_key(ref.file_id, proxy, captcha, ctx)
+                if wait is not None:
+                    cooldowns[proxy] = wait
+                last_error = error or last_error
+                if key is None:
+                    continue
+                links += self._links_from_key(ref.file_id, key, proxy, count - len(links), ctx)
+                if len(links) >= count:
                     break
-                if reply.get("status") == "error":
-                    message = reply.get("message", "")
-                    if message == "Invalid captcha code":
-                        challenge, answer = self._solve_captcha(ctx)
-                        continue
-                    if message == "File not found":
-                        raise ProviderError("File not found on k2s")
-                    last_error = f"k2s: {message}"
-                    break
-                wait = int(reply.get("time_wait") or 0)
-                if wait > MAX_WAIT or "free_download_key" not in reply:
-                    last_error = f"k2s asked to wait {wait}s" if wait else last_error
-                    break
-                ctx.wait(wait, "Waiting for the free download slot")
-                key = reply["free_download_key"]
-            if key is None:
-                continue
-            links += self._links_from_key(file_id, key, proxy, count - len(links), ctx)
-            if len(links) >= count:
+            if links or not cooldowns or attempt == 1:
                 break
+            proxy, wait = min(cooldowns.items(), key=lambda item: item[1])
+            if wait > MAX_COOLDOWN:
+                break
+            ctx.wait(wait + 5, "k2s allows the next free download in")
+            candidates = [proxy]
 
         if not links:
             raise ProviderError(last_error)
         return links[:count]
+
+    def _request_key(self, file_id: str, proxy: str | None, captcha: list[str],
+                     ctx: LinkContext) -> tuple[str | None, int | None, str | None]:
+        """Ask for a free download key through `proxy`; return (key, cooldown, error).
+
+        - `captcha` holds [challenge, answer] and is replaced in place when k2s rejects it.
+        - A wait up to MAX_WAIT is sat out here; a longer one is returned as the cooldown.
+        """
+        where = proxy or "direct connection"
+        ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
+        while True:
+            try:
+                reply = requests.post(_api("getUrl"), json={
+                    "file_id": file_id,
+                    "captcha_challenge": captcha[0],
+                    "captcha_response": captcha[1],
+                }, proxies=proxy_dict(proxy), timeout=10).json()
+            except (requests.RequestException, ValueError) as exc:
+                log.info("key request via %s failed: %s", where, exc)
+                return None, None, None
+            log.info("key request via %s: %s %s wait=%s", where, reply.get("status"),
+                     reply.get("message"), reply.get("time_wait"))
+            if reply.get("status") == "error":
+                message = reply.get("message", "")
+                if message == "Invalid captcha code":
+                    captcha[:] = self._solve_captcha(ctx)
+                    ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
+                    continue
+                if message == "File not found":
+                    raise ProviderError("File not found on k2s")
+                return None, None, f"k2s: {message}"
+            wait = int(reply.get("time_wait") or 0)
+            if wait > MAX_WAIT:
+                return None, wait, f"k2s asked to wait {wait}s before the next free download"
+            if "free_download_key" not in reply:
+                return None, None, None
+            ctx.wait(wait, "Waiting for the free download slot")
+            return reply["free_download_key"], None, None
 
     def _solve_captcha(self, ctx: LinkContext) -> tuple[str, str]:
         """Fetch captcha images until the solver commits to an answer; return (challenge, answer)."""
