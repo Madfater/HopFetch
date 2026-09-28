@@ -7,3 +7,7 @@ proxies.txt
 urls.json
 __pycache__/
 .venv/
+.env.skills
+.claude/worktrees/
+.claude/settings.local.json
+.playwright-cli/
