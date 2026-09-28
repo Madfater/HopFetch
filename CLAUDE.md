@@ -40,17 +40,18 @@ Ship changes with `/ship`. Work a GitHub issue with `/issue <number>`. Clean up 
 
 ## Project
 
-Multi-threaded command line downloader for k2s.cc free links, using public proxies and resumable part files.
+Local web app for multi-connection downloads from file hosting platforms, with Keep2Share free links as the main provider. FastAPI backend in `downloader/`, React dashboard in `web/`.
 
 ```bash
-uv sync                                                  # install dependencies
-uv run main.py dl <url> [--filename F] [--threads N] [--split-size 20mb]
-uv run main.py ls                                        # list unfinished downloads
-uv run main.py continue [file_id]                        # resume unfinished downloads
-python3 script/check.py                                  # harness tests, then py_compile through uv
+uv sync && npm --prefix web ci                 # install dependencies
+npm --prefix web run build                     # build the dashboard into web/dist
+uv run uvicorn downloader.app:app              # serve API and dashboard on http://127.0.0.1:8000
+uv run pytest -q                               # backend tests
+python3 script/check.py                        # harness tests, pytest, frontend install and build
 ```
 
 Invariants, detailed in [docs/architecture.md](docs/architecture.md#invariants):
-- `urls.json` and `proxies.txt` are only touched under `file_lock`.
-- Importing `main.py` loads proxies, and fetches and tests them over the network when `proxies.txt` is missing. Never import it from checks or tests.
-- A part file in `tmp/` holds exactly the bytes downloaded so far for its range, which is what makes resuming work.
+- A part file under `data/jobs/<job_id>/` holds exactly the bytes downloaded so far for its range, which is what makes resuming work.
+- `jobs.json` and `proxies.txt` are only written under `file_lock`.
+- A new platform is a `Provider` subclass in `downloader/providers/` added to `default_registry()`. The engine, jobs, API and UI stay unchanged.
+- Tests never touch the network. They use the local Range server in `tests/conftest.py` and scripted fakes.
