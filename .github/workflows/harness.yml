@@ -15,5 +15,6 @@ jobs:
           python-version: "3.12"
       - name: Conventions
         run: python3 script/check_conventions.py --base "origin/${{ github.base_ref }}"
+      - uses: astral-sh/setup-uv@v6
       - name: Project checks
         run: python3 script/check.py
