@@ -20,6 +20,7 @@ log = logging.getLogger(__name__)
 BLOCK_SIZE = 32 * 1024
 DEAD_LINK_STATUSES = {401, 403, 404, 410}
 DEAD_LINK_STRIKES = 3
+RETRY_DELAY = 2.0
 
 
 class LinksExpired(Exception):
@@ -185,7 +186,11 @@ class SegmentedDownload:
         return have == part.size
 
     def _worker(self, part: Part, link: int, pending: collections.deque) -> None:
-        """Fetch the rest of `part` over `link`, then requeue the part when it is incomplete."""
+        """Fetch the rest of `part` over `link`, then requeue the part when it is incomplete.
+
+        - After a failed request the link stays busy for RETRY_DELAY seconds before the part
+          is requeued, so a refusing server is not hammered.
+        """
         try:
             status = self._fetch(part, link)
             with self._lock:
@@ -193,8 +198,11 @@ class SegmentedDownload:
                     self._strikes[link] += 1
                 elif status == 206:
                     self._strikes[link] = 0
-                if self._on_disk(part) < part.size:
-                    pending.append(part)
+                incomplete = self._on_disk(part) < part.size
+            if incomplete:
+                if status != 206:
+                    self._stop.wait(RETRY_DELAY)
+                pending.append(part)
         finally:
             with self._lock:
                 self._busy.discard(link)

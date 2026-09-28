@@ -134,6 +134,7 @@ class JobManager:
         self._lock = threading.RLock()
         self._slots = threading.Semaphore(settings.max_active_jobs)
         self._last_persist = 0.0
+        self._persist_lock = threading.Lock()
         self.jobs_file = settings.data_dir / "jobs.json"
 
     def start(self) -> None:
@@ -222,12 +223,14 @@ class JobManager:
 
     def resume(self, job_id: str) -> Job:
         """Restart a paused or failed job from the bytes already on disk."""
-        job = self.get(job_id)
-        if job.state not in RESUMABLE or job_id in self._runs:
-            raise ValueError("Only paused or failed jobs can be resumed")
-        job.error = None
+        with self._lock:
+            job = self.get(job_id)
+            if job.state not in RESUMABLE or job_id in self._runs:
+                raise ValueError("Only paused or failed jobs can be resumed")
+            job.error = None
+            run = self._register(job)
         self._set(job, State.QUEUED, "Queued")
-        self._launch(job)
+        self._start(job, run)
         return job
 
     def delete(self, job_id: str) -> None:
@@ -245,10 +248,19 @@ class JobManager:
         self._persist(force=True)
 
     def _launch(self, job: Job) -> None:
-        """Start the worker thread of `job`."""
-        run = _Run()
+        """Register and start the worker thread of `job`."""
         with self._lock:
-            self._runs[job.id] = run
+            run = self._register(job)
+        self._start(job, run)
+
+    def _register(self, job: Job) -> _Run:
+        """Record a new run for `job`; the caller holds `self._lock`."""
+        run = _Run()
+        self._runs[job.id] = run
+        return run
+
+    def _start(self, job: Job, run: _Run) -> None:
+        """Start the worker thread of a registered run."""
         run.thread = threading.Thread(target=self._work, args=(job, run), daemon=True,
                                       name=f"job-{job.id}")
         run.thread.start()
@@ -257,20 +269,21 @@ class JobManager:
         """Worker body: wait for a slot, run the job, and record how it ended."""
         self._set(job, State.QUEUED, "Waiting for a free slot")
         acquired = False
+        outcome: tuple[State, str] | None = None
         try:
             while not (acquired := self._slots.acquire(timeout=0.5)):
                 if run.cancelled.is_set():
                     raise Cancelled()
             self._execute(job, run)
         except Cancelled:
-            self._set(job, State.PAUSED, "Paused")
+            outcome = (State.PAUSED, "Paused")
         except (ProviderError, LinksExpired, DownloadStalled, ValueError) as exc:
             job.error = str(exc) or type(exc).__name__
-            self._set(job, State.FAILED, job.error)
+            outcome = (State.FAILED, job.error)
         except Exception as exc:
             log.exception("job %s crashed", job.id)
             job.error = f"Unexpected error: {exc!r}"
-            self._set(job, State.FAILED, job.error)
+            outcome = (State.FAILED, job.error)
         finally:
             if acquired:
                 self._slots.release()
@@ -278,6 +291,8 @@ class JobManager:
             job.speed = 0.0
             with self._lock:
                 self._runs.pop(job.id, None)
+            if outcome is not None and not run.delete:
+                self._set(job, *outcome)
             if not run.delete:
                 self._persist(force=True)
 
@@ -396,17 +411,21 @@ class JobManager:
         return self.jobs_file.with_name(self.jobs_file.name + ".lock")
 
     def _persist(self, force: bool = False) -> None:
-        """Write all jobs to `jobs.json`, at most every PERSIST_INTERVAL seconds unless forced."""
+        """Write all jobs to `jobs.json`, at most every PERSIST_INTERVAL seconds unless forced.
+
+        - Snapshot and write happen under one lock, so an older snapshot never lands last.
+        """
         now = time.monotonic()
         if not force and now - self._last_persist < PERSIST_INTERVAL:
             return
         self._last_persist = now
-        with self._lock:
-            payload = [asdict(job) | {"state": job.state.value} for job in self.jobs.values()]
         tmp = self.jobs_file.with_name(self.jobs_file.name + ".tmp")
-        with file_lock(self._lock_path()):
-            tmp.write_text(json.dumps(payload, indent=2))
-            tmp.replace(self.jobs_file)
+        with self._persist_lock:
+            with self._lock:
+                payload = [asdict(job) | {"state": job.state.value} for job in self.jobs.values()]
+            with file_lock(self._lock_path()):
+                tmp.write_text(json.dumps(payload, indent=2))
+                tmp.replace(self.jobs_file)
 
 
 def _ffmpeg_ok(path: Path) -> bool:

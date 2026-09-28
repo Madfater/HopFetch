@@ -199,3 +199,18 @@ def test_delete_running_job_removes_parts(tmp_path, server, content):
     manager.delete(job.id)
     assert not (tmp_path / "data" / "jobs" / job.id).exists()
     assert manager.list() == []
+
+
+def test_resume_right_after_pause(tmp_path, server, content):
+    server.delay = 0.05
+    manager, _ = make_manager(tmp_path, server, content, ocr=FakeOcr(["abc123"]))
+    job = manager.create("https://fake.test/nine", None, 2, 20 * MIB)
+    wait_for(lambda: job.state == State.DOWNLOADING and job.done_bytes > 0)
+    manager.pause(job.id)
+    wait_for(lambda: job.state == State.PAUSED)
+    server.delay = 0
+    manager.resume(job.id)
+    with pytest.raises(ValueError):
+        manager.resume(job.id)
+    wait_for(lambda: job.state == State.COMPLETED)
+    assert (tmp_path / "downloads" / "nine.bin").read_bytes() == content
