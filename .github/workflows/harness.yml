@@ -16,5 +16,8 @@ jobs:
       - name: Conventions
         run: python3 script/check_conventions.py --base "origin/${{ github.base_ref }}"
       - uses: astral-sh/setup-uv@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
       - name: Project checks
         run: python3 script/check.py
