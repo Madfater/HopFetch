@@ -58,12 +58,16 @@ def providers(request: Request) -> list[dict]:
 
 @router.post("/resolve")
 def resolve(body: ResolveRequest, request: Request) -> dict:
-    """Tell which provider would handle a URL, without creating a job."""
+    """Tell which provider would handle a URL, without creating a job.
+
+    - Always answers 200; `supported` is false and `error` says why when no provider fits.
+    """
     try:
         provider, ref = _manager(request).registry.resolve(body.url)
     except ProviderError as exc:
-        raise HTTPException(400, str(exc)) from None
-    return {"provider": provider.name, "label": provider.label, "file_id": ref.file_id}
+        return {"supported": False, "error": str(exc)}
+    return {"supported": True, "provider": provider.name, "label": provider.label,
+            "file_id": ref.file_id}
 
 
 @router.get("/jobs")

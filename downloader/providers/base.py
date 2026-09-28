@@ -89,7 +89,9 @@ class LinkContext:
         """Sleep for `seconds`, reporting a countdown each second and stopping early on cancel."""
         deadline = time.monotonic() + seconds
         while (left := deadline - time.monotonic()) > 0:
-            self.set_status(STATUS_WAITING, f"{message} ({int(left + 0.999)}s)")
+            minutes, seconds = divmod(int(left + 0.999), 60)
+            countdown = f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
+            self.set_status(STATUS_WAITING, f"{message} {countdown}")
             if self.cancelled.wait(min(1.0, left)):
                 raise Cancelled()
 

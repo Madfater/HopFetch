@@ -47,11 +47,9 @@ export interface Provider {
   hosts: string[]
 }
 
-export interface Resolved {
-  provider: string
-  label: string
-  file_id: string
-}
+export type Resolved =
+  | { supported: true; provider: string; label: string; file_id: string }
+  | { supported: false; error: string }
 
 export interface NewJob {
   url: string

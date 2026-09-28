@@ -12,7 +12,7 @@ export default function AddForm({ onCreate }: Props) {
   const [filename, setFilename] = useState('')
   const [connections, setConnections] = useState(20)
   const [splitSize, setSplitSize] = useState('20MB')
-  const [resolved, setResolved] = useState<Resolved | null>(null)
+  const [resolved, setResolved] = useState<Extract<Resolved, { supported: true }> | null>(null)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -27,8 +27,12 @@ export default function AddForm({ onCreate }: Props) {
     const timer = window.setTimeout(() => {
       api
         .resolve(value)
-        .then((r) => !stale && (setResolved(r), setUrlError(null)))
-        .catch((err: Error) => !stale && (setResolved(null), setUrlError(err.message)))
+        .then((r) => {
+          if (stale) return
+          setResolved(r.supported ? r : null)
+          setUrlError(r.supported ? null : r.error)
+        })
+        .catch(() => !stale && (setResolved(null), setUrlError(null)))
     }, 250)
     return () => {
       stale = true
@@ -74,7 +78,7 @@ export default function AddForm({ onCreate }: Props) {
           aria-invalid={urlError ? true : undefined}
           aria-describedby="url-hint"
         />
-        <button type="submit" className="primary" disabled={!url.trim() || busy}>
+        <button type="submit" className="primary" disabled={!url.trim() || busy || urlError !== null}>
           {busy ? 'Adding...' : 'Download'}
         </button>
       </div>

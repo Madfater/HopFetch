@@ -30,9 +30,11 @@ def test_providers(client):
 def test_resolve(client):
     ok = client.post("/api/resolve", json={"url": "https://k2s.cc/file/8d028cc29f08b/x.rar"})
     assert ok.status_code == 200
-    assert ok.json() == {"provider": "k2s", "label": "Keep2Share", "file_id": "8d028cc29f08b"}
+    assert ok.json() == {"supported": True, "provider": "k2s", "label": "Keep2Share",
+                         "file_id": "8d028cc29f08b"}
     bad = client.post("/api/resolve", json={"url": "ftp://nope"})
-    assert bad.status_code == 400
+    assert bad.status_code == 200
+    assert bad.json()["supported"] is False and "Unsupported URL" in bad.json()["error"]
 
 
 @pytest.mark.parametrize("body,fragment", [
