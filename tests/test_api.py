@@ -22,6 +22,12 @@ def client(tmp_path):
         yield test_client
 
 
+def test_proxies_status(client):
+    response = client.get("/api/proxies")
+    assert response.status_code == 200
+    assert response.json() == {"loaded": False, "public_enabled": False, "user": 0, "public": 0}
+
+
 def test_providers(client):
     names = [p["name"] for p in client.get("/api/providers").json()]
     assert names == ["k2s", "direct"]

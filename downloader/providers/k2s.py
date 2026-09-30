@@ -10,7 +10,7 @@ from random import choice
 import requests
 from requests_futures.sessions import FuturesSession
 
-from ..proxies import proxy_dict
+from ..proxies import proxy_dict, proxy_label, redact_credentials
 from .base import (
     STATUS_GENERATING_LINKS,
     STATUS_PREPARING,
@@ -116,7 +116,7 @@ class K2SProvider(Provider):
         - `captcha` holds [challenge, answer] and is replaced in place when k2s rejects it.
         - A wait up to MAX_WAIT is sat out here; a longer one is returned as the cooldown.
         """
-        where = proxy or "direct connection"
+        where = proxy_label(proxy)
         ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
         while True:
             try:
@@ -126,7 +126,7 @@ class K2SProvider(Provider):
                     "captcha_response": captcha[1],
                 }, proxies=proxy_dict(proxy), timeout=10).json()
             except (requests.RequestException, ValueError) as exc:
-                log.info("key request via %s failed: %s", where, exc)
+                log.info("key request via %s failed: %s", where, redact_credentials(str(exc)))
                 return None, None, None
             log.info("key request via %s: %s %s wait=%s", where, reply.get("status"),
                      reply.get("message"), reply.get("time_wait"))

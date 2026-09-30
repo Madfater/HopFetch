@@ -56,6 +56,12 @@ def providers(request: Request) -> list[dict]:
             for p in _manager(request).registry.all()]
 
 
+@router.get("/proxies")
+def proxies(request: Request) -> dict:
+    """Proxy pool counts; never lists addresses and never waits for the pool to load."""
+    return _manager(request).proxies.status()
+
+
 @router.post("/resolve")
 def resolve(body: ResolveRequest, request: Request) -> dict:
     """Tell which provider would handle a URL, without creating a job.
