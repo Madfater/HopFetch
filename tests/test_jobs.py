@@ -391,9 +391,11 @@ def test_intents_only_escalate():
 
 def test_pause_during_pending_delete_keeps_the_delete(tmp_path, provider):
     gate = threading.Event()
+    entered = threading.Event()
     original = provider.generate_links
 
     def blocking(ref, count, ctx):
+        entered.set()
         gate.wait(5)
         return original(ref, count, ctx)
 
@@ -403,7 +405,7 @@ def test_pause_during_pending_delete_keeps_the_delete(tmp_path, provider):
     bus.publish_removed = removed.append
     manager = build_manager(tmp_path, provider, bus=bus)
     job = manager.create(URL.format("pending"))
-    wait_for(lambda: job.status == Status.DOWNLOADING)
+    assert entered.wait(5)
     deleting = threading.Thread(target=manager.delete, args=(job.id,))
     deleting.start()
     wait_for(lambda: manager._runs.get(job.id) is not None and manager._runs[job.id].intent == "delete")
