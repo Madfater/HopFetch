@@ -27,6 +27,7 @@ def test_proxy_label_hides_credentials():
     assert proxy_label("socks5h://user:secret@proxy.example:1080") == "socks5h://proxy.example:1080"
     assert proxy_label("http://user:secret@[::1]:3128") == "http://[::1]:3128"
     assert "secret" not in proxy_label("http://user:secret@host")
+    assert proxy_label("http://u:secret@[::1:80") == "http://***@[::1:80"
 
 
 def test_redact_credentials():

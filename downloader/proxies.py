@@ -46,10 +46,16 @@ def proxy_dict(proxy: str | None) -> dict | None:
 
 
 def proxy_label(proxy: str | None) -> str:
-    """Return `scheme://host:port` without credentials, for logs and status messages."""
+    """Return `scheme://host:port` without credentials, for logs and status messages.
+
+    - A URL that cannot be parsed falls back to the whole URL with its credentials redacted.
+    """
     if not proxy:
         return "direct connection"
-    parts = urlsplit(proxy_url(proxy))
+    try:
+        parts = urlsplit(proxy_url(proxy))
+    except ValueError:
+        return redact_credentials(proxy_url(proxy))
     host = parts.hostname or "?"
     if ":" in host:
         host = f"[{host}]"

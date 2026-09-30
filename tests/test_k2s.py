@@ -114,6 +114,26 @@ def test_user_proxy_tried_second_without_leaking_credentials(monkeypatch, tmp_pa
     assert not any("secret" in message for message in messages)
 
 
+def test_failed_key_request_log_hides_credentials(monkeypatch, tmp_path, caplog):
+    proxy = "socks5h://user:secret@proxy.example:1080"
+    pool = ProxyPool(tmp_path / "proxies.txt", enabled=False, user_proxies=[proxy])
+    context = LinkContext(solve_captcha=lambda image, spec: "abc123",
+                          set_status=lambda state, message: None, proxies=pool)
+    fake = FakeK2S([{"status": "error", "message": "Download limit"}])
+    install(monkeypatch, fake)
+
+    def post(url, json=None, proxies=None, timeout=None):
+        if proxies:
+            raise k2s.requests.ConnectionError(f"Cannot connect to proxy {proxies['https']}")
+        return fake.post(url, json=json, proxies=proxies, timeout=timeout)
+
+    monkeypatch.setattr(k2s.requests, "post", post)
+    with caplog.at_level("INFO", logger=k2s.log.name), pytest.raises(ProviderError):
+        k2s.K2SProvider().generate_links(REF, 1, context)
+    assert "socks5h://***@proxy.example:1080" in caplog.text
+    assert "secret" not in caplog.text
+
+
 def test_file_not_found(monkeypatch, ctx):
     install(monkeypatch, FakeK2S([{"status": "error", "message": "File not found"}]))
     with pytest.raises(ProviderError, match="not found"):
