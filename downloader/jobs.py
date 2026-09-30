@@ -277,7 +277,12 @@ class JobManager:
         return self.settings.download_dir
 
     def start(self) -> None:
-        """Load stored jobs and mark interrupted ones as paused."""
+        """Load stored jobs and settle the ones the last run left active.
+
+        - A job stopped while assembling or verifying whose file was already published is
+          marked completed, and a leftover staging file is removed.
+        - Any other active job becomes paused, keeping its part files.
+        """
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.download_dir.mkdir(parents=True, exist_ok=True)
         with file_lock(self._lock_path()):
@@ -285,7 +290,16 @@ class JobManager:
         with self._lock:
             for data in stored:
                 job = Job.load(data)
-                if job.status in ACTIVE:
+                if job.status in ACTIVE and job.phase in FINISHING and job.output_path \
+                        and inside(self.root, Path(job.output_path)):
+                    self._remove_staging(job)
+                    shutil.rmtree(self._part_dir(job), ignore_errors=True)
+                    job.bytes_done = job.size or job.bytes_done
+                    job.completed_at = job.completed_at or time.time()
+                    job.status = Status.COMPLETED
+                    job.phase = None
+                    job.message = f"已儲存為 {Path(job.output_path).name}"
+                elif job.status in ACTIVE:
                     job.status = Status.PAUSED
                     job.phase = None
                     job.message = "服務重新啟動，下載已暫停。按繼續從中斷處下載。"
@@ -500,7 +514,7 @@ class JobManager:
         if job.status != Status.COMPLETED:
             self._discard_partial(job)
         elif delete_file and job.output_path and inside(self.root, Path(job.output_path)):
-            Path(job.output_path).unlink()
+            Path(job.output_path).unlink(missing_ok=True)
         shutil.rmtree(self._part_dir(job), ignore_errors=True)
         self._persist(force=True)
         self.bus.publish_removed(job.id)
@@ -551,7 +565,7 @@ class JobManager:
         if job.output_path:
             staging = staging_path(Path(job.output_path))
             if inside(self.root, staging):
-                staging.unlink()
+                staging.unlink(missing_ok=True)
 
     def _register(self, job: Job) -> _Run:
         """Record a new run for `job`; the caller holds `self._lock`."""
@@ -610,16 +624,19 @@ class JobManager:
         """
         removed = False
         with self._lock:
-            if run.intent == "delete":
-                self.jobs.pop(job.id, None)
-                removed = True
-            elif run.intent == "cancel" and job.status != Status.COMPLETED:
-                self._discard_partial(job)
-                self._apply(job, Status.CANCELED, None, "已取消")
-            elif outcome is not None:
-                self._apply(job, outcome[0], None, outcome[1])
-            if self._runs.get(job.id) is run:
-                self._runs.pop(job.id)
+            try:
+                if run.intent == "delete":
+                    self.jobs.pop(job.id, None)
+                    removed = True
+                elif run.intent == "cancel" and job.status != Status.COMPLETED:
+                    job.error = None
+                    self._apply(job, Status.CANCELED, None, "已取消")
+                    self._discard_partial(job)
+                elif outcome is not None:
+                    self._apply(job, outcome[0], None, outcome[1])
+            finally:
+                if self._runs.get(job.id) is run:
+                    self._runs.pop(job.id)
         if removed:
             self._finish_removal(job, run.delete_file)
         else:
@@ -761,8 +778,14 @@ class JobManager:
         self._publish(job, force=changed)
 
     def _publish(self, job: Job, force: bool = False) -> None:
-        """Send the job's current task object on the bus."""
-        self.bus.publish_task(self.public(job), force=force)
+        """Send the job's current task object on the bus, unless it has left the list.
+
+        - The membership check and the send share one lock hold, and removals publish
+          `task_removed` only after dropping the job, so no `task` event follows `task_removed`.
+        """
+        with self._lock:
+            if self.jobs.get(job.id) is job:
+                self.bus.publish_task(self.public(job), force=force)
 
     def _lock_path(self) -> Path:
         """Cross-process lock file guarding `jobs.json`."""

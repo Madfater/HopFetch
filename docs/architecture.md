@@ -47,14 +47,14 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 | --- | --- | --- |
 | `DATA_DIR` | `./data` | `jobs.json`, `settings.json`, `proxies.txt`, part files |
 | `DOWNLOAD_DIR` | `./downloads` | The download root. Finished files only; it cannot be changed from the UI |
-| `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per link generation before the job fails with `captcha_failed` |
+| `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per run, across link regenerations, before the job fails with `captcha_failed`; a retry starts a new count |
 | `CONNECTIONS` | `20` | Initial connections per job |
 | `SPLIT_SIZE` | `20MB` | Initial part size, at least 20 MiB |
 | `USE_PROXIES` | `1` | Initial public proxy switch; `0` requests download keys over the direct connection and user proxies only |
 | `PROXIES` | empty | User proxy URLs (http, https, socks5, socks5h, with optional credentials), separated by newlines, commas or spaces. Tried after the direct connection and before public proxies, whatever `USE_PROXIES` says |
 | `MAX_ACTIVE_JOBS` | `2` | Initial number of jobs running at once; others wait in `queued` |
 
-The last four are only initial values: once `settings.json` exists, the settings page owns them.
+`CONNECTIONS`, `SPLIT_SIZE`, `USE_PROXIES` and `MAX_ACTIVE_JOBS` are only initial values: once `settings.json` exists, the settings page owns them. An out-of-range value is logged and replaced by the built-in default.
 
 Run exactly one uvicorn worker. Jobs, their threads and the event bus live in that process's memory, so a second worker would run its own jobs and send its own events. The server has no authentication: expose it only to a LAN or VPN, never to the internet.
 
@@ -95,7 +95,7 @@ A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `fail
 
 Pause, cancel and delete set the job's cancel event with an intent. Workers stop at the next block, and the worker applies the intent as it ends, under the manager lock: `pause` keeps the parts and marks the job `paused`; `cancel` deletes the parts and staging file and marks it `canceled`; `delete` removes the record and partial data, and with `delete_file` a finished file that is a regular file inside the root. A job that completes before it sees a cancel stays completed. All three are refused during `assembling` and `verifying`. A job with no worker is handled by the caller directly.
 
-Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`. Resume queues a paused job; retry queues a failed or canceled one. The OCR limit counts across every link generation of one run, and a retry starts a new count.
+Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`, except one stopped while assembling or verifying whose file was already published, which becomes `completed`. Resume queues a paused job; retry queues a failed or canceled one. The OCR limit counts across every link generation of one run, and a retry starts a new count.
 
 ## Events
 

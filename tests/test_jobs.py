@@ -335,3 +335,41 @@ def test_captcha_limit_counts_per_run(tmp_path, provider, server):
     job = manager.create(URL.format("limit"))
     wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
     assert job.error["code"] == "captcha_failed"
+
+
+def test_out_of_range_environment_defaults_fall_back(tmp_path):
+    from downloader.config import Settings
+    from downloader.settings_store import SettingsStore
+
+    settings = Settings(data_dir=tmp_path, download_dir=tmp_path, split_size=2**20, max_active_jobs=0,
+                        connections=5, use_proxies=False)
+    prefs = SettingsStore(settings).get()
+    assert (prefs.split_size, prefs.max_active_jobs) == (20 * 2**20, 2)
+    assert (prefs.connections, prefs.use_proxies) == (5, False)
+
+
+def test_restart_during_verify_keeps_the_published_file(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("verify"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="verifying", completed_at=None)
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+    (tmp_path / "downloads" / "verify.bin.part").write_bytes(b"leftover")
+
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status == Status.COMPLETED and again.completed_at
+    assert not (tmp_path / "downloads" / "verify.bin.part").exists()
+
+
+def test_no_task_event_after_removal(tmp_path, provider):
+    seen = []
+    bus = EventBus()
+    bus.publish_task = lambda task, force=False: seen.append(task["id"])
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("late"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    manager.clear_completed()
+    seen.clear()
+    manager._publish(job, force=True)
+    assert seen == []

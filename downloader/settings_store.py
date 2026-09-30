@@ -33,17 +33,33 @@ class Preferences:
             raise ValueError("同時下載數必須介於 1 到 10 之間。")
 
 
+FALLBACK = Preferences(connections=20, split_size=20 * 2**20, use_proxies=True, max_active_jobs=2)
+
+
+def _defaults(settings: Settings) -> Preferences:
+    """The environment's initial values, each replaced by FALLBACK when it is out of range."""
+    prefs = Preferences(settings.connections, settings.split_size, settings.use_proxies,
+                        settings.max_active_jobs)
+    for name in ("connections", "split_size", "max_active_jobs"):
+        try:
+            Preferences(**(asdict(FALLBACK) | {name: getattr(prefs, name)})).validate()
+        except ValueError:
+            log.warning("ignoring out-of-range %s=%r from the environment", name, getattr(prefs, name))
+            setattr(prefs, name, getattr(FALLBACK, name))
+    return prefs
+
+
 class SettingsStore:
     """Reads and writes `settings.json`.
 
-    - Missing or unreadable values fall back to the environment defaults in `Settings`.
+    - Missing or unreadable values fall back to the environment defaults in `Settings`, and
+      out-of-range environment values fall back to FALLBACK.
     - Writes go to a temporary sibling that replaces the file, under a cross-process lock.
     """
 
     def __init__(self, settings: Settings):
         self.path = settings.data_dir / "settings.json"
-        self._defaults = Preferences(settings.connections, settings.split_size,
-                                     settings.use_proxies, settings.max_active_jobs)
+        self._defaults = _defaults(settings)
         self._lock = threading.Lock()
         self._current = self._load()
 
