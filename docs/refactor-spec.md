@@ -38,17 +38,19 @@
   - 所有實際路徑都先解析成真實路徑，再確認位於根目錄之內；提供或刪除檔案時拒絕符號連結。
   - `unique_path` 把符號連結（包含懸空的）視為已存在；暫存檔以 `O_CREAT | O_EXCL | O_NOFOLLOW` 建立。
 - 根目錄：由環境變數 `DOWNLOAD_DIR` 指定，不能從介面修改，設定頁只顯示。
-- 未完成的檔案：下載中的資料在 `DATA_DIR/jobs/<id>/` 的分段檔；組合時寫入 `DOWNLOAD_DIR/<name>.part`，完成後才改成正式檔名，透過 SMB 瀏覽的人不會拿到不完整的檔案。
+- 未完成的檔案：下載中的資料在 `DATA_DIR/jobs/<id>/` 的分段檔；組合時寫入 `DOWNLOAD_DIR/<name>.part`，完成後才改成正式檔名，透過 SMB 瀏覽的人不會拿到不完整的檔案。改名不覆蓋任何既有檔案。
+- 合併與檢查影片期間（`phase` 為 `assembling` 或 `verifying`），暫停、取消、刪除一律以 `invalid_state` 拒絕。
 - 檔名衝突：自動改名為 `name (1).ext`（沿用 `unique_path`）。
 - 任務持久化：沿用 `DATA_DIR/jobs.json`（在 `file_lock` 下原子寫入），不改用 SQLite。舊的 `jobs.json` 要能載入並對應到新狀態。
 - 後端重啟：原本進行中的任務改為「已暫停」，保留分段檔，可以繼續（沿用現有行為）。階段 3 再依 `resumable` 細分。
-- 驗證碼：只用 OCR，不再請使用者手動輸入。每個任務最多嘗試 `CAPTCHA_MAX_ATTEMPTS` 次（環境變數，預設 50），超過就以 `captcha_failed` 失敗。移除 `CaptchaPanel`、兩個驗證碼端點、`awaiting_captcha` 狀態與 `CAPTCHA_OCR` 環境變數。
+- 驗證碼：只用 OCR，不再請使用者手動輸入。每個任務的每次執行最多嘗試 `CAPTCHA_MAX_ATTEMPTS` 次（環境變數，預設 50；重試會重新計算），超過就以 `captcha_failed` 失敗。移除 `CaptchaPanel`、兩個驗證碼端點、`awaiting_captcha` 狀態與 `CAPTCHA_OCR` 環境變數。
 - SSE 的前提：
   - 只跑單一 uvicorn worker，因為任務狀態與執行緒都在該 process 的記憶體裡。把這項限制寫進 README。
   - 回應標頭加 `X-Accel-Buffering: no` 與 `Cache-Control: no-cache`，避免反向代理緩衝。
   - 每 15 秒送一次心跳註解。
   - 同一任務的進度事件每秒最多 2 次；狀態改變立即送出，並帶上最新進度。
   - 事件從工作執行緒以 `call_soon_threadsafe` 放入每個訂閱者的有界佇列；佇列滿時中斷該連線，由前端重連並重新取得完整清單。
+  - 連線中斷由心跳寫入失敗偵測，不另外輪詢。
 - SPA fallback：`/api` 以外的未知路徑回傳 `index.html`，存在的靜態檔照常提供；未知的 `/api/*` 回傳 JSON 404。
 - 開發環境用 Vite proxy 轉送 `/api`，不處理 CORS。
 - 同時下載數可在執行期調整，以 `Condition` 實作可變大小的名額取代 `Semaphore`。
@@ -70,7 +72,8 @@
 
 - 解析：`invalid_url`、`unsupported`、`not_found`、`private`、`premium_only`、`quota_exceeded`、`upstream_error`。
 - 任務：另有 `captcha_failed`、`links_expired`、`stalled`、`disk_full`、`internal_error`；階段 3 加入 `remote_changed`、`range_unsupported`。
-- 建立任務：`duplicate_active`、`duplicate_completed`、`insufficient_space`。
+- 建立任務：`duplicate_active`、`duplicate_completed`（兩者都附 `task_id` 與 `task_status`）、`insufficient_space`。
+- 其他：`task_not_found`、`invalid_state`（動作不適用於目前狀態）、`file_missing`、`invalid_request`（格式錯誤）、`invalid_settings`、`not_found`（未知的 API 路徑）。
 - `ProviderError` 帶 `code` 屬性。
 
 ### 端點
@@ -83,13 +86,14 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
   - 共用測試資料 `shared/provider-test-cases.json`：每筆為 `{ url, provider, file_id }`，不支援的網址 `provider` 與 `file_id` 為 null。後端 pytest 與前端 Vitest 都跑同一份。
 - `POST /api/resolve`，body `{ url }`：解析分享連結，不建立任務。
   - 先以白名單比對，再向上游取得檔案資訊（k2s `getFilesInfo`）。
-  - 成功時回傳：`provider`、`file_id`、`file_name`、`size`（未知時為 null）、`resumable`、`duplicate`、`free_bytes`。
+  - 成功時回傳：`provider`、`file_id`、`file_name`、`size`（未知時為 null）、`resumable`、`duplicate`、`free_bytes`、`required_bytes`。
+  - `required_bytes`：下載這個檔案需要的空間（見建立任務的空間檢查），大小未知時為 null。前端以它和 `free_bytes` 比較，判斷空間是否足夠。
   - `duplicate`：同一檔案已有任務時為 `{ task_id, status }`，否則為 null。
   - 失敗時回傳 4xx 與 `{ code, message }`。
 - `GET /api/tasks`：任務清單，新的在前。每筆欄位：
   - 識別：`id`、`provider`、`file_id`、`file_name`
   - 進度：`size`、`bytes_done`、`speed`（bytes/s，移動平均）、`eta`（秒，未知時為 null）
-  - 狀態：`status`、`phase`、`message`、`resumable`、`file_exists`、`error`（`{ code, message }` 或 null）
+  - 狀態：`status`、`phase`、`message`、`resumable`、`file_exists`、`error`（`{ code, message }` 或 null）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
   - 時間：`created_at`、`completed_at`
 - `POST /api/tasks`，body `{ url, force }`：建立任務。
   - 同一檔案已有 `queued`、`downloading`、`paused`、`failed` 或 `canceled` 的任務時，一律以 409 `duplicate_active` 拒絕，並附上既有任務 ID（前端提供前往查看或重試）。

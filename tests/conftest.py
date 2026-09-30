@@ -1,4 +1,4 @@
-"""Shared fixtures: a local HTTP server that serves one file with Range support."""
+"""Shared fixtures: a local HTTP server that serves one file with Range support, and a fake provider over it."""
 
 from __future__ import annotations
 
@@ -9,6 +9,12 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
+
+from downloader.config import Settings
+from downloader.jobs import JobManager
+from downloader.providers import ProviderRegistry
+from downloader.providers.base import PHASE_CAPTCHA, CaptchaSpec, FileInfo, FileRef, LinkContext, Provider
+from downloader.proxies import ProxyPool
 
 
 class RangeServer:
@@ -83,3 +89,80 @@ def server(content):
     srv = RangeServer(content)
     yield srv
     srv.close()
+
+
+class FakeOcr:
+    """Returns queued readings in order, then `default` forever."""
+
+    def __init__(self, readings=(), default="abc123"):
+        self.readings = list(readings)
+        self.default = default
+        self.calls = 0
+
+    def read(self, image):
+        self.calls += 1
+        return self.readings.pop(0) if self.readings else self.default
+
+
+class FakeProvider(Provider):
+    """A platform at `https://fake.test/f/<id>` whose links all point at a RangeServer.
+
+    - Link generation solves captchas until one reads `abc123`.
+    - `names` maps file ids to remote names; others are `<id>.bin`.
+    - `info_error` makes `get_info` raise it; `expire_first` makes the first links answer 410.
+    """
+
+    name = "fake"
+    label = "Fake host"
+    icon = "fake"
+    patterns = (r"^https?://fake\.test/f/([a-z0-9]+)$",)
+
+    def __init__(self, server: RangeServer):
+        self.server = server
+        self.names: dict[str, str] = {}
+        self.info_error: Exception | None = None
+        self.size: int | None = len(server.content)
+        self.link_calls = 0
+        self.expire_first = False
+
+    def get_info(self, ref: FileRef) -> FileInfo:
+        if self.info_error:
+            raise self.info_error
+        return FileInfo(name=self.names.get(ref.file_id, f"{ref.file_id}.bin"), size=self.size)
+
+    def generate_links(self, ref, count, ctx: LinkContext):
+        self.link_calls += 1
+        while True:
+            ctx.set_status(PHASE_CAPTCHA, "solving")
+            if ctx.solve_captcha(b"png", CaptchaSpec(length=6)) == "abc123":
+                break
+        if self.expire_first and self.link_calls == 1:
+            return [self.server.url.replace("/file.bin", "/gone")] * count
+        return [self.server.url] * count
+
+
+def wait_for(predicate, timeout=15.0):
+    """Poll until `predicate()` is truthy or fail."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return
+        time.sleep(0.02)
+    raise AssertionError("condition not reached in time")
+
+
+def build_manager(tmp_path, provider, ocr=None, bus=None, **overrides) -> JobManager:
+    """A started JobManager over `provider`, with proxies off and data under `tmp_path`."""
+    settings = Settings(data_dir=tmp_path / "data", download_dir=tmp_path / "downloads",
+                        use_proxies=False, **overrides)
+    manager = JobManager(settings, ProviderRegistry([provider]), bus=bus,
+                         proxies=ProxyPool(settings.data_dir / "proxies.txt", enabled=False),
+                         ocr=ocr or FakeOcr())
+    manager.start()
+    return manager
+
+
+@pytest.fixture
+def provider(server):
+    """A FakeProvider backed by `server`."""
+    return FakeProvider(server)

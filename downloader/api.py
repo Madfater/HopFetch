@@ -1,39 +1,61 @@
-"""REST API under `/api`, a thin layer over `JobManager`."""
+"""REST and SSE API under `/api`, a thin layer over `JobManager`.
+
+- Every error answers `{code, message}` with a zh-Hant message; raw exception text never leaves
+  the server.
+- Task routes take only a task id, checked against ID_PATTERN; no route accepts a path.
+"""
 
 from __future__ import annotations
 
-from pathlib import Path
+import re
 
-from fastapi import APIRouter, HTTPException, Request, Response
-from fastapi.responses import FileResponse
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Request
+from fastapi.responses import FileResponse, StreamingResponse
+from pydantic import BaseModel
 
-from .jobs import DuplicateJob, JobManager, State
+from .events import HEARTBEAT_SECONDS, event_stream
+from .jobs import DuplicateTask, JobManager, TaskError
 from .providers.base import ProviderError
-from .util import parse_size
 
 router = APIRouter(prefix="/api")
 
-
-class CreateJob(BaseModel):
-    """Body of `POST /api/jobs`."""
-
-    url: str
-    filename: str | None = None
-    connections: int = Field(default=20, ge=1, le=64)
-    split_size: str | int = "20MB"
+ID_PATTERN = re.compile(r"^[0-9a-f]{12}$")
+PROVIDER_STATUS = {"invalid_url": 400, "unsupported": 400, "not_found": 404, "private": 403,
+                   "premium_only": 403, "quota_exceeded": 429, "captcha_failed": 502,
+                   "upstream_error": 502}
 
 
-class ResolveRequest(BaseModel):
+class ApiError(Exception):
+    """An error answer: HTTP status, stable code, zh-Hant message and optional extra fields."""
+
+    def __init__(self, status: int, code: str, message: str, **extra):
+        super().__init__(message)
+        self.status = status
+        self.code = code
+        self.message = message
+        self.extra = extra
+
+
+class UrlBody(BaseModel):
     """Body of `POST /api/resolve`."""
 
     url: str
 
 
-class CaptchaAnswer(BaseModel):
-    """Body of `POST /api/jobs/{id}/captcha`."""
+class CreateTask(BaseModel):
+    """Body of `POST /api/tasks`."""
 
-    answer: str
+    url: str
+    force: bool = False
+
+
+class SettingsBody(BaseModel):
+    """Body of `PUT /api/settings`; omitted fields keep their value."""
+
+    connections: int | None = None
+    split_size: int | None = None
+    use_proxies: bool | None = None
+    max_active_jobs: int | None = None
 
 
 def _manager(request: Request) -> JobManager:
@@ -41,116 +63,174 @@ def _manager(request: Request) -> JobManager:
     return request.app.state.manager
 
 
-def _job(request: Request, job_id: str):
-    """Look up a job or answer 404."""
+def _job(request: Request, task_id: str):
+    """Look up a task or answer 404; ids that are not 12 hex digits are never looked up."""
+    if not ID_PATTERN.match(task_id):
+        raise ApiError(404, "task_not_found", "找不到這個任務。")
     try:
-        return _manager(request).get(job_id)
+        return _manager(request).get(task_id)
     except KeyError:
-        raise HTTPException(404, "Job not found") from None
+        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+
+
+def _provider_error(exc: ProviderError) -> ApiError:
+    """Map a provider failure to an API error."""
+    return ApiError(PROVIDER_STATUS.get(exc.code, 502), exc.code, exc.message)
+
+
+def _task_error(exc: TaskError) -> ApiError:
+    """Map a refused task action to an API error."""
+    if isinstance(exc, DuplicateTask):
+        return ApiError(409, exc.code, exc.message, task_id=exc.task_id, task_status=exc.task_status)
+    status = 507 if exc.code == "insufficient_space" else 409
+    return ApiError(status, exc.code, exc.message)
 
 
 @router.get("/providers")
 def providers(request: Request) -> list[dict]:
-    """List the supported platforms in match order."""
-    return [{"name": p.name, "label": p.label, "hosts": list(p.hosts)}
+    """The supported platforms and their URL patterns, in match order."""
+    return [{"id": p.name, "name": p.label, "icon": p.icon, "patterns": list(p.patterns)}
             for p in _manager(request).registry.all()]
 
 
 @router.post("/resolve")
-def resolve(body: ResolveRequest, request: Request) -> dict:
-    """Tell which provider would handle a URL, without creating a job.
-
-    - Always answers 200; `supported` is false and `error` says why when no provider fits.
-    """
+def resolve(body: UrlBody, request: Request) -> dict:
+    """Look up a share link without creating a task."""
     try:
-        provider, ref = _manager(request).registry.resolve(body.url)
+        return _manager(request).resolve(body.url)
     except ProviderError as exc:
-        return {"supported": False, "error": str(exc)}
-    return {"supported": True, "provider": provider.name, "label": provider.label,
-            "file_id": ref.file_id}
+        raise _provider_error(exc) from None
 
 
-@router.get("/jobs")
-def list_jobs(request: Request) -> list[dict]:
-    """All jobs, newest first."""
-    return [job.public() for job in _manager(request).list()]
+@router.get("/tasks")
+def list_tasks(request: Request) -> list[dict]:
+    """All tasks, newest first."""
+    manager = _manager(request)
+    return [manager.public(job) for job in manager.list()]
 
 
-@router.post("/jobs", status_code=201)
-def create_job(body: CreateJob, request: Request) -> dict:
-    """Create and start a job."""
+@router.post("/tasks", status_code=201)
+def create_task(body: CreateTask, request: Request) -> dict:
+    """Create and start a task."""
+    manager = _manager(request)
     try:
-        split_size = parse_size(body.split_size)
-        job = _manager(request).create(body.url, body.filename, body.connections, split_size)
-    except DuplicateJob as exc:
-        raise HTTPException(409, f"This file is already in the list (job {exc.job_id})") from None
-    except (ValueError, ProviderError) as exc:
-        raise HTTPException(400, str(exc)) from None
-    return job.public()
+        return manager.public(manager.create(body.url, body.force))
+    except ProviderError as exc:
+        raise _provider_error(exc) from None
+    except TaskError as exc:
+        raise _task_error(exc) from None
 
 
-@router.get("/jobs/{job_id}")
-def get_job(job_id: str, request: Request) -> dict:
-    """One job."""
-    return _job(request, job_id).public()
+@router.post("/tasks/clear-completed")
+def clear_completed(request: Request) -> dict:
+    """Remove every completed task from the list; files stay on disk."""
+    return {"removed": _manager(request).clear_completed()}
 
 
-@router.get("/jobs/{job_id}/captcha")
-def captcha_image(job_id: str, request: Request) -> Response:
-    """The captcha image the job waits on."""
-    _job(request, job_id)
-    image = _manager(request).captcha_image(job_id)
-    if image is None:
-        raise HTTPException(404, "This job is not waiting for a captcha")
-    return Response(image, media_type="image/png", headers={"Cache-Control": "no-store"})
+@router.get("/tasks/{task_id}")
+def get_task(task_id: str, request: Request) -> dict:
+    """One task."""
+    return _manager(request).public(_job(request, task_id))
 
 
-@router.post("/jobs/{job_id}/captcha")
-def submit_captcha(job_id: str, body: CaptchaAnswer, request: Request) -> dict:
-    """Answer the captcha the job waits on."""
-    job = _job(request, job_id)
+def _action(request: Request, task_id: str, name: str) -> dict:
+    """Run a manager action on one task and return the task."""
+    _job(request, task_id)
+    manager = _manager(request)
     try:
-        _manager(request).submit_captcha(job_id, body.answer)
-    except ValueError as exc:
-        raise HTTPException(409, str(exc)) from None
-    return job.public()
+        return manager.public(getattr(manager, name)(task_id))
+    except TaskError as exc:
+        raise _task_error(exc) from None
+    except KeyError:
+        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
 
 
-@router.post("/jobs/{job_id}/pause")
-def pause_job(job_id: str, request: Request) -> dict:
-    """Stop a running job and keep its progress."""
-    _job(request, job_id)
+@router.post("/tasks/{task_id}/pause")
+def pause_task(task_id: str, request: Request) -> dict:
+    """Stop a running task and keep its progress."""
+    return _action(request, task_id, "pause")
+
+
+@router.post("/tasks/{task_id}/resume")
+def resume_task(task_id: str, request: Request) -> dict:
+    """Continue a paused task."""
+    return _action(request, task_id, "resume")
+
+
+@router.post("/tasks/{task_id}/cancel")
+def cancel_task(task_id: str, request: Request) -> dict:
+    """Stop a task and delete its partial data."""
+    return _action(request, task_id, "cancel")
+
+
+@router.post("/tasks/{task_id}/retry")
+def retry_task(task_id: str, request: Request) -> dict:
+    """Queue a failed or canceled task again."""
+    return _action(request, task_id, "retry")
+
+
+@router.delete("/tasks/{task_id}", status_code=204)
+def delete_task(task_id: str, request: Request, delete_file: bool = False) -> None:
+    """Remove a task; with `delete_file`, delete its finished file on the NAS too."""
+    _job(request, task_id)
     try:
-        return _manager(request).pause(job_id).public()
-    except ValueError as exc:
-        raise HTTPException(409, str(exc)) from None
+        _manager(request).delete(task_id, delete_file)
+    except TaskError as exc:
+        raise _task_error(exc) from None
+    except KeyError:
+        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
 
 
-@router.post("/jobs/{job_id}/resume")
-def resume_job(job_id: str, request: Request) -> dict:
-    """Continue a paused or failed job."""
-    _job(request, job_id)
+@router.get("/tasks/{task_id}/file")
+def task_file(task_id: str, request: Request) -> FileResponse:
+    """Send a finished file to the browser, with Range support and an RFC 5987 file name."""
+    _job(request, task_id)
     try:
-        return _manager(request).resume(job_id).public()
-    except ValueError as exc:
-        raise HTTPException(409, str(exc)) from None
-
-
-@router.delete("/jobs/{job_id}", status_code=204)
-def delete_job(job_id: str, request: Request) -> Response:
-    """Remove a job and its part files; a finished file stays on disk."""
-    _job(request, job_id)
-    _manager(request).delete(job_id)
-    return Response(status_code=204)
-
-
-@router.get("/jobs/{job_id}/file")
-def job_file(job_id: str, request: Request) -> FileResponse:
-    """Stream a finished file to the browser."""
-    job = _job(request, job_id)
-    download_dir = _manager(request).settings.download_dir.resolve()
-    path = Path(job.output_path).resolve() if job.output_path else None
-    if job.state != State.COMPLETED or path is None or not path.is_file() \
-            or download_dir not in path.parents:
-        raise HTTPException(404, "The file is not available")
+        path = _manager(request).file_path(task_id)
+    except KeyError:
+        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+    if path is None:
+        raise ApiError(404, "file_missing", "NAS 上找不到這個檔案，可能已被移動或刪除。")
     return FileResponse(path, filename=path.name, media_type="application/octet-stream")
+
+
+@router.get("/storage")
+def storage(request: Request) -> dict:
+    """Free and total bytes of the download root's filesystem."""
+    return _manager(request).storage()
+
+
+def _settings(manager: JobManager) -> dict:
+    """The settings object, with the read-only download root."""
+    prefs = manager.preferences()
+    return {"connections": prefs.connections, "split_size": prefs.split_size,
+            "use_proxies": prefs.use_proxies, "max_active_jobs": prefs.max_active_jobs,
+            "download_root": str(manager.root)}
+
+
+@router.get("/settings")
+def get_settings(request: Request) -> dict:
+    """Current settings."""
+    return _settings(_manager(request))
+
+
+@router.put("/settings")
+def put_settings(body: SettingsBody, request: Request) -> dict:
+    """Change settings; the download root cannot be changed here."""
+    manager = _manager(request)
+    try:
+        manager.update_preferences(body.model_dump(exclude_none=True))
+    except ValueError as exc:
+        raise ApiError(400, "invalid_settings", str(exc)) from None
+    return _settings(manager)
+
+
+@router.get("/events")
+async def events(request: Request) -> StreamingResponse:
+    """Server-sent events: `task`, `task_removed` and `storage`."""
+    heartbeat = getattr(request.app.state, "heartbeat", HEARTBEAT_SECONDS)
+    stream = event_stream(_manager(request).bus, heartbeat)
+    return StreamingResponse(stream, media_type="text/event-stream", headers={
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    })

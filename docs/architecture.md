@@ -4,25 +4,29 @@ Navigation map of the codebase. When this file and the code disagree, the code w
 
 ## Overview
 
-A web app that downloads files from file hosting platforms over many connections at once. A FastAPI backend runs download jobs in background threads and serves a React dashboard. Each platform is a provider: it turns a user's URL into file info and a list of direct links. A shared engine then fetches byte ranges over those links in parallel into resumable part files.
+A web app, meant for a NAS on a LAN, that downloads files from file hosting platforms over many connections at once. A FastAPI backend runs download jobs in background threads, pushes changes to the browser over server-sent events, and serves a React dashboard. Each platform is a provider: it turns a user's URL into file info and a list of direct links. A shared engine then fetches byte ranges over those links in parallel into resumable part files.
 
-Keep2Share (k2s.cc) is the main provider. Its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR, falls back to asking the user in the browser, and turns one free download key into many links.
+Keep2Share (k2s.cc) is the only provider. Its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR and turns one free download key into many links. The provider patterns are the allowlist: any other URL is rejected, so the backend never fetches addresses a user picks.
+
+The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](refactor-spec.md).
 
 ## Layout
 
 | Path | Responsibility |
 | --- | --- |
-| `downloader/app.py` | App factory and the `app` instance for uvicorn. Starts and stops the job manager, preloads proxies, serves `web/dist` at `/` |
-| `downloader/api.py` | REST routes under `/api`: providers, resolve, jobs, captcha, pause, resume, delete, file |
-| `downloader/jobs.py` | `JobManager`: job state machine, one worker thread per job, `jobs.json` persistence, link reuse and regeneration |
+| `downloader/app.py` | App factory and the `app` instance for uvicorn. Starts and stops the job manager, preloads proxies, watches free space, maps errors to `{code, message}`, serves `web/dist` with an SPA fallback |
+| `downloader/api.py` | Routes under `/api`: providers, resolve, tasks and their actions, file, storage, settings, events |
+| `downloader/jobs.py` | `JobManager`: status and phase state machine, one worker thread per job, `jobs.json` persistence, events, link reuse and regeneration |
+| `downloader/events.py` | `EventBus` from worker threads to asyncio subscribers, per-task throttling, and the SSE generator |
+| `downloader/settings_store.py` | `SettingsStore`: the editable settings in `settings.json` |
 | `downloader/engine.py` | `SegmentedDownload`: splits the file into ranges, one connection per link, resumable part files, `assemble` |
-| `downloader/captcha.py` | `OcrSolver` (ddddocr) and `CaptchaSession`, which tries OCR and then hands the image to the UI |
+| `downloader/captcha.py` | `OcrSolver` (ddddocr) and `CaptchaSession`, which tries OCR up to a limit |
 | `downloader/proxies.py` | `ProxyPool`: public proxies fetched from proxyscrape, tested, cached in `proxies.txt` |
-| `downloader/providers/base.py` | `Provider` interface, `FileRef`, `FileInfo`, `CaptchaSpec`, `LinkContext`, `ProviderError` |
-| `downloader/providers/__init__.py` | `ProviderRegistry` and `default_registry()` |
+| `downloader/providers/base.py` | `Provider` interface, `normalize_url`, `FileRef`, `FileInfo`, `CaptchaSpec`, `LinkContext`, `ProviderError` with its code |
+| `downloader/providers/__init__.py` | `ProviderRegistry`, the URL allowlist, and `default_registry()` |
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
-| `downloader/providers/direct.py` | Any http(s) URL whose server answers Range requests |
-| `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names |
+| `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
+| `shared/provider-test-cases.json` | URL matching cases run by both pytest and the frontend tests |
 | `web/` | Vite, React and TypeScript dashboard. `src/api.ts` is the typed API client |
 | `tests/` | pytest suite. `conftest.py` has a local Range server used by the engine, job and API tests |
 | `script/` | Harness scripts: checks, GitHub client, apply |
@@ -40,39 +44,58 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `DATA_DIR` | `./data` | `jobs.json`, `proxies.txt`, part files |
-| `DOWNLOAD_DIR` | `./downloads` | Finished files |
-| `CAPTCHA_OCR` | `1` | `0` skips OCR and always asks in the browser |
-| `USE_PROXIES` | `1` | `0` requests download keys over the direct connection only |
-| `MAX_ACTIVE_JOBS` | `2` | Jobs running at once; others wait in `queued` |
+| `DATA_DIR` | `./data` | `jobs.json`, `settings.json`, `proxies.txt`, part files |
+| `DOWNLOAD_DIR` | `./downloads` | The download root. Finished files only; it cannot be changed from the UI |
+| `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per link generation before the job fails with `captcha_failed` |
+| `CONNECTIONS` | `20` | Initial connections per job |
+| `SPLIT_SIZE` | `20MB` | Initial part size, at least 20 MiB |
+| `USE_PROXIES` | `1` | Initial proxy switch; `0` requests download keys over the direct connection only |
+| `MAX_ACTIVE_JOBS` | `2` | Initial number of jobs running at once; others wait in `queued` |
 
-The server binds to localhost by default and has no authentication. Do not expose it to a network.
+The last four are only initial values: once `settings.json` exists, the settings page owns them.
+
+Run exactly one uvicorn worker. Jobs, their threads and the event bus live in that process's memory, so a second worker would run its own jobs and send its own events. The server has no authentication: expose it only to a LAN or VPN, never to the internet.
 
 ## Runtime files
 
 | Path | Contents |
 | --- | --- |
-| `DATA_DIR/jobs.json` | Every job, including its generated links. Rewritten on each state change, and every 5 seconds while downloading |
+| `DATA_DIR/jobs.json` | Every job, including its generated links. Rewritten on each status or phase change, and every 5 seconds while downloading |
+| `DATA_DIR/settings.json` | The editable settings |
 | `DATA_DIR/proxies.txt` | Working proxies, one `host:port` per line. Delete it to force a refresh |
 | `DATA_DIR/*.lock` | Lock files for cross-process `fcntl.flock` |
 | `DATA_DIR/jobs/<job_id>/partNNNNN` | Part files of an unfinished job |
-| `DOWNLOAD_DIR/<filename>` | Finished files. A name that exists gets ` (N)` appended |
+| `DOWNLOAD_DIR/<filename>.part` | A file being assembled. Renamed to its final name when complete, so SMB users never see a partial file under the real name |
+| `DOWNLOAD_DIR/<filename>` | Finished files. A name that exists, or whose `.part` sibling exists, gets ` (N)` appended |
 
 ## Job flow
 
-1. `POST /api/jobs` resolves the URL through the registry, checks the options and starts a worker thread. At most `MAX_ACTIVE_JOBS` workers run at once.
-2. `resolving`: the provider's `get_info` gives the name and size. A user-supplied name wins. Names are reduced to one safe path component.
-3. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the state follows: `preparing`, `solving_captcha`, `awaiting_captcha`, `waiting` and `generating_links`.
-4. `downloading`: `SegmentedDownload` splits the size into ranges of the split size. It then runs one thread per link, each streaming one pending range into its part file in append mode.
-5. When every link is refused (401, 403, 404 or 410, three times in a row each), the job regenerates links once and continues from the bytes on disk.
-6. `assembling`: parts are joined in order into a temporary file, which is renamed into `DOWNLOAD_DIR`. The part directory is removed.
-7. `verifying`: for video extensions, when `ffmpeg` is on PATH, the result is recorded in `verified` as `ok` or `corrupt`.
+A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `failed` and `canceled`. While `downloading`, `phase` names the step: `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` or `verifying`, and `message` carries zh-Hant detail such as a countdown. Failures are `{code, message}`.
 
-Pause sets the job's cancel event. Workers stop at the next block, and the job becomes `paused` with its parts kept. Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`. Resume starts a new worker on the same job. Delete stops the job and removes its parts, but never a finished file.
+1. `POST /api/tasks` checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component.
+2. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the phase follows: `captcha`, `waiting` and `links`.
+3. `downloading`: `SegmentedDownload` splits the size into ranges of the split size. It then runs one thread per link, each streaming one pending range into its part file in append mode.
+4. When every link is refused (401, 403, 404 or 410, three times in a row each), the job regenerates links once and continues from the bytes on disk.
+5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. The part directory is removed.
+6. `verifying`: for video extensions, when `ffmpeg` is on PATH, the result is recorded in `verified` as `ok` or `corrupt`.
+
+Pause, cancel and delete set the job's cancel event with an intent. Workers stop at the next block, and the worker applies the intent as it ends, under the manager lock: `pause` keeps the parts and marks the job `paused`; `cancel` deletes the parts and staging file and marks it `canceled`; `delete` removes the record and partial data, and with `delete_file` a finished file that is a regular file inside the root. A job that completes before it sees a cancel stays completed. All three are refused during `assembling` and `verifying`. A job with no worker is handled by the caller directly.
+
+Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`. Resume queues a paused job; retry queues a failed or canceled one. The OCR limit counts across every link generation of one run, and a retry starts a new count.
+
+## Events
+
+`GET /api/events` streams `task` (the full task object), `task_removed` (`{id}`) and `storage` (`{free_bytes, total_bytes}`).
+
+- Worker threads publish on `EventBus`, which hands each event to every subscriber's asyncio loop with `call_soon_threadsafe`.
+- Status and phase changes go out at once. Progress and countdowns of one task go out at most twice a second.
+- A subscriber whose queue fills up is dropped; the browser reconnects and refetches the task list.
+- A `: ping` comment goes out after 15 seconds without events, and the response sets `X-Accel-Buffering: no` so a reverse proxy does not buffer it.
+- Free space is checked every 5 seconds and published when it changes.
 
 ## Keep2Share flow
 
-1. `requestCaptcha` gives a challenge and a PNG. `CaptchaSession.solve` runs OCR. An answer that is not 6 lowercase letters or digits is dropped without being submitted, and a fresh image is fetched. After 10 OCR tries, the image goes to the browser.
+1. `requestCaptcha` gives a challenge and a PNG. `CaptchaSession.solve` runs OCR. An answer that is not 6 lowercase letters or digits is dropped without being submitted, and a fresh image is fetched. After `CAPTCHA_MAX_ATTEMPTS` tries the job fails with `captcha_failed`.
 2. `getUrl` with the captcha is tried from each IP in the proxy pool, starting with the direct connection.
    - A wait up to 30 seconds is sat out, and yields a `free_download_key`.
    - A longer wait is the IP's cooldown between free downloads. When every IP is cooling down, the job waits for the shortest cooldown, up to one hour, then tries that IP again.
@@ -81,18 +104,20 @@ Pause sets the job's cancel event. Workers stop at the next block, and the job b
 
 ## Adding a provider
 
-1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label` and `hosts`, and implement `match`, `get_info` and `generate_links`. Override `headers` and `link_ttl` when needed.
-2. Add an instance to `default_registry()` before `DirectProvider`.
-3. Add tests in the style of `tests/test_k2s.py`.
+1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label`, `icon` and `patterns`, and implement `get_info` and `generate_links`. Raise `ProviderError` with one of the error codes in [refactor-spec.md](refactor-spec.md). Override `headers` and `link_ttl` when needed.
+2. Patterns match the normalized URL and hold the file id in group 1. They use only regex syntax that Python and JavaScript share: no named groups, no lookbehind, no inline flags.
+3. Add an instance to `default_registry()`, and add URLs to `shared/provider-test-cases.json`.
+4. Add tests in the style of `tests/test_k2s.py`.
 
-The engine, jobs, API and UI need no changes. A captcha is solved through `ctx.solve_captcha(image, CaptchaSpec(...))`, which handles OCR and the browser fallback.
+The engine, jobs and API need no changes. A captcha is solved through `ctx.solve_captcha(image, CaptchaSpec(...))`, which runs OCR.
 
 ## Invariants
 
 - A part file's size equals the bytes received for its range. The engine only appends, rejects a response whose `Content-Range` start does not match, and never writes past the range end. Resuming depends on this.
 - A job's split size is fixed when it is created, so resumed parts always line up with their ranges.
-- `jobs.json` and `proxies.txt` are only written under `file_lock`. `fcntl` is POSIX only, so the backend runs on Linux and macOS but not on native Windows.
+- `jobs.json`, `settings.json` and `proxies.txt` are only written under `file_lock`. `fcntl` is POSIX only, so the backend runs on Linux and macOS but not on native Windows.
 - Index 0 of the proxy list is `None`, meaning the direct connection.
 - Split sizes under 20 MiB and connection counts outside 1 to 64 are rejected.
-- Job links never leave the backend. The API exposes only `links_count`.
+- Job links and file paths never leave the backend. Task routes take only an id of 12 hex digits, and every file served or deleted is checked to be a regular file, not a symlink, whose real path is inside the download root.
+- Only URLs matching a provider pattern reach the network. Error answers carry a code and a zh-Hant message, never raw exception text.
 - Tests never touch the network. They use the local Range server in `tests/conftest.py` and scripted fakes.

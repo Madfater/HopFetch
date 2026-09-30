@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from concurrent.futures import as_completed
 from random import choice
 
@@ -12,9 +11,8 @@ from requests_futures.sessions import FuturesSession
 
 from ..proxies import proxy_dict
 from .base import (
-    STATUS_GENERATING_LINKS,
-    STATUS_PREPARING,
-    STATUS_SOLVING_CAPTCHA,
+    PHASE_CAPTCHA,
+    PHASE_LINKS,
     CaptchaSpec,
     FileInfo,
     FileRef,
@@ -30,9 +28,8 @@ CAPTCHA = CaptchaSpec(length=6, charset="[a-z0-9]", lowercase=True)
 MAX_WAIT = 30
 MAX_COOLDOWN = 3600
 MAX_ROUNDS = 3
-URL_PATTERN = re.compile(
-    r"^https?://(?:www\.)?(?:k2s\.cc|keep2share\.cc)/file/(?P<id>[A-Za-z0-9]+)(?:[/?#].*)?$"
-)
+URL_PATTERN = r"^https?://(?:www\.)?(?:k2s\.cc|keep2share\.cc)/file/([A-Za-z0-9]+)(?:[/?#].*)?$"
+QUOTA_HINTS = ("limit", "quota", "traffic")
 
 
 def _api(method: str) -> str:
@@ -52,24 +49,35 @@ class K2SProvider(Provider):
 
     name = "k2s"
     label = "Keep2Share"
-    hosts = ("k2s.cc", "keep2share.cc")
+    icon = "k2s"
+    patterns = (URL_PATTERN,)
     link_ttl = 12 * 3600
 
-    def match(self, url: str) -> str | None:
-        """Return the file id of a `k2s.cc/file/<id>/...` or `keep2share.cc/file/<id>` URL."""
-        found = URL_PATTERN.match(url.strip())
-        return found.group("id") if found else None
-
     def get_info(self, ref: FileRef) -> FileInfo:
-        """Read name and size from `getFilesInfo`."""
+        """Read name and size from `getFilesInfo`.
+
+        - A missing or unavailable file is `not_found`; `access` of `private` or `premium`
+          maps to `private` and `premium_only`, since a free download cannot get them.
+        """
         try:
             data = requests.post(_api("getFilesInfo"), json={"ids": [ref.file_id]}, timeout=15).json()
         except (requests.RequestException, ValueError) as exc:
-            raise ProviderError(f"Could not reach k2s: {exc}") from exc
-        files = data.get("files") or []
-        if not files or not files[0].get("is_available", True):
-            raise ProviderError("File not found or no longer available on k2s")
-        return FileInfo(name=files[0]["name"], size=files[0].get("size"))
+            log.warning("getFilesInfo failed: %s", exc)
+            raise ProviderError("upstream_error", "暫時無法連線到 Keep2Share。稍後再試一次。") from exc
+        files = data.get("files") if isinstance(data, dict) else None
+        info = files[0] if isinstance(files, list) and files and isinstance(files[0], dict) else None
+        if info is None or not info.get("is_available", True):
+            raise ProviderError("not_found", "找不到這個檔案，可能已被刪除。")
+        access = info.get("access")
+        if access == "private":
+            raise ProviderError("private", "這個檔案是私人檔案，需要擁有者開放分享後才能下載。")
+        if access == "premium":
+            raise ProviderError("premium_only", "這個檔案只開放付費會員下載。")
+        try:
+            size = int(info["size"]) if info.get("size") else None
+        except (TypeError, ValueError):
+            size = None
+        return FileInfo(name=str(info.get("name") or ref.file_id), size=size)
 
     def generate_links(self, ref: FileRef, count: int, ctx: LinkContext) -> list[str]:
         """Solve the captcha, get a free download key through some proxy, then mint links.
@@ -78,11 +86,11 @@ class K2SProvider(Provider):
         - When every IP must wait longer than MAX_WAIT, the job waits for the shortest cooldown,
           up to MAX_COOLDOWN, then tries that IP once more.
         """
-        ctx.set_status(STATUS_PREPARING, "Loading proxy list")
+        ctx.set_status(PHASE_LINKS, "載入代理清單")
         candidates = ctx.proxies.all()
         captcha = list(self._solve_captcha(ctx))
         links: list[str] = []
-        last_error = "No proxy could obtain a free download key"
+        last_error = ProviderError("upstream_error", "無法取得免費下載的授權。稍後再試一次。")
 
         for attempt in range(2):
             cooldowns: dict[str | None, int] = {}
@@ -102,22 +110,22 @@ class K2SProvider(Provider):
             proxy, wait = min(cooldowns.items(), key=lambda item: item[1])
             if wait > MAX_COOLDOWN:
                 break
-            ctx.wait(wait + 5, "k2s allows the next free download in")
+            ctx.wait(wait + 5, "等待冷卻")
             candidates = [proxy]
 
         if not links:
-            raise ProviderError(last_error)
+            raise last_error
         return links[:count]
 
     def _request_key(self, file_id: str, proxy: str | None, captcha: list[str],
-                     ctx: LinkContext) -> tuple[str | None, int | None, str | None]:
+                     ctx: LinkContext) -> tuple[str | None, int | None, ProviderError | None]:
         """Ask for a free download key through `proxy`; return (key, cooldown, error).
 
         - `captcha` holds [challenge, answer] and is replaced in place when k2s rejects it.
         - A wait up to MAX_WAIT is sat out here; a longer one is returned as the cooldown.
         """
         where = proxy or "direct connection"
-        ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
+        ctx.set_status(PHASE_LINKS, "取得下載授權")
         while True:
             try:
                 reply = requests.post(_api("getUrl"), json={
@@ -134,29 +142,35 @@ class K2SProvider(Provider):
                 message = reply.get("message", "")
                 if message == "Invalid captcha code":
                     captcha[:] = self._solve_captcha(ctx)
-                    ctx.set_status(STATUS_GENERATING_LINKS, f"Requesting a download key via {where}")
+                    ctx.set_status(PHASE_LINKS, "取得下載授權")
                     continue
                 if message == "File not found":
-                    raise ProviderError("File not found on k2s")
-                return None, None, f"k2s: {message}"
+                    raise ProviderError("not_found", "找不到這個檔案，可能已被刪除。")
+                if any(hint in message.lower() for hint in QUOTA_HINTS):
+                    return None, None, ProviderError(
+                        "quota_exceeded", "Keep2Share 的免費下載額度已用完。稍後再試一次。")
+                return None, None, ProviderError("upstream_error", "Keep2Share 拒絕了下載要求。稍後再試一次。")
             wait = int(reply.get("time_wait") or 0)
             if wait > MAX_WAIT:
-                return None, wait, f"k2s asked to wait {wait}s before the next free download"
+                minutes = -(-wait // 60)
+                return None, wait, ProviderError(
+                    "quota_exceeded", f"Keep2Share 要求等待約 {minutes} 分鐘才能再次免費下載。稍後再試一次。")
             if "free_download_key" not in reply:
                 return None, None, None
-            ctx.wait(wait, "Waiting for the free download slot")
+            ctx.wait(wait, "等待下載名額")
             return reply["free_download_key"], None, None
 
     def _solve_captcha(self, ctx: LinkContext) -> tuple[str, str]:
         """Fetch captcha images until the solver commits to an answer; return (challenge, answer)."""
         while True:
             ctx.check_cancelled()
-            ctx.set_status(STATUS_SOLVING_CAPTCHA, "Solving the captcha")
+            ctx.set_status(PHASE_CAPTCHA, "辨識驗證碼")
             try:
                 captcha = requests.post(_api("requestCaptcha"), timeout=15).json()
                 image = requests.get(captcha["captcha_url"], timeout=15).content
             except (requests.RequestException, ValueError, KeyError) as exc:
-                raise ProviderError(f"Could not fetch a captcha from k2s: {exc}") from exc
+                log.warning("captcha fetch failed: %s", exc)
+                raise ProviderError("upstream_error", "暫時無法從 Keep2Share 取得驗證碼。稍後再試一次。") from exc
             answer = ctx.solve_captcha(image, CAPTCHA)
             if answer is not None:
                 return captcha["challenge"], answer
@@ -182,7 +196,7 @@ class K2SProvider(Provider):
                         links.append(future.result().json()["url"])
                     except (requests.RequestException, KeyError, ValueError):
                         continue
-                    ctx.set_status(STATUS_GENERATING_LINKS, f"Generated {len(links)}/{count} links")
+                    ctx.set_status(PHASE_LINKS, f"已取得 {len(links)}/{count} 條連結")
                 if len(links) == before:
                     break
         return links

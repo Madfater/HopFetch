@@ -1,4 +1,4 @@
-"""Captcha solving: offline OCR first, then the user answers in the web UI."""
+"""Captcha solving with offline OCR."""
 
 from __future__ import annotations
 
@@ -6,7 +6,7 @@ import logging
 import threading
 from typing import Callable
 
-from .providers.base import CaptchaSpec, Cancelled
+from .providers.base import CaptchaSpec, Cancelled, ProviderError
 
 log = logging.getLogger(__name__)
 
@@ -33,54 +33,35 @@ class OcrSolver:
 
 
 class CaptchaSession:
-    """Solves the captchas of one job.
+    """Solves the captchas of one job with OCR only.
 
-    - The first `ocr_attempts` calls go to OCR. A guess that does not fit the spec returns None,
-      which tells the provider to fetch a new image without submitting anything.
-    - Later calls hand the image to the UI through `on_manual` and block until `submit` delivers
-      the answer, or raise `Cancelled` when `cancelled` is set.
+    - Each call reads one image. A guess that does not fit the spec returns None, which tells
+      the provider to fetch a new image without submitting anything.
+    - After `max_attempts` calls, or when the OCR model cannot run, raises
+      `ProviderError("captcha_failed")`.
     """
 
-    def __init__(self, ocr: OcrSolver | None, ocr_attempts: int, cancelled: threading.Event,
-                 on_manual: Callable[[bytes], None], on_ocr: Callable[[int], None] = lambda n: None):
+    def __init__(self, ocr: OcrSolver, max_attempts: int, cancelled: threading.Event,
+                 on_attempt: Callable[[int], None] = lambda n: None):
         self.ocr = ocr
-        self.ocr_attempts = ocr_attempts if ocr else 0
+        self.max_attempts = max_attempts
         self.cancelled = cancelled
-        self.on_manual = on_manual
-        self.on_ocr = on_ocr
+        self.on_attempt = on_attempt
         self.attempts = 0
-        self._answer: str | None = None
-        self._answered = threading.Event()
 
     def solve(self, image: bytes, spec: CaptchaSpec) -> str | None:
         """Return an answer for `image`, or None to request a fresh image."""
         if self.cancelled.is_set():
             raise Cancelled()
+        if self.attempts >= self.max_attempts:
+            raise ProviderError("captcha_failed", "驗證碼自動辨識多次失敗。稍後按重試再試一次。")
         self.attempts += 1
-        if self.ocr is not None and self.attempts <= self.ocr_attempts:
-            self.on_ocr(self.attempts)
-            try:
-                text = self.ocr.read(image)
-            except Exception as exc:
-                log.warning("OCR failed: %s", exc)
-                self.ocr_attempts = 0
-            else:
-                answer = spec.normalize(text)
-                log.info("OCR read %r -> %r", text, answer)
-                return answer
-        return self._ask_user(image, spec)
-
-    def submit(self, answer: str) -> None:
-        """Deliver the user's answer to the waiting `solve` call."""
-        self._answer = answer.strip()
-        self._answered.set()
-
-    def _ask_user(self, image: bytes, spec: CaptchaSpec) -> str | None:
-        """Publish the image and wait for `submit` or cancellation."""
-        self._answered.clear()
-        self.on_manual(image)
-        while not self._answered.wait(0.5):
-            if self.cancelled.is_set():
-                raise Cancelled()
-        answer = self._answer or ""
-        return spec.normalize(answer) or answer or None
+        self.on_attempt(self.attempts)
+        try:
+            text = self.ocr.read(image)
+        except Exception as exc:
+            log.warning("OCR failed: %s", exc)
+            raise ProviderError("captcha_failed", "驗證碼辨識元件無法執行。檢查伺服器記錄後再試一次。") from exc
+        answer = spec.normalize(text)
+        log.info("OCR read %r -> %r", text, answer)
+        return answer

@@ -32,7 +32,8 @@ class ProxyPool:
 
     - `load()` reads the cache file, or fetches proxy lists and keeps the ones that answer TEST_URL.
     - The cache file is read and written under a cross-process lock.
-    - `enabled=False` makes the pool hold only the direct connection.
+    - While `enabled` is False, `all()` returns only the direct connection and loads nothing.
+      The flag may change at runtime.
     """
 
     def __init__(self, cache_path: Path, enabled: bool = True):
@@ -52,13 +53,15 @@ class ProxyPool:
         with self._load_lock:
             if self._loaded.is_set() and not refresh:
                 return
-            proxies = self._read_or_build(refresh, on_status) if self.enabled else []
+            proxies = self._read_or_build(refresh, on_status)
             self._proxies = [None, *proxies]
             self._loaded.set()
             log.info("proxy pool ready with %d proxies", len(proxies))
 
     def all(self) -> list[str | None]:
-        """Return the proxy list, loading it first when needed."""
+        """Return the proxy list, loading it first when needed; only `[None]` while disabled."""
+        if not self.enabled:
+            return [None]
         self.load()
         return list(self._proxies)
 
