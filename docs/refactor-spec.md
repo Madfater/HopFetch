@@ -122,7 +122,7 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
 ### 部署文件
 
 - README 說明只能跑單一 worker，以及服務沒有登入、只能讓區網或 VPN 存取。
-- `compose.yaml` 的對外綁定位址改為 `${BIND_ADDR:-127.0.0.1}:8000`。這項調整等 `docs/docker-run` 合併進 `main` 之後再補上。
+- `compose.yaml` 的對外綁定位址改為 `${BIND_ADDR:-127.0.0.1}:8000`，由 `.env` 設定。
 
 ### 驗收
 

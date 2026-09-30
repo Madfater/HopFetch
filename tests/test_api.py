@@ -38,6 +38,12 @@ def finish(client, task_id):
     return client.get(f"/api/tasks/{task_id}").json()
 
 
+def test_proxies_status(client):
+    response = client.get("/api/proxies")
+    assert response.status_code == 200
+    assert response.json() == {"loaded": False, "public_enabled": False, "user": 0, "public": 0}
+
+
 def test_providers(client):
     assert client.get("/api/providers").json() == [
         {"id": "fake", "name": "Fake host", "icon": "fake", "patterns": [r"^https?://fake\.test/f/([a-z0-9]+)$"]},

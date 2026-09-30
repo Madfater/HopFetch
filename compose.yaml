@@ -1,0 +1,11 @@
+services:
+  downloader:
+    build: .
+    user: "${UID:-1000}:${GID:-1000}"
+    ports:
+      - "${BIND_ADDR:-127.0.0.1}:8000:8000"
+    volumes:
+      - ./data:/data
+      - ./downloads:/downloads
+    stop_grace_period: 40s
+    restart: unless-stopped

@@ -9,7 +9,7 @@ from random import choice
 import requests
 from requests_futures.sessions import FuturesSession
 
-from ..proxies import proxy_dict
+from ..proxies import proxy_dict, proxy_label, redact_credentials
 from .base import (
     PHASE_CAPTCHA,
     PHASE_LINKS,
@@ -124,8 +124,8 @@ class K2SProvider(Provider):
         - `captcha` holds [challenge, answer] and is replaced in place when k2s rejects it.
         - A wait up to MAX_WAIT is sat out here; a longer one is returned as the cooldown.
         """
-        where = proxy or "direct connection"
-        ctx.set_status(PHASE_LINKS, "取得下載授權")
+        where = "直接連線" if proxy is None else proxy_label(proxy)
+        ctx.set_status(PHASE_LINKS, f"透過 {where} 取得下載授權")
         while True:
             try:
                 reply = requests.post(_api("getUrl"), json={
@@ -134,7 +134,7 @@ class K2SProvider(Provider):
                     "captcha_response": captcha[1],
                 }, proxies=proxy_dict(proxy), timeout=10).json()
             except (requests.RequestException, ValueError) as exc:
-                log.info("key request via %s failed: %s", where, exc)
+                log.info("key request via %s failed: %s", where, redact_credentials(str(exc)))
                 return None, None, None
             log.info("key request via %s: %s %s wait=%s", where, reply.get("status"),
                      reply.get("message"), reply.get("time_wait"))
@@ -142,7 +142,7 @@ class K2SProvider(Provider):
                 message = reply.get("message", "")
                 if message == "Invalid captcha code":
                     captcha[:] = self._solve_captcha(ctx)
-                    ctx.set_status(PHASE_LINKS, "取得下載授權")
+                    ctx.set_status(PHASE_LINKS, f"透過 {where} 取得下載授權")
                     continue
                 if message == "File not found":
                     raise ProviderError("not_found", "找不到這個檔案，可能已被刪除。")

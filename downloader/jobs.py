@@ -258,7 +258,9 @@ class JobManager:
         self.store = store or SettingsStore(settings)
         self.bus = bus or EventBus()
         prefs = self.store.get()
-        self.proxies = proxies or ProxyPool(settings.data_dir / "proxies.txt", prefs.use_proxies)
+        self.proxies = proxies or ProxyPool(settings.data_dir / "proxies.txt", prefs.use_proxies,
+                                            user_proxies=settings.proxies,
+                                            user_file=settings.data_dir / "proxies.user.txt")
         self.proxies.enabled = prefs.use_proxies
         self.ocr = ocr or OcrSolver()
         self.jobs: dict[str, Job] = {}

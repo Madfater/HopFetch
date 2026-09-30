@@ -21,7 +21,7 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/settings_store.py` | `SettingsStore`: the editable settings in `settings.json` |
 | `downloader/engine.py` | `SegmentedDownload`: splits the file into ranges, one connection per link, resumable part files, `assemble` |
 | `downloader/captcha.py` | `OcrSolver` (ddddocr) and `CaptchaSession`, which tries OCR up to a limit |
-| `downloader/proxies.py` | `ProxyPool`: public proxies fetched from proxyscrape, tested, cached in `proxies.txt` |
+| `downloader/proxies.py` | `ProxyPool`: user proxies from `PROXIES` and `proxies.user.txt`, then public proxies fetched from proxyscrape, tested and cached in `proxies.txt`; URL helpers that hide credentials |
 | `downloader/providers/base.py` | `Provider` interface, `normalize_url`, `FileRef`, `FileInfo`, `CaptchaSpec`, `LinkContext`, `ProviderError` with its code |
 | `downloader/providers/__init__.py` | `ProviderRegistry`, the URL allowlist, and `default_registry()` |
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
@@ -31,6 +31,7 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `tests/` | pytest suite. `conftest.py` has a local Range server used by the engine, job and API tests |
 | `script/` | Harness scripts: checks, GitHub client, apply |
 | `docs/` | Knowledge |
+| `Dockerfile`, `compose.yaml` | Container image and service, see [Docker](#docker) |
 
 ## Running
 
@@ -49,12 +50,24 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 | `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per link generation before the job fails with `captcha_failed` |
 | `CONNECTIONS` | `20` | Initial connections per job |
 | `SPLIT_SIZE` | `20MB` | Initial part size, at least 20 MiB |
-| `USE_PROXIES` | `1` | Initial proxy switch; `0` requests download keys over the direct connection only |
+| `USE_PROXIES` | `1` | Initial public proxy switch; `0` requests download keys over the direct connection and user proxies only |
+| `PROXIES` | empty | User proxy URLs (http, https, socks5, socks5h, with optional credentials), separated by newlines, commas or spaces. Tried after the direct connection and before public proxies, whatever `USE_PROXIES` says |
 | `MAX_ACTIVE_JOBS` | `2` | Initial number of jobs running at once; others wait in `queued` |
 
 The last four are only initial values: once `settings.json` exists, the settings page owns them.
 
 Run exactly one uvicorn worker. Jobs, their threads and the event bus live in that process's memory, so a second worker would run its own jobs and send its own events. The server has no authentication: expose it only to a LAN or VPN, never to the internet.
+
+### Docker
+
+`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. `compose.yaml` runs it:
+
+- `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
+- Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
+- Create `data/` and `downloads/` before the first start, or Docker creates them owned by root.
+- `stop_grace_period` is longer than the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
+- uvicorn listens on `0.0.0.0` inside the container. The port is published on `${BIND_ADDR}:8000`, where `BIND_ADDR` comes from `.env` and defaults to `127.0.0.1`. Set it to the NAS's LAN address, or `0.0.0.0`, to reach the app from other machines on the LAN or VPN.
+- The variables in the table above are set under `environment:` of the service.
 
 ## Runtime files
 
@@ -62,6 +75,7 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 | --- | --- |
 | `DATA_DIR/jobs.json` | Every job, including its generated links. Rewritten on each status or phase change, and every 5 seconds while downloading |
 | `DATA_DIR/settings.json` | The editable settings |
+| `DATA_DIR/proxies.user.txt` | Optional user proxies, one URL per line, `#` starts a comment. Read whenever the pool loads, never written |
 | `DATA_DIR/proxies.txt` | Working proxies, one `host:port` per line. Delete it to force a refresh |
 | `DATA_DIR/*.lock` | Lock files for cross-process `fcntl.flock` |
 | `DATA_DIR/jobs/<job_id>/partNNNNN` | Part files of an unfinished job |
