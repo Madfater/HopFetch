@@ -6,24 +6,34 @@ Supported:
 - Keep2Share (`k2s.cc`, `keep2share.cc`) free links
 - Any direct http(s) link whose server supports ranged downloads
 
-## Requirements
+## Run
 
-- Linux or macOS (on Windows, use WSL)
-- [uv](https://docs.astral.sh/uv/) and Node.js 20 or newer
-- Optional: `ffmpeg` on PATH, to check downloaded videos
+Needs [Docker](https://docs.docker.com/get-docker/) with Compose.
 
-## Install and run
+```bash
+mkdir -p data downloads
+docker compose up -d --build
+```
+
+Open http://127.0.0.1:8000, paste a file link and press Download.
+
+Finished files go to `downloads/`, and unfinished parts and the job list live in `data/`. `docker compose down` pauses running downloads; start it again and press Resume. Other settings go under `environment:` in `compose.yaml` and are listed in [docs/architecture.md](docs/architecture.md#running).
+
+## Develop
+
+Needs Linux or macOS (on Windows, use WSL), [uv](https://docs.astral.sh/uv/) and Node.js 20 or newer. `ffmpeg` on PATH is optional, to check downloaded videos.
 
 ```bash
 uv sync
 npm --prefix web ci
 npm --prefix web run build
-uv run uvicorn downloader.app:app
+uv run uvicorn downloader.app:app      # http://127.0.0.1:8000
+npm --prefix web run dev               # optional: Vite dev server with hot reload
+uv run pytest -q                       # backend tests
+python3 script/check.py                # all checks, run before every commit
 ```
 
-Open http://127.0.0.1:8000, paste a file link and press Download.
-
-Finished files go to `downloads/`, and unfinished parts and the job list live in `data/`. Change these with `DOWNLOAD_DIR` and `DATA_DIR`. Other settings are in [docs/architecture.md](docs/architecture.md#running).
+Change the `downloads/` and `data/` locations with `DOWNLOAD_DIR` and `DATA_DIR`.
 
 ## Notes
 
