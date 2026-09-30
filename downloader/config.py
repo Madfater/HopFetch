@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -10,6 +11,22 @@ from .proxies import parse_proxy_lines
 from .util import parse_size
 
 ROOT = Path(__file__).resolve().parent.parent
+log = logging.getLogger(__name__)
+
+
+def _positive_int(name: str, default: int) -> int:
+    """Read a positive integer variable, logging and using `default` when it is not one."""
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        value = int(raw)
+    except ValueError:
+        value = 0
+    if value < 1:
+        log.warning("ignoring %s=%r, using %d", name, raw, default)
+        return default
+    return value
 
 
 @dataclass
@@ -43,7 +60,7 @@ class Settings:
         return cls(
             data_dir=Path(os.environ.get("DATA_DIR", ROOT / "data")).resolve(),
             download_dir=Path(os.environ.get("DOWNLOAD_DIR", ROOT / "downloads")).resolve(),
-            captcha_max_attempts=int(os.environ.get("CAPTCHA_MAX_ATTEMPTS", "50")),
+            captcha_max_attempts=_positive_int("CAPTCHA_MAX_ATTEMPTS", 50),
             connections=int(os.environ.get("CONNECTIONS", "20")),
             split_size=parse_size(os.environ.get("SPLIT_SIZE", "20MB")),
             use_proxies=os.environ.get("USE_PROXIES", "1") != "0",

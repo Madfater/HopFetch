@@ -63,6 +63,7 @@ LEGACY_MESSAGES = {
     Status.PAUSED: "已暫停。按繼續從中斷處下載。",
 }
 FINISHING = {Phase.ASSEMBLING, Phase.VERIFYING}
+INTENT_RANK = {None: 0, "pause": 1, "cancel": 2, "delete": 3}
 
 
 class TaskError(Exception):
@@ -228,7 +229,9 @@ class _Run:
 
     - `intent` is `pause`, `cancel` or `delete` once someone stops the job; the worker applies
       it when it ends, so the outcome never depends on how long the caller waits.
-    - `delete_file` goes with the `delete` intent.
+    - Intents only escalate, pause < cancel < delete, so a later weaker request never undoes a
+      pending stronger one.
+    - `delete_file` goes with the `delete` intent and, once requested, stays requested.
     - `captcha` is shared by every link generation of the run, so the OCR limit counts per run.
     """
 
@@ -238,6 +241,12 @@ class _Run:
         self.delete_file = False
         self.thread: threading.Thread | None = None
         self.captcha: CaptchaSession | None = None
+
+    def stop(self, intent: str) -> None:
+        """Raise the intent to `intent` unless a stronger one is pending, and signal the worker."""
+        if INTENT_RANK[intent] > INTENT_RANK[self.intent]:
+            self.intent = intent
+        self.cancelled.set()
 
 
 class JobManager:
@@ -290,8 +299,7 @@ class JobManager:
         with self._lock:
             for data in stored:
                 job = Job.load(data)
-                if job.status in ACTIVE and job.phase in FINISHING and job.output_path \
-                        and inside(self.root, Path(job.output_path)):
+                if job.status in ACTIVE and job.phase in FINISHING and self._published(job):
                     self._remove_staging(job)
                     shutil.rmtree(self._part_dir(job), ignore_errors=True)
                     job.bytes_done = job.size or job.bytes_done
@@ -313,8 +321,7 @@ class JobManager:
         with self._lock:
             runs = list(self._runs.values())
         for run in runs:
-            run.intent = run.intent or "pause"
-            run.cancelled.set()
+            run.stop("pause")
         for run in runs:
             if run.thread:
                 run.thread.join(timeout)
@@ -431,8 +438,7 @@ class JobManager:
                 raise InvalidState("只有排隊中或下載中的任務可以暫停。")
             if job.phase in FINISHING:
                 raise InvalidState("檔案正在合併或檢查，完成前無法暫停。")
-            run.intent = "pause"
-            run.cancelled.set()
+            run.stop("pause")
         return job
 
     def resume(self, job_id: str) -> Job:
@@ -475,8 +481,7 @@ class JobManager:
                 raise InvalidState("檔案正在合併或檢查，完成前無法取消。")
             run = self._runs.get(job_id)
             if run is not None:
-                run.intent = "cancel"
-                run.cancelled.set()
+                run.stop("cancel")
             else:
                 self._discard_partial(job)
                 changed = self._apply(job, Status.CANCELED, None, "已取消")
@@ -499,9 +504,8 @@ class JobManager:
                 raise InvalidState("檔案正在合併或檢查，完成後再刪除。")
             run = self._runs.get(job_id)
             if run is not None:
-                run.intent = "delete"
-                run.delete_file = delete_file
-                run.cancelled.set()
+                run.delete_file = run.delete_file or delete_file
+                run.stop("delete")
             else:
                 self.jobs.pop(job.id, None)
         if run is None:
@@ -566,6 +570,17 @@ class JobManager:
             staging = staging_path(Path(job.output_path))
             if inside(self.root, staging):
                 staging.unlink(missing_ok=True)
+
+    def _published(self, job: Job) -> bool:
+        """True when the job's final file is a regular file inside the root with the job's size.
+
+        - The final name is persisted right after publishing, so a matching file at it is the
+          job's own; the size check guards against a file someone else put there.
+        """
+        if not job.output_path or not job.size:
+            return False
+        path = Path(job.output_path)
+        return inside(self.root, path) and path.stat().st_size == job.size
 
     def _register(self, job: Job) -> _Run:
         """Record a new run for `job`; the caller holds `self._lock`."""
@@ -686,6 +701,7 @@ class JobManager:
             assemble(self._part_dir(job), build_parts(job.size, job.split_size), handle)
         output = publish_staging(staging_path(output), output)
         job.output_path = str(output)
+        self._persist(force=True)
         shutil.rmtree(self._part_dir(job), ignore_errors=True)
         job.bytes_done = job.size
         job.parts_done = job.parts_total

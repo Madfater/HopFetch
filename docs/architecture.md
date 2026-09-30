@@ -47,7 +47,7 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 | --- | --- | --- |
 | `DATA_DIR` | `./data` | `jobs.json`, `settings.json`, `proxies.txt`, part files |
 | `DOWNLOAD_DIR` | `./downloads` | The download root. Finished files only; it cannot be changed from the UI |
-| `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per run, across link regenerations, before the job fails with `captcha_failed`; a retry starts a new count |
+| `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per run, across link regenerations, before the job fails with `captcha_failed`; a retry starts a new count. A value below 1 is logged and replaced by 50 |
 | `CONNECTIONS` | `20` | Initial connections per job |
 | `SPLIT_SIZE` | `20MB` | Initial part size, at least 20 MiB |
 | `USE_PROXIES` | `1` | Initial public proxy switch; `0` requests download keys over the direct connection and user proxies only |
@@ -86,16 +86,16 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `failed` and `canceled`. While `downloading`, `phase` names the step: `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` or `verifying`, and `message` carries zh-Hant detail such as a countdown. Failures are `{code, message}`.
 
-1. `POST /api/tasks` checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component.
+1. `POST /api/tasks` checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component of at most 200 UTF-8 bytes, so ` (N)` and `.part` still fit the filesystem's limit.
 2. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the phase follows: `captcha`, `waiting` and `links`.
 3. `downloading`: `SegmentedDownload` splits the size into ranges of the split size. It then runs one thread per link, each streaming one pending range into its part file in append mode.
 4. When every link is refused (401, 403, 404 or 410, three times in a row each), the job regenerates links once and continues from the bytes on disk.
-5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. The part directory is removed.
+5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. On filesystems without hard links the final name is first reserved by creating an empty file exclusively, and the staging file is renamed over that reservation. The final name is persisted at once, then the part directory is removed.
 6. `verifying`: for video extensions, when `ffmpeg` is on PATH, the result is recorded in `verified` as `ok` or `corrupt`.
 
-Pause, cancel and delete set the job's cancel event with an intent. Workers stop at the next block, and the worker applies the intent as it ends, under the manager lock: `pause` keeps the parts and marks the job `paused`; `cancel` deletes the parts and staging file and marks it `canceled`; `delete` removes the record and partial data, and with `delete_file` a finished file that is a regular file inside the root. A job that completes before it sees a cancel stays completed. All three are refused during `assembling` and `verifying`. A job with no worker is handled by the caller directly.
+Pause, cancel and delete set the job's cancel event with an intent. Workers stop at the next block, and the worker applies the intent as it ends, under the manager lock: `pause` keeps the parts and marks the job `paused`; `cancel` deletes the parts and staging file and marks it `canceled`; `delete` removes the record and partial data, and with `delete_file` a finished file that is a regular file inside the root. Intents only escalate, pause < cancel < delete, so a later weaker request never undoes a pending stronger one. A job that completes before it sees a cancel stays completed. All three are refused during `assembling` and `verifying`. A job with no worker is handled by the caller directly.
 
-Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`, except one stopped while assembling or verifying whose file was already published, which becomes `completed`. Resume queues a paused job; retry queues a failed or canceled one. The OCR limit counts across every link generation of one run, and a retry starts a new count.
+Stopping the server pauses running jobs the same way, and a server start marks any job left active as `paused`, except one stopped while assembling or verifying whose published file is at its persisted final name with the job's size, which becomes `completed`. Resume queues a paused job; retry queues a failed or canceled one. The OCR limit counts across every link generation of one run, and a retry starts a new count.
 
 ## Events
 

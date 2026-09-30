@@ -373,3 +373,61 @@ def test_no_task_event_after_removal(tmp_path, provider):
     seen.clear()
     manager._publish(job, force=True)
     assert seen == []
+
+
+def test_intents_only_escalate():
+    from downloader.jobs import _Run
+
+    run = _Run()
+    run.stop("delete")
+    run.stop("pause")
+    run.stop("cancel")
+    assert run.intent == "delete" and run.cancelled.is_set()
+    other = _Run()
+    other.stop("pause")
+    other.stop("cancel")
+    assert other.intent == "cancel"
+
+
+def test_pause_during_pending_delete_keeps_the_delete(tmp_path, provider):
+    gate = threading.Event()
+    original = provider.generate_links
+
+    def blocking(ref, count, ctx):
+        gate.wait(5)
+        return original(ref, count, ctx)
+
+    provider.generate_links = blocking
+    removed = []
+    bus = EventBus()
+    bus.publish_removed = removed.append
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("pending"))
+    wait_for(lambda: job.status == Status.DOWNLOADING)
+    deleting = threading.Thread(target=manager.delete, args=(job.id,))
+    deleting.start()
+    wait_for(lambda: manager._runs.get(job.id) is not None and manager._runs[job.id].intent == "delete")
+    manager.pause(job.id)
+    gate.set()
+    deleting.join(10)
+    assert job.id not in manager.jobs and removed == [job.id]
+
+
+def test_restart_does_not_adopt_a_foreign_file(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("foreign"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    (tmp_path / "downloads" / "foreign.bin").write_bytes(b"not ours")
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="assembling", completed_at=None)
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+    assert build_manager(tmp_path, provider).get(job.id).status == Status.PAUSED
+
+
+def test_captcha_attempts_env_must_be_positive(monkeypatch):
+    from downloader.config import Settings
+
+    monkeypatch.setenv("CAPTCHA_MAX_ATTEMPTS", "0")
+    assert Settings.from_env().captcha_max_attempts == 50
+    monkeypatch.setenv("CAPTCHA_MAX_ATTEMPTS", "7")
+    assert Settings.from_env().captcha_max_attempts == 7

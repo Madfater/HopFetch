@@ -297,6 +297,7 @@ pytest 覆蓋：
 - `resumable` 依實際回應判斷（`Accept-Ranges` 或 206 回應），不只依 provider 推測。上游不支援 Range 時，任務以 `range_unsupported` 失敗，`resumable` 為 false；不另外實作單一連線的備援下載。
 - 後端重啟時，可續傳的進行中任務改為「已暫停」；不可續傳的改為「失敗」，錯誤原因為「服務重新啟動，下載中斷」，可以重試。
 - 前端：`resumable` 為 true 時才顯示暫停與繼續；不可續傳的任務只有取消。
+- 檔案端點的檢查與開檔之間有空窗：有 SMB 寫入權限的人可以在檢查通過後，把檔案換成符號連結，讓伺服器送出它讀得到的任意檔案（包含 `DATA_DIR/proxies.user.txt` 的代理帳密）。改為以 `O_NOFOLLOW` 開檔後 `fstat` 驗證，並自行從該檔案描述元提供 Range 回應。
 - 需執行期檢查（Keep2Share）：
   - CDN 直連是否回傳 `ETag` 或 `Last-Modified`。
   - 同一檔案不同次產生的直連，ETag 是否相同（決定 If-Range 能否跨越直連重新產生）。

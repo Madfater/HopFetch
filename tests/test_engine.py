@@ -181,3 +181,28 @@ def test_publish_staging_without_hard_links(tmp_path, monkeypatch):
         handle.write(b"data")
     assert publish_staging(staging_path(output), output).read_bytes() == b"data"
     assert not staging_path(output).exists()
+
+
+def test_safe_filename_limits_utf8_bytes():
+    name = "影" * 150 + ".mkv"
+    safe = safe_filename(name)
+    assert len(safe.encode()) <= 200 and safe.endswith(".mkv") and safe.startswith("影")
+    assert len(safe_filename("a" * 300).encode()) == 200
+    assert len((safe + " (9999)" + ".part").encode()) < 255
+
+
+def test_publish_staging_without_hard_links_never_replaces(tmp_path, monkeypatch):
+    import errno
+    import os
+
+    def no_links(*args, **kwargs):
+        raise OSError(errno.EPERM, "no links")
+
+    monkeypatch.setattr(os, "link", no_links)
+    output, handle = claim_staging(tmp_path / "c.bin")
+    with handle:
+        handle.write(b"new")
+    output.write_bytes(b"someone else")
+    final = publish_staging(staging_path(output), output)
+    assert final == tmp_path / "c (1).bin" and final.read_bytes() == b"new"
+    assert output.read_bytes() == b"someone else"

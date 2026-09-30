@@ -12,6 +12,7 @@ from typing import BinaryIO, Iterator
 
 MIN_SPLIT_SIZE = 20 * 2**20
 PART_SUFFIX = ".part"
+MAX_NAME_BYTES = 200
 NO_LINK_ERRORS = {errno.EPERM, errno.EOPNOTSUPP, errno.ENOTSUP, errno.EXDEV, errno.EMLINK}
 
 _UNITS = {
@@ -48,15 +49,25 @@ def parse_size(size: str | int) -> int:
     return int(float(match.group(1)) * _UNITS[unit])
 
 
-def safe_filename(name: str, fallback: str = "download") -> str:
+def safe_filename(name: str, fallback: str = "download", max_bytes: int = MAX_NAME_BYTES) -> str:
     """Reduce a remote file name to a single safe path component.
 
     - Drops any directory part, control characters and characters Windows rejects.
     - Strips leading dots and surrounding whitespace so the result is never hidden or empty.
+    - Keeps the UTF-8 length within `max_bytes`, cutting the stem and keeping a short extension,
+      so ` (N)` and the staging suffix still fit the filesystem's name limit.
     """
     name = name.replace("\\", "/").rsplit("/", 1)[-1]
     name = re.sub(r'[\x00-\x1f<>:"|?*]', "_", name).strip().lstrip(".")
-    return name[:240] or fallback
+    if len(name.encode()) > max_bytes:
+        stem, dot, ext = name.rpartition(".")
+        if not dot or not stem or len(ext.encode()) > 16:
+            stem, ext = name, ""
+        suffix = f".{ext}" if ext else ""
+        budget = max_bytes - len(suffix.encode())
+        stem = stem.encode()[:budget].decode(errors="ignore").rstrip()
+        name = stem + suffix
+    return name or fallback
 
 
 def occupied(path: Path) -> bool:
@@ -106,7 +117,9 @@ def publish_staging(staging: Path, output: Path) -> Path:
 
     - Hard-links `staging` to the name and then unlinks `staging`; a name taken in the
       meantime moves on to the next ` (N)` name.
-    - On filesystems without hard links, renames onto a name that is free at that moment.
+    - On filesystems without hard links, first reserves the name by creating an empty file
+      exclusively, then renames `staging` over that reservation, so only our own placeholder
+      is ever replaced.
     """
     target = output
     for _ in range(100):
@@ -118,8 +131,11 @@ def publish_staging(staging: Path, output: Path) -> Path:
         except OSError as exc:
             if exc.errno not in NO_LINK_ERRORS:
                 raise
-            if occupied(target):
+            try:
+                create_new(target).close()
+            except FileExistsError:
                 target = unique_path(output)
+                continue
             os.replace(staging, target)
             return target
         staging.unlink()
