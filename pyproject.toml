@@ -8,7 +8,7 @@ dependencies = [
     "ddddocr",
     "fastapi",
     "pillow",
-    "requests",
+    "requests[socks]",
     "requests-futures",
     "uvicorn[standard]",
 ]

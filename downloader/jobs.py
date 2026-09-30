@@ -127,7 +127,9 @@ class JobManager:
                  proxies: ProxyPool | None = None, ocr: OcrSolver | None = None):
         self.settings = settings
         self.registry = registry
-        self.proxies = proxies or ProxyPool(settings.data_dir / "proxies.txt", settings.use_proxies)
+        self.proxies = proxies or ProxyPool(settings.data_dir / "proxies.txt", settings.use_proxies,
+                                            user_proxies=settings.proxies,
+                                            user_file=settings.data_dir / "proxies.user.txt")
         self.ocr = ocr if ocr is not None else (OcrSolver() if settings.captcha_ocr else None)
         self.jobs: dict[str, Job] = {}
         self._runs: dict[str, _Run] = {}

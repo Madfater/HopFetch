@@ -96,6 +96,24 @@ def test_cooldown_beyond_limit_fails_fast(monkeypatch, ctx):
     assert ctx.waits == []
 
 
+def test_user_proxy_tried_second_without_leaking_credentials(monkeypatch, tmp_path):
+    pool = ProxyPool(tmp_path / "proxies.txt", enabled=False,
+                     user_proxies=["socks5h://user:secret@proxy.example:1080"])
+    messages = []
+    context = LinkContext(solve_captcha=lambda image, spec: "abc123",
+                          set_status=lambda state, message: messages.append(message), proxies=pool)
+    context.wait = lambda seconds, message: None
+    fake = FakeK2S([
+        {"status": "success", "time_wait": 2201},
+        {"status": "success", "time_wait": 0, "free_download_key": "K"},
+    ])
+    install(monkeypatch, fake)
+    assert k2s.K2SProvider().generate_links(REF, 1, context) == ["K-0"]
+    assert [call[0] for call in fake.key_calls] == [None, "socks5h://user:secret@proxy.example:1080"]
+    assert "Requesting a download key via socks5h://proxy.example:1080" in messages
+    assert not any("secret" in message for message in messages)
+
+
 def test_file_not_found(monkeypatch, ctx):
     install(monkeypatch, FakeK2S([{"status": "error", "message": "File not found"}]))
     with pytest.raises(ProviderError, match="not found"):
