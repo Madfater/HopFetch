@@ -12,6 +12,7 @@ Needs [Docker](https://docs.docker.com/get-docker/) with Compose.
 
 ```bash
 mkdir -p data downloads
+printf 'UID=%s\nGID=%s\n' "$(id -u)" "$(id -g)" > .env
 docker compose up -d --build
 ```
 

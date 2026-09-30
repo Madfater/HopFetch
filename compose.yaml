@@ -7,4 +7,5 @@ services:
     volumes:
       - ./data:/data
       - ./downloads:/downloads
+    stop_grace_period: 40s
     restart: unless-stopped

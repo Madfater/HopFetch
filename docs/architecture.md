@@ -54,7 +54,9 @@ The server binds to localhost by default and has no authentication. Do not expos
 `Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. `compose.yaml` runs it:
 
 - `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
-- Runs as `${UID:-1000}:${GID:-1000}` so files on the host belong to the user. Create both directories before the first start, or Docker creates them owned by root.
+- Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
+- Create `data/` and `downloads/` before the first start, or Docker creates them owned by root.
+- `stop_grace_period` is longer than the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
 - uvicorn listens on `0.0.0.0` inside the container, and the port is published on `127.0.0.1:8000` only.
 - The variables in the table above are set under `environment:` of the service.
 
