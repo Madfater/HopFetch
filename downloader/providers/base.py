@@ -8,7 +8,6 @@ import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable
-from urllib.parse import urlsplit
 
 from ..proxies import ProxyPool
 
@@ -19,7 +18,16 @@ DEFAULT_HEADERS = {
 
 
 class ProviderError(Exception):
-    """A provider-side failure with a message fit to show to the user."""
+    """A provider-side failure with a stable `code` and a message fit to show to the user.
+
+    - `code` is one of the error codes in docs/refactor-spec.md, such as `not_found`.
+    - `message` is zh-Hant text; the frontend shows it only for codes it has no copy for.
+    """
+
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
 
 
 class Cancelled(Exception):
@@ -70,7 +78,7 @@ class LinkContext:
     """Everything a provider may need while generating links, without knowing about jobs or HTTP.
 
     - `solve_captcha(image, spec)` returns an answer, or None to ask for a fresh captcha image.
-    - `set_status(state, message)` reports progress; states are the `STATUS_*` constants.
+    - `set_status(phase, message)` reports progress; phases are the `PHASE_*` constants.
     - `proxies` is the shared proxy pool.
     - `cancelled` is set when the user pauses or deletes the job.
     """
@@ -90,35 +98,42 @@ class LinkContext:
         deadline = time.monotonic() + seconds
         while (left := deadline - time.monotonic()) > 0:
             minutes, seconds = divmod(int(left + 0.999), 60)
-            countdown = f"{minutes}m {seconds:02d}s" if minutes else f"{seconds}s"
-            self.set_status(STATUS_WAITING, f"{message} {countdown}")
+            countdown = f"{minutes}:{seconds:02d}"
+            self.set_status(PHASE_WAITING, f"{message} {countdown}")
             if self.cancelled.wait(min(1.0, left)):
                 raise Cancelled()
 
 
-STATUS_PREPARING = "preparing"
-STATUS_SOLVING_CAPTCHA = "solving_captcha"
-STATUS_WAITING = "waiting"
-STATUS_GENERATING_LINKS = "generating_links"
+PHASE_CAPTCHA = "captcha"
+PHASE_WAITING = "waiting"
+PHASE_LINKS = "links"
 
 
 class Provider(ABC):
     """A file hosting platform.
 
-    - `name` is the stable id stored in jobs; `label` is shown in the UI.
-    - `hosts` are the domains this provider owns; a URL on one of them that `match` rejects is
-      reported as unsupported instead of falling through to the generic provider.
+    - `name` is the stable id stored in jobs; `label` is shown in the UI; `icon` names the
+      frontend icon.
+    - `patterns` are regular expressions over the normalized URL, with the file id in group 1.
+      They use only syntax that Python and JavaScript read the same way: no named groups,
+      no lookbehind, no inline flags.
     - `link_ttl` is how long generated links stay reusable, in seconds.
     """
 
     name: str = ""
     label: str = ""
-    hosts: tuple[str, ...] = ()
+    icon: str = ""
+    patterns: tuple[str, ...] = ()
     link_ttl: float = float("inf")
 
-    @abstractmethod
     def match(self, url: str) -> str | None:
-        """Return the platform's file id for `url`, or None when the URL is not a file link."""
+        """Return the file id when the normalized `url` matches one of `patterns`, else None."""
+        normalized = normalize_url(url)
+        for pattern in self.patterns:
+            found = re.match(pattern, normalized)
+            if found:
+                return found.group(1)
+        return None
 
     @abstractmethod
     def get_info(self, ref: FileRef) -> FileInfo:
@@ -132,7 +147,14 @@ class Provider(ABC):
         """Return the HTTP headers to send with every chunk request."""
         return dict(DEFAULT_HEADERS)
 
-    def owns_host(self, url: str) -> bool:
-        """True when `url` is on one of `hosts` or a subdomain of one."""
-        host = (urlsplit(url.strip()).hostname or "").lower()
-        return any(host == h or host.endswith("." + h) for h in self.hosts)
+
+def normalize_url(url: str) -> str:
+    """Trim whitespace and lowercase the scheme and host, leaving path and query as given.
+
+    - The frontend applies the same rule before matching, so both sides see the same string.
+    """
+    url = url.strip()
+    found = re.match(r"^([A-Za-z][A-Za-z0-9+.-]*://)([^/?#]*)(.*)$", url, re.S)
+    if not found:
+        return url
+    return found.group(1).lower() + found.group(2).lower() + found.group(3)

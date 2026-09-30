@@ -16,7 +16,7 @@ from downloader.engine import (
     part_path,
 )
 from downloader.providers.base import Cancelled
-from downloader.util import parse_size, safe_filename
+from downloader.util import claim_staging, parse_size, publish_staging, safe_filename, staging_path
 
 SPLIT = 200_000
 
@@ -32,7 +32,8 @@ def make(server, tmp_path, links=4, **kwargs):
 def finish(download, tmp_path):
     """Assemble the parts and return the output bytes."""
     out = tmp_path / "out.bin"
-    assemble(download.part_dir, download.parts, out)
+    with out.open("wb") as handle:
+        assemble(download.part_dir, download.parts, handle)
     return out.read_bytes()
 
 
@@ -85,7 +86,7 @@ def test_download_is_byte_identical(server, content, tmp_path):
     assert finish(download, tmp_path) == content
     assert progress[-1].done_bytes == len(content)
     assert progress[-1].parts_done == progress[-1].parts_total == len(download.parts)
-    assert not any((tmp_path / "parts").iterdir())
+    assert len(list((tmp_path / "parts").iterdir())) == len(download.parts)
 
 
 def test_resume_continues_from_bytes_on_disk(server, content, tmp_path):
@@ -144,3 +145,64 @@ def test_server_ignoring_range_never_corrupts_parts(server, tmp_path):
     assert all(not part_path(download.part_dir, p.index).exists()
                or part_path(download.part_dir, p.index).stat().st_size == 0
                for p in download.parts)
+
+
+def test_claim_staging_skips_taken_names(tmp_path):
+    (tmp_path / "a.bin.part").write_bytes(b"other writer")
+    output, handle = claim_staging(tmp_path / "a.bin")
+    handle.close()
+    assert output == tmp_path / "a (1).bin"
+    assert (tmp_path / "a (1).bin.part").exists()
+    assert (tmp_path / "a.bin.part").read_bytes() == b"other writer"
+
+
+def test_publish_staging_never_replaces(tmp_path):
+    output, handle = claim_staging(tmp_path / "a.bin")
+    with handle:
+        handle.write(b"new")
+    output.write_bytes(b"appeared meanwhile")
+    final = publish_staging(staging_path(output), output)
+    assert final == tmp_path / "a (1).bin"
+    assert final.read_bytes() == b"new"
+    assert output.read_bytes() == b"appeared meanwhile"
+    assert not staging_path(output).exists()
+
+
+def test_publish_staging_without_hard_links(tmp_path, monkeypatch):
+    import errno
+    import os
+
+    def no_links(*args, **kwargs):
+        raise OSError(errno.EPERM, "no links")
+
+    monkeypatch.setattr(os, "link", no_links)
+    output, handle = claim_staging(tmp_path / "b.bin")
+    with handle:
+        handle.write(b"data")
+    assert publish_staging(staging_path(output), output).read_bytes() == b"data"
+    assert not staging_path(output).exists()
+
+
+def test_safe_filename_limits_utf8_bytes():
+    name = "影" * 150 + ".mkv"
+    safe = safe_filename(name)
+    assert len(safe.encode()) <= 200 and safe.endswith(".mkv") and safe.startswith("影")
+    assert len(safe_filename("a" * 300).encode()) == 200
+    assert len((safe + " (9999)" + ".part").encode()) < 255
+
+
+def test_publish_staging_without_hard_links_never_replaces(tmp_path, monkeypatch):
+    import errno
+    import os
+
+    def no_links(*args, **kwargs):
+        raise OSError(errno.EPERM, "no links")
+
+    monkeypatch.setattr(os, "link", no_links)
+    output, handle = claim_staging(tmp_path / "c.bin")
+    with handle:
+        handle.write(b"new")
+    output.write_bytes(b"someone else")
+    final = publish_staging(staging_path(output), output)
+    assert final == tmp_path / "c (1).bin" and final.read_bytes() == b"new"
+    assert output.read_bytes() == b"someone else"

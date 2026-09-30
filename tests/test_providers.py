@@ -1,84 +1,54 @@
-"""URL matching and the registry."""
+"""URL matching and the registry, driven by the test cases shared with the frontend."""
 
 from __future__ import annotations
 
+import json
+import re
+from pathlib import Path
+
 import pytest
 
-from downloader.providers import ProviderRegistry, default_registry
-from downloader.providers.base import CaptchaSpec, FileRef, ProviderError
-from downloader.providers.direct import DirectProvider
-from downloader.providers.k2s import K2SProvider
+from downloader.providers import default_registry
+from downloader.providers.base import CaptchaSpec, ProviderError, normalize_url
 
-TARGET = "https://k2s.cc/file/8d028cc29f08b/Keep%20the%20Witch%20Out%20of%20This%20Inn.rar"
+CASES = json.loads((Path(__file__).parent.parent / "shared" / "provider-test-cases.json").read_text())
+PORTABLE_REGEX = re.compile(r"\(\?P?<|\(\?[aiLmsux]")
 
 
-@pytest.mark.parametrize("url", [
-    TARGET,
-    "https://k2s.cc/file/8d028cc29f08b",
-    "https://k2s.cc/file/8d028cc29f08b/",
-    "http://k2s.cc/file/8d028cc29f08b?site=x",
-    "https://keep2share.cc/file/8d028cc29f08b/name.rar",
-    "  https://www.k2s.cc/file/8d028cc29f08b#top  ",
+@pytest.mark.parametrize("case", CASES, ids=[c["url"] or "<empty>" for c in CASES])
+def test_shared_cases(case):
+    registry = default_registry()
+    if case["provider"] is None:
+        with pytest.raises(ProviderError) as info:
+            registry.resolve(case["url"])
+        assert info.value.code in ("invalid_url", "unsupported")
+    else:
+        provider, ref = registry.resolve(case["url"])
+        assert (provider.name, ref.file_id) == (case["provider"], case["file_id"])
+
+
+def test_patterns_use_the_portable_subset():
+    for provider in default_registry().all():
+        assert provider.patterns
+        for pattern in provider.patterns:
+            assert not PORTABLE_REGEX.search(pattern), pattern
+            assert re.compile(pattern).groups >= 1
+
+
+@pytest.mark.parametrize("url,code", [
+    ("not a url", "invalid_url"),
+    ("ftp://k2s.cc/file/abc", "invalid_url"),
+    ("https://example.com/a.zip", "unsupported"),
+    ("https://k2s.cc/folder/abc", "unsupported"),
 ])
-def test_k2s_matches_file_links(url):
-    assert K2SProvider().match(url) == "8d028cc29f08b"
-
-
-@pytest.mark.parametrize("url", [
-    "https://k2s.cc/folder/abc",
-    "https://example.com/file/8d028cc29f08b",
-    "k2s.cc/file/8d028cc29f08b",
-])
-def test_k2s_rejects_other_urls(url):
-    assert K2SProvider().match(url) is None
-
-
-def test_registry_prefers_platform_over_direct():
-    provider, ref = default_registry().resolve(TARGET)
-    assert provider.name == "k2s"
-    assert ref == FileRef(url=TARGET, file_id="8d028cc29f08b")
-
-
-def test_registry_falls_back_to_direct():
-    provider, ref = default_registry().resolve("https://example.com/a/b.zip")
-    assert provider.name == "direct"
-    assert len(ref.file_id) == 16
-
-
-def test_registry_rejects_unsupported_page_on_owned_host():
-    with pytest.raises(ProviderError, match="not a file link"):
-        default_registry().resolve("https://k2s.cc/folder/abc")
-
-
-@pytest.mark.parametrize("url", ["ftp://example.com/x", "not a url", ""])
-def test_registry_rejects_non_http(url):
-    with pytest.raises(ProviderError):
+def test_registry_error_codes(url, code):
+    with pytest.raises(ProviderError) as info:
         default_registry().resolve(url)
+    assert info.value.code == code
 
 
-def test_register_adds_provider_first():
-    class Fake(DirectProvider):
-        name = "fake"
-
-        def match(self, url):
-            return "id" if "fake.test" in url else None
-
-    registry = ProviderRegistry([DirectProvider()])
-    registry.register(Fake())
-    assert registry.resolve("https://fake.test/x")[0].name == "fake"
-    assert registry.get("fake").name == "fake"
-
-
-def test_direct_get_info(server, content):
-    info = DirectProvider().get_info(FileRef(server.url, "x"))
-    assert info.name == "sample.bin"
-    assert info.size == len(content)
-
-
-def test_direct_get_info_requires_ranges(server):
-    server.ignore_range = True
-    with pytest.raises(ProviderError, match="ranged"):
-        DirectProvider().get_info(FileRef(server.url, "x"))
+def test_normalize_url_lowercases_scheme_and_host_only():
+    assert normalize_url("  HTTPS://K2S.CC/file/AbC?Q=X  ") == "https://k2s.cc/file/AbC?Q=X"
 
 
 @pytest.mark.parametrize("raw,expected", [

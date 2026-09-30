@@ -1,0 +1,18 @@
+[
+  {"url": "https://k2s.cc/file/8d028cc29f08b/Keep%20the%20Witch%20Out%20of%20This%20Inn.rar", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "https://k2s.cc/file/8d028cc29f08b", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "https://k2s.cc/file/8d028cc29f08b/", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "http://k2s.cc/file/8d028cc29f08b?site=x", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "https://keep2share.cc/file/8d028cc29f08b/name.rar", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "  https://www.k2s.cc/file/8d028cc29f08b#top  ", "provider": "k2s", "file_id": "8d028cc29f08b"},
+  {"url": "HTTPS://K2S.CC/file/AbC123/x.zip", "provider": "k2s", "file_id": "AbC123"},
+  {"url": "https://k2s.cc/folder/abc", "provider": null, "file_id": null},
+  {"url": "https://k2s.cc/file/", "provider": null, "file_id": null},
+  {"url": "https://example.com/file/8d028cc29f08b", "provider": null, "file_id": null},
+  {"url": "https://k2s.cc.evil.test/file/8d028cc29f08b", "provider": null, "file_id": null},
+  {"url": "https://evil.test/?u=https://k2s.cc/file/8d028cc29f08b", "provider": null, "file_id": null},
+  {"url": "k2s.cc/file/8d028cc29f08b", "provider": null, "file_id": null},
+  {"url": "ftp://k2s.cc/file/8d028cc29f08b", "provider": null, "file_id": null},
+  {"url": "http://192.168.1.1/admin", "provider": null, "file_id": null},
+  {"url": "", "provider": null, "file_id": null}
+]

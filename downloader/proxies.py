@@ -92,7 +92,8 @@ class ProxyPool:
     - `load()` reads the public cache file, or fetches proxy lists and keeps the ones that answer
       TEST_URL.
     - The cache file is read and written under a cross-process lock.
-    - `enabled=False` skips public proxies; user proxies still apply.
+    - `enabled=False` skips public proxies; user proxies still apply. The flag may change at
+      runtime: public proxies are loaded the first time they are needed while it is True.
     """
 
     def __init__(self, cache_path: Path, enabled: bool = True,
@@ -101,8 +102,9 @@ class ProxyPool:
         self.enabled = enabled
         self.user_proxies = list(user_proxies or [])
         self.user_file = user_file
-        self._proxies: list[str | None] = [None]
-        self._counts = (0, 0)
+        self._user: list[str] = []
+        self._public: list[str] = []
+        self._public_loaded = False
         self._loaded = threading.Event()
         self._load_lock = threading.Lock()
 
@@ -112,26 +114,29 @@ class ProxyPool:
         return self._loaded.is_set()
 
     def load(self, refresh: bool = False, on_status: Callable[[str], None] | None = None) -> None:
-        """Populate the pool once; later calls return at once unless `refresh` is set."""
+        """Populate the pool; later calls return at once unless `refresh` is set or public proxies
+        are enabled but not loaded yet."""
         with self._load_lock:
-            if self._loaded.is_set() and not refresh:
+            enabled = self.enabled
+            if self._loaded.is_set() and not refresh and (self._public_loaded or not enabled):
                 return
-            user = self._read_user()
-            public = self._read_or_build(refresh, on_status) if self.enabled else []
-            self._proxies = [None, *user, *public]
-            self._counts = (len(user), len(public))
+            self._user = self._read_user()
+            if enabled:
+                self._public = self._read_or_build(refresh, on_status)
+                self._public_loaded = True
             self._loaded.set()
-            log.info("proxy pool ready with %d user and %d public proxies", len(user), len(public))
+            log.info("proxy pool ready with %d user and %d public proxies",
+                     len(self._user), len(self._public) if enabled else 0)
 
     def all(self) -> list[str | None]:
-        """Return the proxy list, loading it first when needed."""
+        """Return the direct connection, user proxies and, while enabled, public proxies."""
         self.load()
-        return list(self._proxies)
+        return [None, *self._user, *(self._public if self.enabled else [])]
 
     def status(self) -> dict:
         """Return pool counts without proxy addresses and without triggering a load."""
-        user, public = self._counts
-        return {"loaded": self.loaded, "public_enabled": self.enabled, "user": user, "public": public}
+        return {"loaded": self.loaded, "public_enabled": self.enabled, "user": len(self._user),
+                "public": len(self._public) if self.enabled else 0}
 
     def _read_user(self) -> list[str]:
         """Return `user_proxies` followed by the proxies listed in `user_file`."""

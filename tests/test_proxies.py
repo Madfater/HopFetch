@@ -67,3 +67,14 @@ def test_settings_read_proxies_env(monkeypatch, tmp_path):
     assert Settings.from_env().proxies == ["http://a:1", "socks5h://u:p@b:2"]
     monkeypatch.delenv("PROXIES")
     assert Settings.from_env().proxies == []
+
+
+def test_public_proxies_follow_the_runtime_switch(tmp_path):
+    (tmp_path / "proxies.txt").write_text("9.9.9.9:80")
+    pool = ProxyPool(tmp_path / "proxies.txt", enabled=False, user_proxies=["http://u.example:1"])
+    assert pool.all() == [None, "http://u.example:1"]
+    pool.enabled = True
+    assert pool.all() == [None, "http://u.example:1", "9.9.9.9:80"]
+    assert pool.status() == {"loaded": True, "public_enabled": True, "user": 1, "public": 1}
+    pool.enabled = False
+    assert pool.all() == [None, "http://u.example:1"]

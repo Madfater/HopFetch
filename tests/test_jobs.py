@@ -2,138 +2,61 @@
 
 from __future__ import annotations
 
+import json
 import threading
 import time
 
 import pytest
+from conftest import FakeOcr, build_manager, wait_for
 
 from downloader.captcha import CaptchaSession
-from downloader.config import Settings
-from downloader.jobs import DuplicateJob, JobManager, State
-from downloader.providers import ProviderRegistry
-from downloader.providers.base import (
-    STATUS_SOLVING_CAPTCHA,
-    CaptchaSpec,
-    Cancelled,
-    FileInfo,
-    FileRef,
-    LinkContext,
-    Provider,
-)
-from downloader.providers.direct import DirectProvider
-from downloader.proxies import ProxyPool
+from downloader.events import EventBus
+from downloader.jobs import DuplicateTask, InsufficientSpace, InvalidState, Job, Phase, Status
+from downloader.providers.base import Cancelled, CaptchaSpec, ProviderError
 
 SPEC = CaptchaSpec(length=6)
-MIB = 2**20
+URL = "https://fake.test/f/{}"
 
 
-class FakeOcr:
-    """Returns queued readings in order."""
-
-    def __init__(self, readings):
-        self.readings = list(readings)
-
-    def read(self, image):
-        return self.readings.pop(0)
-
-
-class CaptchaProvider(Provider):
-    """Asks for captchas until one is `abc123`, then returns the server URL as every link."""
-
-    name = "fake"
-    label = "Fake host"
-    hosts = ("fake.test",)
-
-    def __init__(self, server_url: str, size: int):
-        self.server_url = server_url
-        self.size = size
-        self.link_calls = 0
-        self.expire_first = False
-
-    def match(self, url):
-        return url.rsplit("/", 1)[-1] if url.startswith("https://fake.test/") else None
-
-    def get_info(self, ref: FileRef) -> FileInfo:
-        return FileInfo(name=f"{ref.file_id}.bin", size=self.size)
-
-    def generate_links(self, ref, count, ctx: LinkContext):
-        self.link_calls += 1
-        while True:
-            ctx.set_status(STATUS_SOLVING_CAPTCHA, "solving")
-            if ctx.solve_captcha(b"png", SPEC) == "abc123":
-                break
-        if self.expire_first and self.link_calls == 1:
-            return [self.server_url.replace("/file.bin", "/gone")] * count
-        return [self.server_url] * count
-
-
-def wait_for(predicate, timeout=15.0):
-    """Poll until `predicate()` is truthy or fail."""
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
-            return
-        time.sleep(0.02)
-    raise AssertionError("condition not reached in time")
-
-
-def make_manager(tmp_path, server, content, ocr=None, **overrides):
-    settings = Settings(data_dir=tmp_path / "data", download_dir=tmp_path / "downloads",
-                        use_proxies=False, **overrides)
-    provider = CaptchaProvider(server.url, len(content))
-    manager = JobManager(settings, ProviderRegistry([provider, DirectProvider()]),
-                         proxies=ProxyPool(settings.data_dir / "proxies.txt", enabled=False),
-                         ocr=ocr)
-    manager.start()
-    return manager, provider
-
-
-def test_captcha_session_ocr_then_manual():
-    cancelled = threading.Event()
-    shown = []
-    session = CaptchaSession(FakeOcr(["ab12", "XYZ789"]), 2, cancelled, shown.append)
+def test_captcha_session_reads_until_limit():
+    session = CaptchaSession(FakeOcr(["ab12", "XYZ789"]), 3, threading.Event())
     assert session.solve(b"img1", SPEC) is None
     assert session.solve(b"img2", SPEC) == "xyz789"
+    assert session.solve(b"img3", SPEC) == "abc123"
+    with pytest.raises(ProviderError) as info:
+        session.solve(b"img4", SPEC)
+    assert info.value.code == "captcha_failed"
 
-    threading.Timer(0.1, session.submit, args=(" QWE456 ",)).start()
-    assert session.solve(b"img3", SPEC) == "qwe456"
-    assert shown == [b"img3"]
 
-
-def test_captcha_session_cancel_while_waiting():
+def test_captcha_session_stops_when_cancelled():
     cancelled = threading.Event()
-    session = CaptchaSession(None, 5, cancelled, lambda image: None)
-    threading.Timer(0.1, cancelled.set).start()
+    cancelled.set()
     with pytest.raises(Cancelled):
-        session.solve(b"img", SPEC)
+        CaptchaSession(FakeOcr(), 5, cancelled).solve(b"img", SPEC)
 
 
-def test_job_completes_with_ocr(tmp_path, server, content):
-    manager, _ = make_manager(tmp_path, server, content, ocr=FakeOcr(["zz", "ABC123"]))
-    job = manager.create("https://fake.test/one", None, 3, 20 * MIB)
-    wait_for(lambda: job.state == State.COMPLETED)
-    assert job.captcha_attempts == 2
+def test_job_completes(tmp_path, provider, content):
+    manager = build_manager(tmp_path, provider, ocr=FakeOcr(["zz"]))
+    job = manager.create(URL.format("one"))
+    wait_for(lambda: job.status == Status.COMPLETED)
     assert (tmp_path / "downloads" / "one.bin").read_bytes() == content
+    assert not (tmp_path / "downloads" / "one.bin.part").exists()
     assert not (tmp_path / "data" / "jobs" / job.id).exists()
+    public = manager.public(job)
+    assert public["file_exists"] is True and public["completed_at"] and public["eta"] is None
+    assert public["bytes_done"] == public["size"] == len(content)
+    assert "links" not in public and "output_path" not in public
 
 
-def test_job_manual_captcha_path(tmp_path, server, content):
-    manager, _ = make_manager(tmp_path, server, content, captcha_ocr=False)
-    job = manager.create("https://fake.test/two", "renamed.bin", 2, 20 * MIB)
-    wait_for(lambda: job.state == State.AWAITING_CAPTCHA)
-    assert manager.captcha_image(job.id) == b"png"
-
-    manager.submit_captcha(job.id, "wrong1")
-    wait_for(lambda: job.state == State.AWAITING_CAPTCHA and manager.captcha_image(job.id))
-    manager.submit_captcha(job.id, "abc123")
-    wait_for(lambda: job.state == State.COMPLETED)
-    assert (tmp_path / "downloads" / "renamed.bin").read_bytes() == content
+def test_ocr_limit_fails_the_job(tmp_path, provider):
+    manager = build_manager(tmp_path, provider, ocr=FakeOcr(default="nope00"), captcha_max_attempts=3)
+    job = manager.create(URL.format("ocr"))
+    wait_for(lambda: job.status == Status.FAILED)
+    assert job.error["code"] == "captcha_failed"
 
 
-def test_expired_links_are_regenerated(tmp_path, server, content):
-    manager, provider = make_manager(tmp_path, server, content, ocr=FakeOcr(["abc123"] * 2))
+def test_expired_links_are_regenerated(tmp_path, provider, server):
     provider.expire_first = True
-    server.refuse = False
     original = server.httpd.RequestHandlerClass.do_GET
 
     def do_get(handler):
@@ -144,73 +67,369 @@ def test_expired_links_are_regenerated(tmp_path, server, content):
         original(handler)
 
     server.httpd.RequestHandlerClass.do_GET = do_get
-    job = manager.create("https://fake.test/three", None, 2, 20 * MIB)
-    wait_for(lambda: job.state in (State.COMPLETED, State.FAILED))
-    assert job.state == State.COMPLETED, job.error
+    manager = build_manager(tmp_path, provider, connections=2)
+    job = manager.create(URL.format("three"))
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    assert job.status == Status.COMPLETED, job.error
     assert provider.link_calls == 2
 
 
-def test_pause_resume_and_restart(tmp_path, server, content):
+def test_pause_resume_and_restart(tmp_path, provider, server, content):
     server.delay = 0.05
-    manager, _ = make_manager(tmp_path, server, content, ocr=FakeOcr(["abc123"]))
-    job = manager.create("https://fake.test/four", None, 2, 20 * MIB)
-    wait_for(lambda: job.state == State.DOWNLOADING and job.done_bytes > 0)
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("four"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
     manager.pause(job.id)
-    wait_for(lambda: job.state == State.PAUSED)
-    saved = job.done_bytes
-    assert 0 < saved < len(content)
+    wait_for(lambda: job.status == Status.PAUSED)
+    assert 0 < job.bytes_done < len(content)
+    with pytest.raises(InvalidState):
+        manager.pause(job.id)
 
-    restarted, _ = make_manager(tmp_path, server, content, ocr=FakeOcr([]))
+    restarted = build_manager(tmp_path, provider)
     again = restarted.get(job.id)
-    assert again.state == State.PAUSED and again.links
+    assert again.status == Status.PAUSED and again.links
     server.delay = 0
     restarted.resume(job.id)
-    wait_for(lambda: again.state == State.COMPLETED)
+    with pytest.raises(InvalidState):
+        restarted.resume(job.id)
+    wait_for(lambda: again.status == Status.COMPLETED)
     assert (tmp_path / "downloads" / "four.bin").read_bytes() == content
 
 
-def test_restart_marks_active_jobs_paused(tmp_path, server, content):
-    manager, _ = make_manager(tmp_path, server, content, captcha_ocr=False)
-    job = manager.create("https://fake.test/five", None, 2, 20 * MIB)
-    wait_for(lambda: job.state == State.AWAITING_CAPTCHA)
-    restarted, _ = make_manager(tmp_path, server, content)
-    assert restarted.get(job.id).state == State.PAUSED
+def test_restart_marks_active_jobs_paused(tmp_path, provider, server):
+    server.delay = 0.2
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("five"))
+    wait_for(lambda: job.status == Status.DOWNLOADING)
+    restarted = build_manager(tmp_path, provider)
+    stored = restarted.get(job.id)
+    assert stored.status == Status.PAUSED and stored.phase is None
+    assert "重新啟動" in stored.message
     manager.delete(job.id)
 
 
-def test_duplicate_and_validation(tmp_path, server, content):
-    manager, _ = make_manager(tmp_path, server, content, captcha_ocr=False)
-    job = manager.create("https://fake.test/six", None, 2, 20 * MIB)
-    with pytest.raises(DuplicateJob):
-        manager.create("https://fake.test/six", None, 2, 20 * MIB)
-    with pytest.raises(ValueError, match="20 MiB"):
-        manager.create("https://fake.test/seven", None, 2, MIB)
-    with pytest.raises(ValueError, match="Connections"):
-        manager.create("https://fake.test/seven", None, 0, 20 * MIB)
-    manager.delete(job.id)
-    assert job.id not in manager.jobs
-
-
-def test_delete_running_job_removes_parts(tmp_path, server, content):
+def test_cancel_deletes_partial_data_and_retry_restarts(tmp_path, provider, server, content):
     server.delay = 0.05
-    manager, _ = make_manager(tmp_path, server, content, ocr=FakeOcr(["abc123"]))
-    job = manager.create("https://fake.test/eight", None, 2, 20 * MIB)
-    wait_for(lambda: job.state == State.DOWNLOADING and job.done_bytes > 0)
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("six"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    manager.cancel(job.id)
+    assert job.status == Status.CANCELED and job.bytes_done == 0
+    assert not (tmp_path / "data" / "jobs" / job.id).exists()
+    with pytest.raises(InvalidState):
+        manager.cancel(job.id)
+
+    server.delay = 0
+    manager.retry(job.id)
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "six.bin").read_bytes() == content
+
+
+def test_cancel_paused_job(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("seven"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    manager.pause(job.id)
+    wait_for(lambda: job.status == Status.PAUSED)
+    manager.cancel(job.id)
+    assert job.status == Status.CANCELED
+    assert not (tmp_path / "data" / "jobs" / job.id).exists()
+
+
+def test_failed_job_can_be_retried(tmp_path, provider, content):
+    manager = build_manager(tmp_path, provider, ocr=FakeOcr(default="nope00"), captcha_max_attempts=1)
+    job = manager.create(URL.format("eight"))
+    wait_for(lambda: job.status == Status.FAILED)
+    with pytest.raises(InvalidState):
+        manager.resume(job.id)
+    manager.ocr.default = "abc123"
+    manager.settings.captcha_max_attempts = 5
+    manager.retry(job.id)
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert job.error is None
+
+
+def test_duplicates(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("nine"))
+    with pytest.raises(DuplicateTask) as info:
+        manager.create(URL.format("nine"))
+    assert info.value.code == "duplicate_active" and info.value.task_id == job.id
+
+    server.delay = 0
+    wait_for(lambda: job.status == Status.COMPLETED)
+    with pytest.raises(DuplicateTask) as info:
+        manager.create(URL.format("nine"))
+    assert info.value.code == "duplicate_completed"
+    second = manager.create(URL.format("nine"), force=True)
+    wait_for(lambda: second.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "nine (1).bin").exists()
+    assert manager.find_duplicate("fake", "nine").id == second.id
+
+
+def test_insufficient_space(tmp_path, provider):
+    provider.size = 10**18
+    manager = build_manager(tmp_path, provider)
+    with pytest.raises(InsufficientSpace):
+        manager.create(URL.format("huge"))
+    assert manager.list() == []
+
+
+def test_same_filesystem_needs_double_space(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    assert manager.required_bytes(100) == 200
+    assert manager.required_bytes(None) is None
+
+
+def test_delete_running_job_removes_parts(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("ten"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
     manager.delete(job.id)
     assert not (tmp_path / "data" / "jobs" / job.id).exists()
     assert manager.list() == []
 
 
-def test_resume_right_after_pause(tmp_path, server, content):
+def test_delete_with_and_without_file(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    kept = manager.create(URL.format("keep"))
+    gone = manager.create(URL.format("gone"))
+    wait_for(lambda: kept.status == gone.status == Status.COMPLETED)
+    manager.delete(kept.id)
+    manager.delete(gone.id, delete_file=True)
+    assert (tmp_path / "downloads" / "keep.bin").exists()
+    assert not (tmp_path / "downloads" / "gone.bin").exists()
+
+
+def test_delete_file_refuses_symlinks(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("link"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    outside = tmp_path / "outside.bin"
+    outside.write_bytes(b"precious")
+    target = tmp_path / "downloads" / "link.bin"
+    target.unlink()
+    target.symlink_to(outside)
+    assert manager.file_path(job.id) is None
+    manager.delete(job.id, delete_file=True)
+    assert outside.read_bytes() == b"precious"
+
+
+def test_clear_completed(tmp_path, provider, server):
+    manager = build_manager(tmp_path, provider)
+    done = manager.create(URL.format("done"))
+    wait_for(lambda: done.status == Status.COMPLETED)
     server.delay = 0.05
-    manager, _ = make_manager(tmp_path, server, content, ocr=FakeOcr(["abc123"]))
-    job = manager.create("https://fake.test/nine", None, 2, 20 * MIB)
-    wait_for(lambda: job.state == State.DOWNLOADING and job.done_bytes > 0)
+    running = manager.create(URL.format("running"))
+    assert manager.clear_completed() == 1
+    assert [j.id for j in manager.list()] == [running.id]
+    assert (tmp_path / "downloads" / "done.bin").exists()
+    manager.delete(running.id)
+
+
+def test_status_and_phase_changes_are_published(tmp_path, provider):
+    bus = EventBus()
+    seen = []
+    bus.publish_task = lambda task, force=False: seen.append((task["status"], task["phase"], force))
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("events"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    forced = [(s, p) for s, p, force in seen if force]
+    assert forced[0] == ("queued", None)
+    assert ("downloading", "captcha") in forced and ("downloading", "downloading") in forced
+    assert forced[-1] == ("completed", None)
+
+
+def test_settings_apply_to_new_jobs(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    manager.update_preferences({"connections": 3, "max_active_jobs": 1})
+    job = manager.create(URL.format("prefs"))
+    assert job.connections == 3
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert build_manager(tmp_path, provider).preferences().connections == 3
+
+
+def test_load_older_job_layout():
+    old = {"id": "abcdef012345", "url": "u", "provider": "k2s", "file_id": "f", "connections": 2,
+           "split_size": 20, "filename": "a.bin", "done_bytes": 7, "links_count": 3}
+    job = Job.load(old | {"state": "generating_links", "message": "Generated 3/20 links", "error": None})
+    assert (job.status, job.phase, job.file_name, job.bytes_done) == (Status.PAUSED, None, "a.bin", 7)
+    assert job.error is None and "Generated" not in job.message
+    assert Job.load(json.loads(json.dumps(job.stored()))) == job
+
+    raw = "Unexpected error: ConnectionError(HTTPSConnectionPool(host='k2s.cc'))"
+    failed = Job.load(old | {"state": "failed", "message": raw, "error": raw})
+    assert failed.status == Status.FAILED and failed.error["code"] == "internal_error"
+    assert "ConnectionError" not in failed.message + failed.error["message"]
+
+
+def slow_assembly(monkeypatch, seconds=1.0):
+    """Make assembly take `seconds` longer."""
+    import downloader.jobs as jobs_module
+
+    original = jobs_module.assemble
+
+    def slow(*args):
+        time.sleep(seconds)
+        original(*args)
+
+    monkeypatch.setattr(jobs_module, "assemble", slow)
+
+
+def test_cancel_and_delete_are_refused_while_assembling(tmp_path, provider, monkeypatch, content):
+    slow_assembly(monkeypatch)
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("asm"))
+    wait_for(lambda: job.phase == Phase.ASSEMBLING)
+    for action in (manager.cancel, manager.delete, manager.pause):
+        with pytest.raises(InvalidState):
+            action(job.id)
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert manager.public(job)["file_exists"] is True
+    assert (tmp_path / "downloads" / "asm.bin").read_bytes() == content
+
+
+def test_cancel_racing_completion_keeps_the_file_tracked(tmp_path, provider, monkeypatch):
+    slow_assembly(monkeypatch)
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("race"))
+    wait_for(lambda: job.phase == Phase.ASSEMBLING)
+    with manager._lock:
+        run = manager._runs[job.id]
+        run.intent = "cancel"
+        run.cancelled.set()
+    wait_for(lambda: job.id not in manager._runs)
+    assert job.status == Status.COMPLETED
+    assert manager.public(job)["file_exists"] is True
+
+
+def test_delete_intent_is_applied_by_the_worker(tmp_path, provider, server):
+    server.delay = 0.05
+    removed = []
+    bus = EventBus()
+    bus.publish_removed = removed.append
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("gone"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    manager.delete(job.id)
+    assert job.id not in manager.jobs and removed == [job.id]
+    assert not (tmp_path / "data" / "jobs" / job.id).exists()
+
+
+def test_captcha_limit_counts_per_run(tmp_path, provider, server):
+    provider.expire_first = True
+    original = server.httpd.RequestHandlerClass.do_GET
+
+    def do_get(handler):
+        if handler.path == "/gone":
+            handler.send_response(410)
+            handler.end_headers()
+            return
+        original(handler)
+
+    server.httpd.RequestHandlerClass.do_GET = do_get
+    manager = build_manager(tmp_path, provider, connections=1, captcha_max_attempts=1)
+    job = manager.create(URL.format("limit"))
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    assert job.error["code"] == "captcha_failed"
+
+
+def test_out_of_range_environment_defaults_fall_back(tmp_path):
+    from downloader.config import Settings
+    from downloader.settings_store import SettingsStore
+
+    settings = Settings(data_dir=tmp_path, download_dir=tmp_path, split_size=2**20, max_active_jobs=0,
+                        connections=5, use_proxies=False)
+    prefs = SettingsStore(settings).get()
+    assert (prefs.split_size, prefs.max_active_jobs) == (20 * 2**20, 2)
+    assert (prefs.connections, prefs.use_proxies) == (5, False)
+
+
+def test_restart_during_verify_keeps_the_published_file(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("verify"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="verifying", completed_at=None)
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+    (tmp_path / "downloads" / "verify.bin.part").write_bytes(b"leftover")
+
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status == Status.COMPLETED and again.completed_at
+    assert not (tmp_path / "downloads" / "verify.bin.part").exists()
+
+
+def test_no_task_event_after_removal(tmp_path, provider):
+    seen = []
+    bus = EventBus()
+    bus.publish_task = lambda task, force=False: seen.append(task["id"])
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("late"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    manager.clear_completed()
+    seen.clear()
+    manager._publish(job, force=True)
+    assert seen == []
+
+
+def test_intents_only_escalate():
+    from downloader.jobs import _Run
+
+    run = _Run()
+    run.stop("delete")
+    run.stop("pause")
+    run.stop("cancel")
+    assert run.intent == "delete" and run.cancelled.is_set()
+    other = _Run()
+    other.stop("pause")
+    other.stop("cancel")
+    assert other.intent == "cancel"
+
+
+def test_pause_during_pending_delete_keeps_the_delete(tmp_path, provider):
+    gate = threading.Event()
+    entered = threading.Event()
+    original = provider.generate_links
+
+    def blocking(ref, count, ctx):
+        entered.set()
+        gate.wait(5)
+        return original(ref, count, ctx)
+
+    provider.generate_links = blocking
+    removed = []
+    bus = EventBus()
+    bus.publish_removed = removed.append
+    manager = build_manager(tmp_path, provider, bus=bus)
+    job = manager.create(URL.format("pending"))
+    assert entered.wait(5)
+    deleting = threading.Thread(target=manager.delete, args=(job.id,))
+    deleting.start()
+    wait_for(lambda: manager._runs.get(job.id) is not None and manager._runs[job.id].intent == "delete")
     manager.pause(job.id)
-    wait_for(lambda: job.state == State.PAUSED)
-    server.delay = 0
-    manager.resume(job.id)
-    with pytest.raises(ValueError):
-        manager.resume(job.id)
-    wait_for(lambda: job.state == State.COMPLETED)
-    assert (tmp_path / "downloads" / "nine.bin").read_bytes() == content
+    gate.set()
+    deleting.join(10)
+    assert job.id not in manager.jobs and removed == [job.id]
+
+
+def test_restart_does_not_adopt_a_foreign_file(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("foreign"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    (tmp_path / "downloads" / "foreign.bin").write_bytes(b"not ours")
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="assembling", completed_at=None)
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+    assert build_manager(tmp_path, provider).get(job.id).status == Status.PAUSED
+
+
+def test_captcha_attempts_env_must_be_positive(monkeypatch):
+    from downloader.config import Settings
+
+    monkeypatch.setenv("CAPTCHA_MAX_ATTEMPTS", "0")
+    assert Settings.from_env().captcha_max_attempts == 50
+    monkeypatch.setenv("CAPTCHA_MAX_ATTEMPTS", "7")
+    assert Settings.from_env().captcha_max_attempts == 7

@@ -9,7 +9,7 @@ import threading
 import time
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable
+from typing import BinaryIO, Callable
 
 import requests
 
@@ -74,21 +74,16 @@ def part_path(part_dir: Path, index: int) -> Path:
     return part_dir / f"part{index:05d}"
 
 
-def assemble(part_dir: Path, parts: list[Part], output: Path) -> None:
-    """Concatenate the part files in order into `output`, then delete them.
+def assemble(part_dir: Path, parts: list[Part], out: BinaryIO) -> None:
+    """Write the part files in order into `out`.
 
-    - Writes to a temporary sibling first and renames it, so `output` never holds a partial file.
+    - `out` is the job's staging file; the caller gives it its final name afterwards, so the
+      final name never holds a partial file. Part files are left for the caller to remove.
     """
-    output.parent.mkdir(parents=True, exist_ok=True)
-    staging = output.with_name(output.name + ".assembling")
-    with staging.open("wb") as out:
-        for part in parts:
-            with part_path(part_dir, part.index).open("rb") as src:
-                while block := src.read(1024 * 1024):
-                    out.write(block)
-    staging.replace(output)
     for part in parts:
-        part_path(part_dir, part.index).unlink(missing_ok=True)
+        with part_path(part_dir, part.index).open("rb") as src:
+            while block := src.read(1024 * 1024):
+                out.write(block)
 
 
 class SegmentedDownload:

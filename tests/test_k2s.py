@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import pytest
+import requests
 
 from downloader.providers import k2s
 from downloader.providers.base import FileRef, LinkContext, ProviderError
@@ -18,6 +19,11 @@ class Reply:
 
     def json(self):
         return self.data
+
+
+class BadJson:
+    def json(self):
+        raise ValueError("not json")
 
 
 class FakeK2S:
@@ -91,8 +97,10 @@ def test_waits_for_shortest_cooldown_then_retries(monkeypatch, ctx):
 def test_cooldown_beyond_limit_fails_fast(monkeypatch, ctx):
     fake = FakeK2S([{"status": "success", "time_wait": 9999}] * 3)
     install(monkeypatch, fake)
-    with pytest.raises(ProviderError, match="wait 9999s"):
+    with pytest.raises(ProviderError) as info:
         k2s.K2SProvider().generate_links(REF, 2, ctx)
+    assert info.value.code == "quota_exceeded"
+    assert "167 分鐘" in info.value.message
     assert ctx.waits == []
 
 
@@ -110,7 +118,7 @@ def test_user_proxy_tried_second_without_leaking_credentials(monkeypatch, tmp_pa
     install(monkeypatch, fake)
     assert k2s.K2SProvider().generate_links(REF, 1, context) == ["K-0"]
     assert [call[0] for call in fake.key_calls] == [None, "socks5h://user:secret@proxy.example:1080"]
-    assert "Requesting a download key via socks5h://proxy.example:1080" in messages
+    assert "透過 socks5h://proxy.example:1080 取得下載授權" in messages
     assert not any("secret" in message for message in messages)
 
 
@@ -136,5 +144,49 @@ def test_failed_key_request_log_hides_credentials(monkeypatch, tmp_path, caplog)
 
 def test_file_not_found(monkeypatch, ctx):
     install(monkeypatch, FakeK2S([{"status": "error", "message": "File not found"}]))
-    with pytest.raises(ProviderError, match="not found"):
+    with pytest.raises(ProviderError) as info:
         k2s.K2SProvider().generate_links(REF, 2, ctx)
+    assert info.value.code == "not_found"
+
+
+def test_limit_message_is_quota_exceeded(monkeypatch, ctx):
+    install(monkeypatch, FakeK2S([{"status": "error", "message": "Download limit exceeded"}] * 3))
+    with pytest.raises(ProviderError) as info:
+        k2s.K2SProvider().generate_links(REF, 2, ctx)
+    assert info.value.code == "quota_exceeded"
+
+
+def test_unknown_error_is_upstream_error(monkeypatch, ctx):
+    install(monkeypatch, FakeK2S([{"status": "error", "message": "Something odd"}] * 3))
+    with pytest.raises(ProviderError) as info:
+        k2s.K2SProvider().generate_links(REF, 2, ctx)
+    assert info.value.code == "upstream_error"
+
+
+@pytest.mark.parametrize("reply,code", [
+    ({"files": []}, "not_found"),
+    ({"files": [{"name": "x", "size": 1, "is_available": False}]}, "not_found"),
+    ({"files": [{"name": "x", "size": 1, "access": "private"}]}, "private"),
+    ({"files": [{"name": "x", "size": 1, "access": "premium"}]}, "premium_only"),
+    ({"message": "odd"}, "not_found"),
+    (ValueError("not json"), "upstream_error"),
+    (requests.ConnectionError("down"), "upstream_error"),
+])
+def test_get_info_error_mapping(monkeypatch, reply, code):
+    def post(url, json=None, timeout=None):
+        if isinstance(reply, Exception) and not isinstance(reply, ValueError):
+            raise reply
+        return Reply(reply) if not isinstance(reply, ValueError) else BadJson()
+
+    monkeypatch.setattr(k2s.requests, "post", post)
+    with pytest.raises(ProviderError) as info:
+        k2s.K2SProvider().get_info(REF)
+    assert info.value.code == code
+    assert "not json" not in info.value.message and "down" not in info.value.message
+
+
+def test_get_info_success(monkeypatch):
+    monkeypatch.setattr(k2s.requests, "post", lambda url, json=None, timeout=None: Reply(
+        {"files": [{"name": "影片.mp4", "size": "1234", "access": "public", "is_available": True}]}))
+    info = k2s.K2SProvider().get_info(REF)
+    assert (info.name, info.size) == ("影片.mp4", 1234)
