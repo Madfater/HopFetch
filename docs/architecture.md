@@ -27,6 +27,7 @@ Keep2Share (k2s.cc) is the main provider. Its free tier gives each link one rate
 | `tests/` | pytest suite. `conftest.py` has a local Range server used by the engine, job and API tests |
 | `script/` | Harness scripts: checks, GitHub client, apply |
 | `docs/` | Knowledge |
+| `Dockerfile`, `compose.yaml` | Container image and service, see [Docker](#docker) |
 
 ## Running
 
@@ -47,6 +48,17 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 | `MAX_ACTIVE_JOBS` | `2` | Jobs running at once; others wait in `queued` |
 
 The server binds to localhost by default and has no authentication. Do not expose it to a network.
+
+### Docker
+
+`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. `compose.yaml` runs it:
+
+- `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
+- Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
+- Create `data/` and `downloads/` before the first start, or Docker creates them owned by root.
+- `stop_grace_period` is longer than the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
+- uvicorn listens on `0.0.0.0` inside the container, and the port is published on `127.0.0.1:8000` only.
+- The variables in the table above are set under `environment:` of the service.
 
 ## Runtime files
 
