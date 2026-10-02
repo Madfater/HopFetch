@@ -1,0 +1,66 @@
+name: deploy
+
+on:
+  push:
+    branches: [main]
+
+# - Runs one deploy at a time; a newer push waits for the running one instead of cancelling it.
+# - Keeps at most one run pending; a later push replaces the pending run, which shows as cancelled.
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
+
+env:
+  IMAGE: ghcr.io/madfater/k2s-downloader
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # - Tags the image as latest and sha-<short commit>.
+      # - Default labels include org.opencontainers.image.source, which links the package to this repository.
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      ARCANE_WEBHOOK_URL: ${{ secrets.ARCANE_WEBHOOK_URL }}
+    steps:
+      # - Fails the run when the secret is missing, so a skipped deploy never shows as green.
+      - name: Require webhook secret
+        run: |
+          if [ -z "$ARCANE_WEBHOOK_URL" ]; then
+            echo "::error::Secret ARCANE_WEBHOOK_URL is not set, see docs/architecture.md#deployment"
+            exit 1
+          fi
+      # - Calls the Arcane project redeploy webhook, which pulls the latest image and recreates the service.
+      # - Reads the URL from the environment, so the secret is never interpolated into the script text.
+      - name: Redeploy on Arcane
+        run: curl -fsS --max-time 60 --retry 3 --retry-all-errors -X POST "$ARCANE_WEBHOOK_URL" -o /dev/null
