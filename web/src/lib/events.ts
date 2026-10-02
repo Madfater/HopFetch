@@ -1,10 +1,10 @@
 import type { QueryClient } from '@tanstack/react-query'
 import type { Storage, Task } from '../api/types'
-import { finishedSince, removeTask, STORAGE_KEY, TASKS_KEY, upsertTask, type Finished } from './tasks'
+import { finishedSince, PROVIDERS_KEY, removeTask, RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask, type Finished } from './tasks'
 
 // - The single server-sent event stream of the app, feeding the TanStack Query cache.
-// - Every time the stream opens, including after a reconnect, the task list and storage are
-//   refetched, which fills in whatever happened while it was down. Events that arrive during
+// - Every time the stream opens, including after a reconnect, the task list, storage and
+//   provider list are refetched, which fills in whatever happened while it was down. Events that arrive during
 //   that fetch are applied at once and applied again over its result, so the older snapshot
 //   never undoes them.
 // - A browser reconnects by itself after a network error. When the stream is closed for good,
@@ -17,23 +17,29 @@ export interface EventHandlers {
   onConnection?: (connected: boolean) => void
 }
 
+// - A task that changes status or leaves the list invalidates resolve answers, whose
+//   `duplicate` field may name it; progress-only updates leave them alone.
 export function applyEvent(client: QueryClient, type: string, data: unknown, handlers: EventHandlers = {}): void {
   if (type === 'task') {
     const task = data as Task
     const previous = client.getQueryData<Task[]>(TASKS_KEY)?.find((t) => t.id === task.id)
     client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+    if (previous?.status !== task.status) void client.invalidateQueries({ queryKey: RESOLVE_KEY })
     const finished = finishedSince(previous, task)
     if (finished) handlers.onFinished?.(finished)
   } else if (type === 'task_removed') {
     client.setQueryData<Task[]>(TASKS_KEY, (list) => removeTask(list, (data as { id: string }).id))
+    void client.invalidateQueries({ queryKey: RESOLVE_KEY })
   } else if (type === 'storage') {
     client.setQueryData<Storage>(STORAGE_KEY, data as Storage)
   }
 }
 
-// - Refetches the task list, then replays the events received meanwhile over the new list.
+// - Cancels any task-list fetch already in flight, whose snapshot may predate the stream,
+//   refetches, then replays the events received meanwhile over the new list.
 export async function resync(client: QueryClient, fetchTasks: () => Promise<Task[]>, buffer: [string, unknown][]) {
   try {
+    await client.cancelQueries({ queryKey: TASKS_KEY })
     await client.fetchQuery({ queryKey: TASKS_KEY, queryFn: fetchTasks, staleTime: 0 })
   } catch {
     // - The list stays as it was; the stream's own error handling reconnects.
@@ -62,6 +68,7 @@ export function connectEvents(
         if (buffer === pending) buffer = null
       })
       void client.invalidateQueries({ queryKey: STORAGE_KEY })
+      void client.invalidateQueries({ queryKey: PROVIDERS_KEY })
     }
     source.onerror = () => {
       handlers.onConnection?.(false)

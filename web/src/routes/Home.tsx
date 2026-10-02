@@ -8,10 +8,11 @@ import type { Provider, Resolved, Task } from '../api/types'
 import { Lamp, StatusLamp, type LampColor } from '../components/Lamp'
 import { ProviderMark } from '../components/icons'
 import { useToast } from '../components/toast-context'
-import { RESOLVE_KEY, useResolve, type ResolveState } from '../hooks/useResolve'
+import { useResolve, type ResolveState } from '../hooks/useResolve'
+import { useProviders, useTasks } from '../hooks/useTasks'
 import { formatBytes, formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
-import { STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
+import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
 import { extractSingleUrl } from '../lib/url'
 import controls from '../styles/controls.module.css'
 import styles from './Home.module.css'
@@ -19,7 +20,7 @@ import styles from './Home.module.css'
 // - The download page: logo, the input slot, a preview of the resolved file, recent tasks.
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Exactly one URL in pasted text is taken; more than one is reported.
-// - Enter starts the preview's main action, Esc clears the input.
+// - Enter runs the preview's main action, Esc clears the input.
 
 const RECENT_COUNT = 5
 const UNFINISHED = new Set(['queued', 'downloading', 'paused'])
@@ -59,8 +60,8 @@ export function Home() {
   const [many, setMany] = useState(false)
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
 
-  const providers = useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity })
-  const tasks = useQuery({ queryKey: TASKS_KEY, queryFn: ({ signal }) => api.tasks(signal) })
+  const providers = useProviders()
+  const tasks = useTasks()
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
   const state = useResolve(input, providers.data ?? [], immediate)
 
@@ -119,9 +120,13 @@ export function Home() {
     onError: (err) => toast(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'), 'error'),
   })
 
+  // - Enter runs the preview's main action: download, download again, or retry a failed or
+  //   canceled earlier task of the same file.
   const start = () => {
-    if (many || state.local.kind !== 'matched' || plan?.kind !== 'download' || state.pending || create.isPending) return
-    create.mutate({ url: state.local.url, force: plan.force })
+    if (many || state.local.kind !== 'matched' || state.pending || create.isPending || retry.isPending) return
+    const duplicate = state.data?.duplicate
+    if (plan?.kind === 'download') create.mutate({ url: state.local.url, force: plan.force })
+    else if (duplicate && (duplicate.status === 'failed' || duplicate.status === 'canceled')) retry.mutate(duplicate.task_id)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {

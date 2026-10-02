@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider, useQuery, useQueryClient } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
 import { Tooltip } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +10,8 @@ import { ToastProvider } from './components/Toasts'
 import { useToast } from './components/toast-context'
 import { connectEvents } from './lib/events'
 import { errorText } from './lib/messages'
-import { isActive, TASKS_KEY, type Finished } from './lib/tasks'
+import { isActive, type Finished } from './lib/tasks'
+import { useTasks } from './hooks/useTasks'
 import { Home } from './routes/Home'
 import { Settings } from './routes/Settings'
 import { Tasks } from './routes/Tasks'
@@ -49,7 +50,7 @@ function Layout() {
   const toast = useToast()
   const client = useQueryClient()
   const [connected, setConnected] = useState(true)
-  const tasks = useQuery({ queryKey: TASKS_KEY, queryFn: ({ signal }) => api.tasks(signal) })
+  const tasks = useTasks()
 
   const notify = useRef<(finished: Finished) => void>(() => {})
   useEffect(() => {

@@ -5,6 +5,11 @@ import type { Status, Task } from '../api/types'
 
 export const TASKS_KEY = ['tasks'] as const
 export const STORAGE_KEY = ['storage'] as const
+export const PROVIDERS_KEY = ['providers'] as const
+
+// - Every /api/resolve answer lives under this key. Answers carry a `duplicate` status, so they
+//   are invalidated whenever a task changes status or leaves the list.
+export const RESOLVE_KEY = ['resolve'] as const
 
 export const ACTIVE: Status[] = ['queued', 'downloading']
 

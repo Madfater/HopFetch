@@ -120,7 +120,8 @@ Stopping the server pauses running jobs the same way, and a server start marks a
 | `app-name.ts` | `APP_NAME`, the only place the product name is written. `vite.config.ts` puts it in `<title>` and preloads the Archivo font |
 | `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the `(n) APP_NAME` tab title |
 | `api/` | Typed client for `/api`. Errors become `ApiError` holding the backend's `{code, key, params, message}` |
-| `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, refetches the task list and storage |
+| `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, cancels any task-list fetch in flight, refetches the task list, storage and providers, and replays events that arrived during the refetch. A status change or removal invalidates cached resolve answers |
+| `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |
 | `hooks/useResolve.ts` | Local URL check against the provider patterns, then `/api/resolve`: 400 ms after typing stops, at once after a paste. Results are keyed by normalized URL, and outdated requests are aborted |
 | `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, `Intl` formatting, translation of backend keys, and pure task-list helpers |
 | `routes/` | The download, files and settings pages |

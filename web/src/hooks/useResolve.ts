@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import type { Provider, Resolved } from '../api/types'
+import { RESOLVE_KEY } from '../lib/tasks'
 import { isHttpUrl, matchProvider, normalizeUrl } from '../lib/url'
 
 // - Checks the input locally against the provider patterns, then asks /api/resolve.
@@ -12,9 +13,6 @@ import { isHttpUrl, matchProvider, normalizeUrl } from '../lib/url'
 
 export const RESOLVE_DELAY_MS = 400
 
-// - Every lookup lives under this key; callers drop them when tasks change, since a cached
-//   answer's `duplicate` would be out of date.
-export const RESOLVE_KEY = ['resolve'] as const
 
 export type Local =
   | { kind: 'empty' }

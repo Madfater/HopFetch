@@ -1,17 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { ApiError, api } from '../api/client'
 import type { Provider, Task } from '../api/types'
 import { DeleteDialog } from '../components/DeleteDialog'
-import { RESOLVE_KEY } from '../hooks/useResolve'
+import { useProviders, useTasks } from '../hooks/useTasks'
 import { IconButton } from '../components/IconButton'
 import { StatusLamp } from '../components/Lamp'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { errorText, taskStatusText } from '../lib/messages'
-import { FILTERS, matchesFilter, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
+import { FILTERS, matchesFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
 
@@ -33,10 +33,10 @@ export function Tasks() {
   const client = useQueryClient()
   const [params, setParams] = useSearchParams()
   const [chosenFilter, setFilter] = useState<Filter>('all')
-  const [deleting, setDeleting] = useState<Task | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  const tasks = useQuery({ queryKey: TASKS_KEY, queryFn: ({ signal }) => api.tasks(signal) })
-  const providers = useQuery({ queryKey: ['providers'], queryFn: api.providers, staleTime: Infinity })
+  const tasks = useTasks()
+  const providers = useProviders()
   const providerById = new Map((providers.data ?? []).map((p) => [p.id, p]))
 
   const fail = (err: unknown) => toast(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'), 'error')
@@ -84,6 +84,9 @@ export function Tasks() {
   }, [present, focused, setParams])
 
   const visible = (all ?? []).filter((task) => matchesFilter(task, filter))
+  // - The dialog reads the task from the live list, so a task that completes while it is open
+  //   gains the delete-file option.
+  const deleting = all?.find((task) => task.id === deletingId) ?? null
   const hasCompleted = (all ?? []).some((task) => task.status === 'completed')
 
   return (
@@ -146,7 +149,7 @@ export function Tasks() {
                 provider={providerById.get(task.provider)}
                 focused={focused === task.id}
                 onAction={(action) => act.mutate({ id: task.id, action })}
-                onDelete={() => setDeleting(task)}
+                onDelete={() => setDeletingId(task.id)}
               />
             ))}
           </tbody>
@@ -156,11 +159,11 @@ export function Tasks() {
       <DeleteDialog
         name={deleting?.file_name ?? t('tasks.unnamed')}
         canDeleteFile={deleting?.status === 'completed' && deleting.file_exists}
-        open={deleting !== null}
-        onOpenChange={(open) => !open && setDeleting(null)}
+        open={deletingId !== null}
+        onOpenChange={(open) => !open && setDeletingId(null)}
         onConfirm={(deleteFile) => {
-          if (deleting) remove.mutate({ id: deleting.id, deleteFile })
-          setDeleting(null)
+          if (deletingId) remove.mutate({ id: deletingId, deleteFile })
+          setDeletingId(null)
         }}
       />
     </main>
