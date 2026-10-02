@@ -68,6 +68,20 @@ class Validator:
             self.etag = headers.get("ETag")
             self.last_modified = headers.get("Last-Modified")
 
+    def matches(self, headers) -> bool:
+        """False when a response names a different version than the one recorded.
+
+        - Compares the ETag when both sides have one, else Last-Modified; a response that sends
+          neither cannot be told apart and matches.
+        """
+        etag = headers.get("ETag")
+        if self.etag and etag:
+            return etag == self.etag
+        modified = headers.get("Last-Modified")
+        if self.last_modified and modified:
+            return modified == self.last_modified
+        return True
+
 
 @dataclass(frozen=True)
 class Part:
@@ -135,8 +149,11 @@ class SegmentedDownload:
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
       for `stall_timeout` seconds.
     - Every request carries `If-Range` once `validator` knows the file version; the first 206
-      answer fills it in. A 200 answer to a request with If-Range raises `RemoteChanged`, and a
-      200 answer to a plain range request raises `RangeUnsupported`; nothing of a 200 body is
+      answer fills it in. A 206 naming another version raises `RemoteChanged` before anything
+      is written, which also covers the first parallel requests and servers ignoring If-Range.
+    - A 200 answer carrying the whole file (Content-Length equal to the size, or none) raises
+      `RemoteChanged` when the request had If-Range, and `RangeUnsupported` otherwise. Any other
+      200 answer, such as an error page, counts as a failed request. Nothing of a 200 body is
       written.
     """
 
@@ -268,7 +285,9 @@ class SegmentedDownload:
                                 timeout=(10, self.read_timeout))
             with resp:
                 if resp.status_code == 200:
-                    self._fail(RemoteChanged() if if_range else RangeUnsupported())
+                    length = resp.headers.get("Content-Length")
+                    if length is None or length == str(self.size):
+                        self._fail(RemoteChanged() if if_range else RangeUnsupported())
                     return 200
                 if resp.status_code != 206:
                     return resp.status_code
@@ -277,6 +296,10 @@ class SegmentedDownload:
                     return None
                 with self._lock:
                     self.validator.capture(resp.headers)
+                    same = self.validator.matches(resp.headers)
+                if not same:
+                    self._fail(RemoteChanged())
+                    return 206
                 remaining = part.size - have
                 with path.open("ab") as out:
                     for block in resp.iter_content(BLOCK_SIZE):

@@ -41,10 +41,10 @@ function planFor(data: Resolved, free: number): { plan: Plan; short: number } {
   return { plan: { kind: 'download', force: false }, short }
 }
 
-function lampFor(state: ResolveState, plan: Plan | null, many: boolean): LampColor {
+function lampFor(state: ResolveState, plan: Plan | null, many: boolean, providersFailed: boolean): LampColor {
   if (many) return 'red'
   if (state.local.kind === 'empty') return 'off'
-  if (state.local.kind === 'waiting') return 'amber'
+  if (state.local.kind === 'waiting') return providersFailed ? 'red' : 'amber'
   if (state.local.kind !== 'matched' || state.error) return 'red'
   if (state.pending || !state.data) return 'amber'
   return plan?.kind === 'download' ? 'green' : 'red'
@@ -151,8 +151,8 @@ export function Home() {
     setFromPaste(text)
   }
 
-  const lamp = lampFor(state, plan, many)
-  const status = statusLine(t, state, many)
+  const lamp = lampFor(state, plan, many, providers.isError)
+  const status = statusLine(t, state, many, providers.isError)
   const recent = (tasks.data ?? []).slice(0, RECENT_COUNT)
 
   return (
@@ -240,7 +240,14 @@ function lampName(lamp: LampColor): string {
   return { off: 'idle', amber: 'checking', green: 'ready', red: 'blocked', steel: 'idle' }[lamp]
 }
 
-function statusLine(t: ReturnType<typeof useTranslation>['t'], state: ResolveState, many: boolean): { text: string; error: boolean } {
+// - While the provider list is missing, a URL cannot be judged: "checking" while it loads, the
+//   network error once loading failed. The stream's next (re)connect loads it again.
+function statusLine(
+  t: ReturnType<typeof useTranslation>['t'],
+  state: ResolveState,
+  many: boolean,
+  providersFailed: boolean,
+): { text: string; error: boolean } {
   if (many) return { text: t('home.manyUrls'), error: true }
   switch (state.local.kind) {
     case 'empty':
@@ -250,7 +257,7 @@ function statusLine(t: ReturnType<typeof useTranslation>['t'], state: ResolveSta
     case 'unsupported':
       return { text: t('errors.unsupported'), error: true }
     case 'waiting':
-      return { text: t('home.checking'), error: false }
+      return providersFailed ? { text: t('errors.network'), error: true } : { text: t('home.checking'), error: false }
   }
   if (state.error) {
     const error = state.error instanceof ApiError ? state.error.error : null

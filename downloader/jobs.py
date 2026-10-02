@@ -500,6 +500,7 @@ class JobManager:
                 raise InvalidState(refusal)
             job.error = None
             job.notice_key = None
+            job.resumable = True
             run = self._register(job)
             run.refresh = True
             changed = self._apply(job, Status.QUEUED, None, "messages.waiting_slot")
@@ -601,6 +602,8 @@ class JobManager:
         """Delete the part files and staging file of an unfinished job and reset its progress."""
         shutil.rmtree(self._part_dir(job), ignore_errors=True)
         self._remove_staging(job)
+        job.etag = None
+        job.last_modified = None
         job.bytes_done = 0
         job.parts_done = 0
         job.parts_total = 0
@@ -720,9 +723,11 @@ class JobManager:
             self._set(job, Status.DOWNLOADING, Phase.RESOLVING, "messages.resolving")
             info = provider.get_info(ref)
             job.file_name = job.file_name or safe_filename(info.name)
-            if job.size is not None and info.size is not None and info.size != job.size:
-                self._start_over(job, run)
+            changed = job.size is not None and info.size is not None and info.size != job.size
             job.size = info.size
+            if changed:
+                self._start_over(job, run, Phase.RESOLVING)
+                self.check_space(job.size)
             self._persist(force=True)
         if not job.size:
             raise ProviderError("upstream_error", "errors.upstream_error_no_size")
@@ -765,7 +770,7 @@ class JobManager:
             job.verified = "ok" if _ffmpeg_ok(output) else "corrupt"
         self._set(job, Status.COMPLETED, None, "messages.saved_as", name=output.name)
 
-    def _start_over(self, job: Job, run: _Run) -> None:
+    def _start_over(self, job: Job, run: _Run, phase: Phase = Phase.DOWNLOADING) -> None:
         """Drop the part files of an older remote version and download again from the start.
 
         - Happens at most once per run; a second change fails the job with `remote_changed`.
@@ -780,8 +785,9 @@ class JobManager:
         job.last_modified = None
         job.bytes_done = 0
         job.parts_done = 0
+        job.parts_total = 0
         job.notice_key = "messages.remote_changed"
-        self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.remote_changed_restarting")
+        self._set(job, Status.DOWNLOADING, phase, "messages.remote_changed_restarting")
 
     def _links_fresh(self, job: Job, provider: Provider) -> bool:
         """True when stored links exist and are younger than the provider's link TTL."""

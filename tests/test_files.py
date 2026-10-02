@@ -83,3 +83,22 @@ def test_ranges_and_if_range(client):
 
     beyond = test_client.get("/f", headers={"Range": "bytes=200-"})
     assert (beyond.status_code, beyond.headers["content-range"]) == (416, "bytes */100")
+
+
+def test_descriptor_closes_when_the_stream_is_abandoned(tmp_path):
+    import asyncio
+
+    from downloader.files import _read
+
+    path = tmp_path / "big.bin"
+    path.write_bytes(b"x" * (1024 * 1024))
+    fd, _ = open_in_root(tmp_path, path)
+
+    async def scenario():
+        stream = _read(fd, 0, 1024 * 1024)
+        await stream.__anext__()
+        await stream.aclose()
+
+    asyncio.run(scenario())
+    with pytest.raises(OSError):
+        os.fstat(fd)

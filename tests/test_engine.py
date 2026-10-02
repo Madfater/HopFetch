@@ -246,3 +246,50 @@ def test_changed_remote_file_raises_without_mixing_versions(server, content, tmp
     after = {p.index: part_path(second.part_dir, p.index).read_bytes()
              for p in second.parts if part_path(second.part_dir, p.index).exists()}
     assert after == before
+
+
+def test_parallel_answers_from_different_versions_are_never_mixed(server, content, tmp_path):
+    from conftest import RangeServer
+
+    other = RangeServer(bytes(reversed(content)))
+    try:
+        server.etag, other.etag = '"va"', '"vb"'
+        server.delay = other.delay = 0.01
+        download = SegmentedDownload(
+            links=[server.url, other.url], size=len(content), part_dir=tmp_path / "parts",
+            split_size=SPLIT, headers={}, cancelled=threading.Event(),
+        )
+        with pytest.raises(RemoteChanged):
+            download.run()
+        for p in download.parts:
+            path = part_path(download.part_dir, p.index)
+            data = path.read_bytes() if path.exists() else b""
+            assert data == content[p.start:p.start + len(data)], p.index
+    finally:
+        other.close()
+
+
+def test_last_modified_is_used_when_there_is_no_etag(server, content, tmp_path):
+    server.last_modified = "Tue, 01 Sep 2026 00:00:00 GMT"
+    download = make(server, tmp_path, links=2)
+    download.run()
+    assert download.validator.if_range() == "Tue, 01 Sep 2026 00:00:00 GMT"
+    assert "Tue, 01 Sep 2026 00:00:00 GMT" in server.if_ranges
+    assert finish(download, tmp_path) == content
+
+
+def test_a_short_200_page_is_a_failed_request_not_a_new_file(server, tmp_path):
+    original = server.httpd.RequestHandlerClass.do_GET
+
+    def error_page(handler):
+        body = b"<html>expired</html>"
+        handler.send_response(200)
+        handler.send_header("Content-Length", str(len(body)))
+        handler.end_headers()
+        handler.wfile.write(body)
+
+    server.httpd.RequestHandlerClass.do_GET = error_page
+    download = make(server, tmp_path, links=1, stall_timeout=1)
+    with pytest.raises(DownloadStalled):
+        download.run()
+    server.httpd.RequestHandlerClass.do_GET = original

@@ -12,9 +12,10 @@ import os
 import re
 import stat
 from pathlib import Path
-from typing import Iterator
+from typing import AsyncIterator
 from urllib.parse import quote
 
+import anyio.to_thread
 from starlette.responses import Response, StreamingResponse
 
 CHUNK = 256 * 1024
@@ -80,12 +81,16 @@ def disposition(name: str) -> str:
     return f"attachment; filename=\"{fallback}\"; filename*=utf-8''{quote(name, safe='')}"
 
 
-def _read(fd: int, start: int, length: int) -> Iterator[bytes]:
-    """Yield `length` bytes from `fd` starting at `start`, closing `fd` at the end."""
+async def _read(fd: int, start: int, length: int) -> AsyncIterator[bytes]:
+    """Yield `length` bytes from `fd` starting at `start`, closing `fd` at the end.
+
+    - Reads run in a worker thread. The generator is async so that a client disconnect, which
+      cancels the response, runs the `finally` at once and closes `fd`.
+    """
     try:
         offset, left = start, length
         while left > 0:
-            block = os.pread(fd, min(CHUNK, left), offset)
+            block = await anyio.to_thread.run_sync(os.pread, fd, min(CHUNK, left), offset)
             if not block:
                 break
             offset += len(block)

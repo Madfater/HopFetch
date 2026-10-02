@@ -526,3 +526,56 @@ def test_restart_fails_active_jobs_that_cannot_resume(tmp_path, provider):
     (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
     again = build_manager(tmp_path, provider).get(job.id)
     assert again.status == Status.FAILED and again.error["code"] == "interrupted"
+
+
+def test_pause_is_refused_for_a_job_that_cannot_resume(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("nopause"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    job.resumable = False
+    with pytest.raises(InvalidState) as info:
+        manager.pause(job.id)
+    assert info.value.key == "errors.invalid_state_not_resumable"
+    job.resumable = True
+    manager.cancel(job.id)
+
+
+def test_retry_judges_range_support_again(tmp_path, provider, server, content):
+    server.ignore_range = True
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("again"))
+    wait_for(lambda: job.status == Status.FAILED)
+    assert job.resumable is False
+    server.ignore_range = False
+    manager.retry(job.id)
+    assert job.resumable is True
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "again.bin").read_bytes() == content
+
+
+def test_size_change_found_at_resume_starts_over(tmp_path, provider, server, content):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("grown"))
+    pause_midway(manager, job)
+    shorter = content[:-1000]
+    server.content = shorter
+    provider.size = len(shorter)
+    server.delay = 0
+    manager.resume(job.id)
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    assert job.status == Status.COMPLETED, job.error
+    assert job.size == len(shorter) and job.notice_key == "messages.remote_changed"
+    assert (tmp_path / "downloads" / "grown.bin").read_bytes() == shorter
+
+
+def test_cancel_forgets_the_file_version(tmp_path, provider, server):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("forget"))
+    pause_midway(manager, job)
+    assert job.etag == '"v1"'
+    manager.cancel(job.id)
+    assert (job.etag, job.last_modified) == (None, None)
