@@ -34,6 +34,8 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `script/` | Harness scripts: checks, GitHub client, apply |
 | `docs/` | Knowledge |
 | `Dockerfile`, `compose.yaml` | Container image and service, see [Docker](#docker) |
+| `.github/workflows/harness.yml` | Pull request checks: conventions and `script/check.py` |
+| `.github/workflows/deploy.yml`, `deploy/arcane/compose.yaml` | Image publishing and the Arcane service, see [Deployment](#deployment) |
 
 ## Running
 
@@ -70,6 +72,28 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 - `stop_grace_period` is longer than the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
 - uvicorn listens on `0.0.0.0` inside the container. The port is published on `${BIND_ADDR}:8000`, where `BIND_ADDR` comes from `.env` and defaults to `127.0.0.1`. Set it to the NAS's LAN address, or `0.0.0.0`, to reach the app from other machines on the LAN or VPN.
 - The variables in the table above are set under `environment:` of the service.
+
+### Deployment
+
+`.github/workflows/deploy.yml` runs on every push to `main`:
+
+- Job `image` builds the `Dockerfile` for `linux/amd64` and pushes `ghcr.io/madfater/k2s-downloader` tagged `latest` and `sha-<short commit>`.
+- Job `deploy` runs after `image` succeeds. It POSTs to the Arcane project redeploy webhook in the `ARCANE_WEBHOOK_URL` repository secret, and fails when the secret is missing.
+- Runs never overlap: a newer push waits for the running deploy.
+
+The Arcane project `k2s-downloader` runs `deploy/arcane/compose.yaml`:
+
+- Pulls `ghcr.io/madfater/k2s-downloader:latest` on every redeploy. The package is public, since the Arcane host has no registry credentials.
+- Uses `network_mode: host`, so uvicorn listens on port 8000 on every host interface. The app has no authentication: the host must not expose port 8000 to the internet.
+- Reads `UID`, `GID`, `DATA_PATH` and `DOWNLOAD_PATH` from the project's `.env`. The paths default to `./data` and `./downloads` next to the compose file. Create them before the first start, or Docker creates them owned by root.
+- Keeps the user, grace period and restart policy of the root `compose.yaml`.
+
+One-time setup:
+
+1. In Arcane, create the project `k2s-downloader` from `deploy/arcane/compose.yaml` and fill in its `.env`.
+2. In Arcane, create a webhook targeting that project with action `redeploy`, and copy its trigger URL.
+3. In the GitHub repository settings, add the Actions secret `ARCANE_WEBHOOK_URL` with that URL.
+4. After the first `deploy.yml` run, set the `k2s-downloader` package visibility to public in its GitHub package settings.
 
 ## Runtime files
 
