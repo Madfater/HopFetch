@@ -4,7 +4,9 @@ import { finishedSince, removeTask, STORAGE_KEY, TASKS_KEY, upsertTask, type Fin
 
 // - The single server-sent event stream of the app, feeding the TanStack Query cache.
 // - Every time the stream opens, including after a reconnect, the task list and storage are
-//   refetched, which fills in whatever happened while it was down.
+//   refetched, which fills in whatever happened while it was down. Events that arrive during
+//   that fetch are applied at once and applied again over its result, so the older snapshot
+//   never undoes them.
 // - A browser reconnects by itself after a network error. When the stream is closed for good,
 //   for example after an HTTP error, it is reopened after RECONNECT_MS.
 
@@ -29,16 +31,36 @@ export function applyEvent(client: QueryClient, type: string, data: unknown, han
   }
 }
 
-export function connectEvents(client: QueryClient, handlers: EventHandlers = {}, url = '/api/events'): () => void {
+// - Refetches the task list, then replays the events received meanwhile over the new list.
+export async function resync(client: QueryClient, fetchTasks: () => Promise<Task[]>, buffer: [string, unknown][]) {
+  try {
+    await client.fetchQuery({ queryKey: TASKS_KEY, queryFn: fetchTasks, staleTime: 0 })
+  } catch {
+    // - The list stays as it was; the stream's own error handling reconnects.
+  }
+  for (const [type, data] of buffer.splice(0)) applyEvent(client, type, data)
+}
+
+export function connectEvents(
+  client: QueryClient,
+  fetchTasks: () => Promise<Task[]>,
+  handlers: EventHandlers = {},
+  url = '/api/events',
+): () => void {
   let source: EventSource | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
+  let buffer: [string, unknown][] | null = null
 
   const open = () => {
     source = new EventSource(url)
     source.onopen = () => {
       handlers.onConnection?.(true)
-      void client.invalidateQueries({ queryKey: TASKS_KEY })
+      const pending: [string, unknown][] = []
+      buffer = pending
+      void resync(client, fetchTasks, pending).finally(() => {
+        if (buffer === pending) buffer = null
+      })
       void client.invalidateQueries({ queryKey: STORAGE_KEY })
     }
     source.onerror = () => {
@@ -50,7 +72,9 @@ export function connectEvents(client: QueryClient, handlers: EventHandlers = {},
     }
     for (const type of ['task', 'task_removed', 'storage']) {
       source.addEventListener(type, (event) => {
-        applyEvent(client, type, JSON.parse((event as MessageEvent).data), handlers)
+        const data = JSON.parse((event as MessageEvent).data)
+        applyEvent(client, type, data, handlers)
+        buffer?.push([type, data])
       })
     }
   }

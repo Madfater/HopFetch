@@ -61,7 +61,11 @@ function Layout() {
   }, [t, toast])
 
   useEffect(
-    () => connectEvents(client, { onConnection: setConnected, onFinished: (finished) => notify.current(finished) }),
+    () =>
+      connectEvents(client, () => api.tasks(), {
+        onConnection: setConnected,
+        onFinished: (finished) => notify.current(finished),
+      }),
     [client],
   )
 

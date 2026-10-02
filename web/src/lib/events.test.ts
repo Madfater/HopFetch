@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { describe, expect, it, vi } from 'vitest'
 import type { Task } from '../api/types'
-import { applyEvent } from './events'
+import { applyEvent, resync } from './events'
 import { STORAGE_KEY, TASKS_KEY } from './tasks'
 
 function task(id: string, change: Partial<Task> = {}): Task {
@@ -50,5 +50,28 @@ describe('applyEvent', () => {
     applyEvent(client, 'task', task('a', { status: 'completed' }), { onFinished })
     expect(onFinished).toHaveBeenCalledTimes(1)
     expect(onFinished.mock.calls[0][0].outcome).toBe('completed')
+  })
+})
+
+describe('resync', () => {
+  it('replays events received during the refetch over its older snapshot', async () => {
+    const client = new QueryClient()
+    client.setQueryData(TASKS_KEY, [task('a', { status: 'downloading' })])
+    let finishFetch: (list: Task[]) => void = () => {}
+    const fetchTasks = () => new Promise<Task[]>((resolve) => (finishFetch = resolve))
+    const buffer: [string, unknown][] = []
+    const done = resync(client, fetchTasks, buffer)
+
+    const completed = task('a', { status: 'completed' })
+    applyEvent(client, 'task', completed)
+    buffer.push(['task', completed])
+    applyEvent(client, 'task_removed', { id: 'b' })
+    buffer.push(['task_removed', { id: 'b' }])
+
+    finishFetch([task('a', { status: 'downloading' }), task('b')])
+    await done
+    const list = client.getQueryData<Task[]>(TASKS_KEY)!
+    expect(list.map((t) => [t.id, t.status])).toEqual([['a', 'completed']])
+    expect(buffer).toEqual([])
   })
 })

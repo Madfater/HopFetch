@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router'
 import { ApiError, api } from '../api/client'
 import type { Provider, Task } from '../api/types'
 import { DeleteDialog } from '../components/DeleteDialog'
+import { RESOLVE_KEY } from '../hooks/useResolve'
 import { IconButton } from '../components/IconButton'
 import { StatusLamp } from '../components/Lamp'
 import { useToast } from '../components/toast-context'
@@ -42,7 +43,10 @@ export function Tasks() {
 
   const act = useMutation({
     mutationFn: ({ id, action }: { id: string; action: Action }) => api[action](id),
-    onSuccess: (task) => client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task)),
+    onSuccess: (task) => {
+      client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+      client.removeQueries({ queryKey: RESOLVE_KEY })
+    },
     onError: fail,
   })
 
@@ -50,6 +54,7 @@ export function Tasks() {
     mutationFn: ({ id, deleteFile }: { id: string; deleteFile: boolean }) => api.remove(id, deleteFile),
     onSuccess: (_, { id }) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => removeTask(list, id))
+      client.removeQueries({ queryKey: RESOLVE_KEY })
       toast(t('toast.removed'))
     },
     onError: fail,
@@ -59,6 +64,7 @@ export function Tasks() {
     mutationFn: api.clearCompleted,
     onSuccess: ({ removed }) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => list?.filter((task) => task.status !== 'completed'))
+      client.removeQueries({ queryKey: RESOLVE_KEY })
       toast(t('toast.cleared', { count: removed }))
     },
     onError: fail,

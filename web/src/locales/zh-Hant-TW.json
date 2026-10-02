@@ -119,7 +119,6 @@
     "completed": "已完成下載「{{name}}」",
     "failed": "「{{name}}」下載失敗：{{reason}}",
     "removed": "已刪除任務",
-    "cleared_one": "已清除 {{count}} 筆已完成的任務",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
     "close": "關閉通知"

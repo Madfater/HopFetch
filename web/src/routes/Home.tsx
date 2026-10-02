@@ -8,7 +8,7 @@ import type { Provider, Resolved, Task } from '../api/types'
 import { Lamp, StatusLamp, type LampColor } from '../components/Lamp'
 import { ProviderMark } from '../components/icons'
 import { useToast } from '../components/toast-context'
-import { useResolve, type ResolveState } from '../hooks/useResolve'
+import { RESOLVE_KEY, useResolve, type ResolveState } from '../hooks/useResolve'
 import { formatBytes, formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
 import { STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
@@ -99,6 +99,7 @@ export function Home() {
     mutationFn: ({ url, force }: { url: string; force: boolean }) => api.create(url, force),
     onSuccess: (task) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+      client.removeQueries({ queryKey: RESOLVE_KEY })
       toast(t('toast.started', { name: task.file_name ?? t('tasks.unnamed') }), 'success')
       setInput('')
       setMany(false)
@@ -112,13 +113,14 @@ export function Home() {
     mutationFn: (id: string) => api.retry(id),
     onSuccess: (task) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+      client.removeQueries({ queryKey: RESOLVE_KEY })
       navigate(`/tasks?focus=${task.id}`)
     },
     onError: (err) => toast(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'), 'error'),
   })
 
   const start = () => {
-    if (state.local.kind !== 'matched' || plan?.kind !== 'download' || state.pending || create.isPending) return
+    if (many || state.local.kind !== 'matched' || plan?.kind !== 'download' || state.pending || create.isPending) return
     create.mutate({ url: state.local.url, force: plan.force })
   }
 
@@ -189,7 +191,7 @@ export function Home() {
         {status.text}
       </p>
 
-      {state.data && state.local.kind === 'matched' && planned && (
+      {!many && state.data && state.local.kind === 'matched' && planned && (
         <Preview
           data={state.data}
           provider={state.local.provider}

@@ -12,6 +12,10 @@ import { isHttpUrl, matchProvider, normalizeUrl } from '../lib/url'
 
 export const RESOLVE_DELAY_MS = 400
 
+// - Every lookup lives under this key; callers drop them when tasks change, since a cached
+//   answer's `duplicate` would be out of date.
+export const RESOLVE_KEY = ['resolve'] as const
+
 export type Local =
   | { kind: 'empty' }
   | { kind: 'invalid' }
@@ -55,7 +59,7 @@ export function useResolve(input: string, providers: Provider[], immediate: numb
 
   const active = candidate === null ? null : target
   const query = useQuery({
-    queryKey: ['resolve', active],
+    queryKey: [...RESOLVE_KEY, active],
     queryFn: ({ signal }) => api.resolve(active as string, signal),
     enabled: active !== null,
     retry: false,

@@ -117,6 +117,10 @@
   color: var(--color-red);
 }
 
+.focused .subError {
+  color: var(--color-red-on-panel);
+}
+
 .table .right {
   text-align: right;
 }

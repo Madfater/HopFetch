@@ -136,7 +136,7 @@ The backend sends translation keys, and the frontend translates them.
 - Step descriptions are `messages.*` keys and failures are `errors.*` keys, each with a params object. The catalogs are `shared/i18n/zh-Hant-TW.json` and `shared/i18n/en.json`, using i18next's `{{name}}` interpolation.
 - An error's `code` is stable for program logic. Its `key` is usually `errors.<code>`; a variant of the same code has its own key, such as `errors.quota_exceeded_wait`.
 - Every answer also carries `message`, the zh-Hant text rendered from the catalog, for clients without the key.
-- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
+- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A countdown uses `{{seconds, duration}}`: the `duration` formatter, defined in both `downloader/messages.py` and `web/src/i18n.ts`, shows `m:ss` or `h:mm:ss`. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
 - `tests/test_messages.py` checks that both catalogs have the same keys and placeholders, and that every key and error code the backend uses exists.
 
 ## Keep2Share flow

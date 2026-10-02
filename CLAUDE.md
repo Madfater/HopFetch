@@ -45,7 +45,7 @@ Local web app for multi-connection downloads from file hosting platforms, with K
 ```bash
 uv sync && npm --prefix web ci                 # install dependencies
 npm --prefix web run build                     # build the dashboard into web/dist
-uv run uvicorn downloader.app:app              # serve API and dashboard on http://127.0.0.1:8000
+uv run uvicorn downloader.app:app --timeout-graceful-shutdown 5   # serve API and dashboard on http://127.0.0.1:8000
 uv run pytest -q                               # backend tests
 python3 script/check.py                        # harness tests, pytest, frontend install and build
 ```

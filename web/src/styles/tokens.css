@@ -18,6 +18,7 @@
   --color-green: #3dba6f;
   --color-red: #ee6a61;
   --color-red-on-panel: #f0716a;
+  --color-scrim: rgb(0 0 0 / 55%);
 
   --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   --font-numeric: 'Archivo Variable', system-ui, sans-serif;
