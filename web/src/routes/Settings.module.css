@@ -1,0 +1,58 @@
+.settings {
+  max-width: 560px;
+}
+
+.title {
+  font-size: 1.25rem;
+  margin-bottom: var(--space-5);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+  margin-bottom: var(--space-6);
+}
+
+.sectionTitle {
+  font-size: 1rem;
+}
+
+.number {
+  width: 8rem;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.box {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  padding: 0;
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-radius: 3px;
+  background: var(--color-slot);
+  color: var(--color-ink);
+}
+
+.root {
+  overflow-wrap: anywhere;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.select {
+  width: 12rem;
+}

@@ -1,0 +1,131 @@
+{
+  "nav": {
+    "label": "Main navigation",
+    "home": "Download",
+    "tasks": "Files",
+    "settings": "Settings",
+    "storage": "NAS free",
+    "storageUnknown": "NAS free space unknown"
+  },
+  "home": {
+    "inputLabel": "Share link",
+    "placeholder": "https://k2s.cc/file/8d028cc29f08b/sample.rar",
+    "lamp": {
+      "idle": "Waiting for a link",
+      "checking": "Checking",
+      "ready": "Ready to download",
+      "blocked": "Cannot download"
+    },
+    "manyUrls": "Paste one link at a time.",
+    "checking": "Checking the link",
+    "recent": "Recent tasks",
+    "viewAll": "View all"
+  },
+  "preview": {
+    "size": "Size",
+    "sizeUnknown": "Size unknown",
+    "sizeUnknownHint": "The host did not report the file size, which a split download needs.",
+    "free": "NAS free {{size}}",
+    "short": "Not enough space: {{size}} short. Free some space, then try again.",
+    "download": "Download",
+    "downloadAnyway": "Download again",
+    "view": "View task",
+    "retry": "Retry",
+    "duplicateActive": "This file is already in the download list.",
+    "duplicateFailed": "This file failed or was canceled before.",
+    "duplicateCompleted": "This file was downloaded before.",
+    "keys": "Enter to download, Esc to clear"
+  },
+  "status": {
+    "queued": "Queued",
+    "downloading": "Downloading",
+    "paused": "Paused",
+    "completed": "Completed",
+    "failed": "Failed",
+    "canceled": "Canceled"
+  },
+  "tasks": {
+    "title": "Files",
+    "filter": {
+      "label": "Filter by status",
+      "all": "All",
+      "active": "In progress",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "clearCompleted": "Clear completed",
+    "column": {
+      "status": "Status",
+      "provider": "Host",
+      "name": "Name",
+      "size": "Size",
+      "progress": "Progress",
+      "speed": "Speed",
+      "eta": "Time left",
+      "actions": "Actions"
+    },
+    "empty": "No downloads yet",
+    "emptyLink": "Paste a link on the download page",
+    "emptyFiltered": "No tasks match this filter",
+    "progressLabel": "Progress of {{name}}",
+    "fileMissing": "File missing",
+    "videoCorrupt": "ffmpeg found problems in this video.",
+    "loading": "Loading tasks",
+    "unnamed": "Unnamed file"
+  },
+  "action": {
+    "pause": "Pause",
+    "resume": "Resume",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "save": "Save to computer",
+    "delete": "Delete",
+    "named": "{{action}}: {{name}}"
+  },
+  "deleteDialog": {
+    "title": "Delete task",
+    "body": "Remove \"{{name}}\" from the list.",
+    "deleteFile": "Also delete the file on the NAS",
+    "confirm": "Delete",
+    "cancel": "Keep"
+  },
+  "settings": {
+    "title": "Settings",
+    "shared": "Download settings",
+    "sharedHint": "Stored on the server and shared by everyone. They apply to tasks created afterwards.",
+    "connections": "Connections per task",
+    "connectionsHint": "1 to 64.",
+    "splitSize": "Part size (MiB)",
+    "splitSizeHint": "At least 20 MiB.",
+    "useProxies": "Use public proxies",
+    "useProxiesHint": "When a free download has to wait, request the download key through public proxies. Your own proxies are always used.",
+    "maxActive": "Simultaneous downloads",
+    "maxActiveHint": "1 to 10. Other tasks wait in the queue.",
+    "root": "Download folder",
+    "rootHint": "Set in the server configuration; it cannot be changed here.",
+    "save": "Save settings",
+    "saved": "Settings saved",
+    "browser": "This browser",
+    "language": "Language",
+    "languageHint": "Applies to this browser only.",
+    "loading": "Loading settings"
+  },
+  "language": {
+    "zh-Hant-TW": "繁體中文",
+    "en": "English"
+  },
+  "toast": {
+    "started": "Download started: {{name}}",
+    "completed": "Download finished: {{name}}",
+    "failed": "{{name}} failed: {{reason}}",
+    "removed": "Task deleted",
+    "cleared_one": "Cleared {{count}} completed task",
+    "cleared_other": "Cleared {{count}} completed tasks",
+    "offline": "Cannot reach the server. Reconnecting.",
+    "close": "Close notification"
+  },
+  "errors": {
+    "network": "Cannot reach the server. Check that the service is running, then try again.",
+    "unknown": "The request could not be completed. Try again."
+  }
+}

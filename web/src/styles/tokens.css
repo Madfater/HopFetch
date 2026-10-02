@@ -1,0 +1,31 @@
+/*
+ * - Every color the app uses, named by role. A light theme only needs another set of these
+ *   values under a selector such as [data-theme='light'].
+ */
+:root {
+  --color-chassis: #202428;
+  --color-panel: #2a2f34;
+  --color-slot: #15181b;
+  --color-slot-edge-top: #0e1012;
+  --color-slot-edge-bottom: #3a4046;
+  --color-ink: #e4e7e4;
+  --color-steel: #9097a0;
+  --color-divider: #2f3439;
+  --color-amber: #f0a03a;
+  --color-on-amber: #1b1e21;
+  --color-green: #3dba6f;
+  --color-red: #ee6a61;
+
+  --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+  --font-numeric: 'Archivo Variable', system-ui, sans-serif;
+
+  --radius: 4px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 40px;
+
+  color-scheme: dark;
+}

@@ -1,0 +1,234 @@
+/*
+ * - A dense, left-aligned table up to 1200px wide.
+ * - Below 768px each row becomes two lines: name and actions, then status and the numbers.
+ */
+.head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.title {
+  font-size: 1.25rem;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.filters {
+  display: flex;
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-radius: var(--radius);
+}
+
+.filter {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-right: 1px solid var(--color-divider);
+  background: transparent;
+  color: var(--color-steel);
+  cursor: pointer;
+}
+
+.filter:last-child {
+  border-right: 0;
+}
+
+.filterOn {
+  background: var(--color-panel);
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.table {
+  width: 100%;
+  table-layout: fixed;
+}
+
+.table th {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-panel);
+  color: var(--color-steel);
+  font-weight: 600;
+  font-size: 0.9rem;
+  text-align: left;
+}
+
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--color-divider);
+  vertical-align: middle;
+}
+
+.colStatus {
+  width: 22%;
+}
+
+.colProvider {
+  width: 9%;
+}
+
+.colSize {
+  width: 9%;
+}
+
+.colProgress {
+  width: 14%;
+}
+
+.colSpeed {
+  width: 10%;
+}
+
+.colEta {
+  width: 9%;
+}
+
+.colActions {
+  width: 132px;
+}
+
+.focused td {
+  background: var(--color-panel);
+}
+
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sub {
+  display: block;
+  color: var(--color-steel);
+  font-size: 0.85rem;
+  white-space: normal;
+}
+
+.subError {
+  color: var(--color-red);
+}
+
+.right {
+  text-align: right;
+}
+
+.progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.track {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-slot);
+  border-top: 1px solid var(--color-slot-edge-top);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  background: var(--color-steel);
+}
+
+.fillActive {
+  background: var(--color-amber);
+}
+
+.fillDone {
+  background: var(--color-green);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+.empty {
+  padding: var(--space-6) 0;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.emptyTitle {
+  font-size: 1.1rem;
+}
+
+.statusText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 767px) {
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .table,
+  .table tbody {
+    display: block;
+  }
+
+  .table tr {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-1) var(--space-4);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--color-divider);
+  }
+
+  .table td {
+    padding: 0;
+    border: 0;
+  }
+
+  .cellName {
+    order: 1;
+    flex: 1 1 calc(100% - 150px);
+    min-width: 0;
+  }
+
+  .cellActions {
+    order: 2;
+  }
+
+  .cellStatus {
+    order: 3;
+    min-width: 0;
+  }
+
+  .cellProvider,
+  .cellSize,
+  .cellProgress,
+  .cellSpeed,
+  .cellEta {
+    order: 4;
+    white-space: nowrap;
+    color: var(--color-steel);
+  }
+
+  .cellProgress {
+    flex: 1 1 120px;
+  }
+
+  .right {
+    text-align: left;
+  }
+}

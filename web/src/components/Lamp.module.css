@@ -1,0 +1,45 @@
+/*
+ * - An indicator light: a small circle, solid or hollow, in one of the lamp colors.
+ * - `off` shows only a steel ring, for the empty input slot.
+ */
+.lamp {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--lamp-color);
+  background: var(--lamp-color);
+}
+
+.hollow {
+  background: transparent;
+}
+
+.off {
+  --lamp-color: var(--color-steel);
+  background: transparent;
+}
+
+.amber {
+  --lamp-color: var(--color-amber);
+}
+
+.green {
+  --lamp-color: var(--color-green);
+}
+
+.red {
+  --lamp-color: var(--color-red);
+}
+
+.steel {
+  --lamp-color: var(--color-steel);
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}

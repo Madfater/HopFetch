@@ -1,0 +1,131 @@
+{
+  "nav": {
+    "label": "主要導覽",
+    "home": "下載",
+    "tasks": "檔案狀況",
+    "settings": "設定",
+    "storage": "NAS 剩餘",
+    "storageUnknown": "NAS 剩餘空間未知"
+  },
+  "home": {
+    "inputLabel": "分享連結",
+    "placeholder": "https://k2s.cc/file/8d028cc29f08b/sample.rar",
+    "lamp": {
+      "idle": "等待輸入連結",
+      "checking": "解析中",
+      "ready": "可以下載",
+      "blocked": "無法下載"
+    },
+    "manyUrls": "一次只能貼一個連結。",
+    "checking": "解析連結中",
+    "recent": "最近的任務",
+    "viewAll": "查看全部"
+  },
+  "preview": {
+    "size": "大小",
+    "sizeUnknown": "大小未知",
+    "sizeUnknownHint": "雲端沒有提供檔案大小，無法分段下載。",
+    "free": "NAS 剩餘 {{size}}",
+    "short": "空間不足，還差 {{size}}。清出空間後再試一次。",
+    "download": "下載",
+    "downloadAnyway": "仍要下載",
+    "view": "前往查看",
+    "retry": "重試",
+    "duplicateActive": "這個檔案已經在下載清單中。",
+    "duplicateFailed": "這個檔案先前下載失敗或已取消。",
+    "duplicateCompleted": "這個檔案已經下載過。",
+    "keys": "按 Enter 下載，按 Esc 清除"
+  },
+  "status": {
+    "queued": "排隊中",
+    "downloading": "下載中",
+    "paused": "已暫停",
+    "completed": "已完成",
+    "failed": "失敗",
+    "canceled": "已取消"
+  },
+  "tasks": {
+    "title": "檔案狀況",
+    "filter": {
+      "label": "篩選狀態",
+      "all": "全部",
+      "active": "進行中",
+      "completed": "已完成",
+      "failed": "失敗"
+    },
+    "clearCompleted": "清除所有已完成",
+    "column": {
+      "status": "狀態",
+      "provider": "雲端",
+      "name": "檔名",
+      "size": "大小",
+      "progress": "進度",
+      "speed": "速度",
+      "eta": "剩餘時間",
+      "actions": "操作"
+    },
+    "empty": "還沒有下載任務",
+    "emptyLink": "前往下載頁貼上連結",
+    "emptyFiltered": "沒有符合這個篩選的任務",
+    "progressLabel": "{{name}} 的進度",
+    "fileMissing": "檔案不存在",
+    "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",
+    "loading": "載入任務中",
+    "unnamed": "未命名檔案"
+  },
+  "action": {
+    "pause": "暫停",
+    "resume": "繼續",
+    "cancel": "取消",
+    "retry": "重試",
+    "save": "下載到電腦",
+    "delete": "刪除",
+    "named": "{{action}}：{{name}}"
+  },
+  "deleteDialog": {
+    "title": "刪除任務",
+    "body": "從清單移除「{{name}}」。",
+    "deleteFile": "同時刪除 NAS 上的檔案",
+    "confirm": "刪除",
+    "cancel": "保留"
+  },
+  "settings": {
+    "title": "設定",
+    "shared": "下載設定",
+    "sharedHint": "這些設定存在伺服器上，所有使用者共用，套用到之後建立的任務。",
+    "connections": "每個任務的連線數",
+    "connectionsHint": "1 到 64 條。",
+    "splitSize": "分段大小（MiB）",
+    "splitSizeHint": "至少 20 MiB。",
+    "useProxies": "使用公開代理",
+    "useProxiesHint": "免費下載需要等待時，改用公開代理取得下載授權。自備代理一律使用。",
+    "maxActive": "同時下載數",
+    "maxActiveHint": "1 到 10 個，其餘任務排隊等待。",
+    "root": "下載根目錄",
+    "rootHint": "由伺服器設定檔決定，無法在這裡修改。",
+    "save": "儲存設定",
+    "saved": "已儲存設定",
+    "browser": "這個瀏覽器",
+    "language": "語言",
+    "languageHint": "只影響這個瀏覽器。",
+    "loading": "載入設定中"
+  },
+  "language": {
+    "zh-Hant-TW": "繁體中文",
+    "en": "English"
+  },
+  "toast": {
+    "started": "已開始下載「{{name}}」",
+    "completed": "已完成下載「{{name}}」",
+    "failed": "「{{name}}」下載失敗：{{reason}}",
+    "removed": "已刪除任務",
+    "cleared_one": "已清除 {{count}} 筆已完成的任務",
+    "cleared_other": "已清除 {{count}} 筆已完成的任務",
+    "offline": "連不上伺服器，正在重新連線。",
+    "close": "關閉通知"
+  },
+  "errors": {
+    "network": "連不上伺服器。確認服務正在執行後再試一次。",
+    "unknown": "要求無法完成。再試一次。"
+  }
+}
