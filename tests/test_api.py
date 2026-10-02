@@ -14,6 +14,7 @@ from conftest import build_manager, wait_for
 from fastapi.testclient import TestClient
 
 from downloader.app import create_app
+from downloader.messages import render
 from downloader.providers.base import ProviderError
 
 URL = "https://fake.test/f/{}"
@@ -67,7 +68,7 @@ def test_resolve(client, content):
 def test_resolve_rejects_unsupported(client, url, status, code):
     resp = client.post("/api/resolve", json={"url": url})
     assert (resp.status_code, resp.json()["code"]) == (status, code)
-    assert resp.json()["message"]
+    assert resp.json()["key"] == f"errors.{code}" and resp.json()["message"]
 
 
 @pytest.mark.parametrize("code,status", [
@@ -75,10 +76,12 @@ def test_resolve_rejects_unsupported(client, url, status, code):
     ("quota_exceeded", 429), ("upstream_error", 502),
 ])
 def test_resolve_maps_upstream_errors(client, provider, code, status):
-    provider.info_error = ProviderError(code, "說明")
+    provider.info_error = ProviderError(code, provider="Fake host")
     resp = client.post("/api/resolve", json={"url": URL.format("x")})
     assert resp.status_code == status
-    assert resp.json() == {"code": code, "message": "說明"}
+    body = resp.json()
+    assert (body["code"], body["key"], body["params"]) == (code, f"errors.{code}", {"provider": "Fake host"})
+    assert body["message"] == render(f"errors.{code}", {"provider": "Fake host"})
 
 
 def test_unexpected_errors_answer_json(tmp_path, provider):

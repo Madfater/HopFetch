@@ -9,9 +9,17 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .config import Settings
+from .messages import CodedError
 from .util import MIN_SPLIT_SIZE, file_lock
 
 log = logging.getLogger(__name__)
+
+
+class InvalidSettings(CodedError, ValueError):
+    """A setting out of range, with code `invalid_settings` and a key naming the setting."""
+
+    def __init__(self, key: str, **params):
+        super().__init__("invalid_settings", key, **params)
 
 
 @dataclass
@@ -24,13 +32,13 @@ class Preferences:
     max_active_jobs: int
 
     def validate(self) -> None:
-        """Raise ValueError with a zh-Hant message when a value is out of range."""
+        """Raise InvalidSettings naming the first value that is out of range."""
         if not 1 <= self.connections <= 64:
-            raise ValueError("連線數必須介於 1 到 64 之間。")
+            raise InvalidSettings("errors.invalid_settings_connections", min=1, max=64)
         if self.split_size < MIN_SPLIT_SIZE:
-            raise ValueError("分段大小至少要 20 MiB。")
+            raise InvalidSettings("errors.invalid_settings_split_size", min_mib=MIN_SPLIT_SIZE // 2**20)
         if not 1 <= self.max_active_jobs <= 10:
-            raise ValueError("同時下載數必須介於 1 到 10 之間。")
+            raise InvalidSettings("errors.invalid_settings_max_active_jobs", min=1, max=10)
 
 
 FALLBACK = Preferences(connections=20, split_size=20 * 2**20, use_proxies=True, max_active_jobs=2)

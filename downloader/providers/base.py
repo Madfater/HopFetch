@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Callable
 
+from ..messages import CodedError
 from ..proxies import ProxyPool
 
 DEFAULT_HEADERS = {
@@ -17,17 +18,8 @@ DEFAULT_HEADERS = {
 }
 
 
-class ProviderError(Exception):
-    """A provider-side failure with a stable `code` and a message fit to show to the user.
-
-    - `code` is one of the error codes in docs/refactor-spec.md, such as `not_found`.
-    - `message` is zh-Hant text; the frontend shows it only for codes it has no copy for.
-    """
-
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
-        self.code = code
-        self.message = message
+class ProviderError(CodedError):
+    """A provider-side failure; `code` is one of the error codes in docs/refactor-spec.md."""
 
 
 class Cancelled(Exception):
@@ -78,13 +70,14 @@ class LinkContext:
     """Everything a provider may need while generating links, without knowing about jobs or HTTP.
 
     - `solve_captcha(image, spec)` returns an answer, or None to ask for a fresh captcha image.
-    - `set_status(phase, message)` reports progress; phases are the `PHASE_*` constants.
+    - `set_status(phase, key, **params)` reports progress; phases are the `PHASE_*` constants
+      and `key` is a `messages.*` translation key.
     - `proxies` is the shared proxy pool.
     - `cancelled` is set when the user pauses or deletes the job.
     """
 
     solve_captcha: Callable[[bytes, CaptchaSpec], str | None]
-    set_status: Callable[[str, str], None]
+    set_status: Callable[..., None]
     proxies: ProxyPool
     cancelled: threading.Event = field(default_factory=threading.Event)
 
@@ -93,13 +86,12 @@ class LinkContext:
         if self.cancelled.is_set():
             raise Cancelled()
 
-    def wait(self, seconds: float, message: str) -> None:
-        """Sleep for `seconds`, reporting a countdown each second and stopping early on cancel."""
+    def wait(self, seconds: float, key: str) -> None:
+        """Sleep for `seconds`, reporting `key` with the whole seconds left each second, and
+        stopping early on cancel."""
         deadline = time.monotonic() + seconds
         while (left := deadline - time.monotonic()) > 0:
-            minutes, seconds = divmod(int(left + 0.999), 60)
-            countdown = f"{minutes}:{seconds:02d}"
-            self.set_status(PHASE_WAITING, f"{message} {countdown}")
+            self.set_status(PHASE_WAITING, key, seconds=int(left + 0.999))
             if self.cancelled.wait(min(1.0, left)):
                 raise Cancelled()
 

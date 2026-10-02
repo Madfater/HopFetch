@@ -1,7 +1,7 @@
 """REST and SSE API under `/api`, a thin layer over `JobManager`.
 
-- Every error answers `{code, message}` with a zh-Hant message; raw exception text never leaves
-  the server.
+- Every error answers `{code, key, params, message}`: a stable code, a translation key with
+  its values, and zh-Hant fallback text. Raw exception text never leaves the server.
 - Task routes take only a task id, checked against ID_PATTERN; no route accepts a path.
 """
 
@@ -15,7 +15,9 @@ from pydantic import BaseModel
 
 from .events import HEARTBEAT_SECONDS, event_stream
 from .jobs import DuplicateTask, JobManager, TaskError
+from .messages import CodedError
 from .providers.base import ProviderError
+from .settings_store import InvalidSettings
 
 router = APIRouter(prefix="/api")
 
@@ -26,14 +28,17 @@ PROVIDER_STATUS = {"invalid_url": 400, "unsupported": 400, "not_found": 404, "pr
 
 
 class ApiError(Exception):
-    """An error answer: HTTP status, stable code, zh-Hant message and optional extra fields."""
+    """An error answer: HTTP status, a coded error and optional extra fields."""
 
-    def __init__(self, status: int, code: str, message: str, **extra):
-        super().__init__(message)
+    def __init__(self, status: int, error: CodedError, **extra):
+        super().__init__(error.message)
         self.status = status
-        self.code = code
-        self.message = message
+        self.error = error
         self.extra = extra
+
+    def body(self) -> dict:
+        """The JSON answer: `{code, key, params, message}` plus the extra fields."""
+        return self.error.as_error() | self.extra
 
 
 class UrlBody(BaseModel):
@@ -66,24 +71,24 @@ def _manager(request: Request) -> JobManager:
 def _job(request: Request, task_id: str):
     """Look up a task or answer 404; ids that are not 12 hex digits are never looked up."""
     if not ID_PATTERN.match(task_id):
-        raise ApiError(404, "task_not_found", "找不到這個任務。")
+        raise ApiError(404, CodedError("task_not_found"))
     try:
         return _manager(request).get(task_id)
     except KeyError:
-        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+        raise ApiError(404, CodedError("task_not_found")) from None
 
 
 def _provider_error(exc: ProviderError) -> ApiError:
     """Map a provider failure to an API error."""
-    return ApiError(PROVIDER_STATUS.get(exc.code, 502), exc.code, exc.message)
+    return ApiError(PROVIDER_STATUS.get(exc.code, 502), exc)
 
 
 def _task_error(exc: TaskError) -> ApiError:
     """Map a refused task action to an API error."""
     if isinstance(exc, DuplicateTask):
-        return ApiError(409, exc.code, exc.message, task_id=exc.task_id, task_status=exc.task_status)
+        return ApiError(409, exc, task_id=exc.task_id, task_status=exc.task_status)
     status = 507 if exc.code == "insufficient_space" else 409
-    return ApiError(status, exc.code, exc.message)
+    return ApiError(status, exc)
 
 
 @router.get("/providers")
@@ -148,7 +153,7 @@ def _action(request: Request, task_id: str, name: str) -> dict:
     except TaskError as exc:
         raise _task_error(exc) from None
     except KeyError:
-        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+        raise ApiError(404, CodedError("task_not_found")) from None
 
 
 @router.post("/tasks/{task_id}/pause")
@@ -184,7 +189,7 @@ def delete_task(task_id: str, request: Request, delete_file: bool = False) -> No
     except TaskError as exc:
         raise _task_error(exc) from None
     except KeyError:
-        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+        raise ApiError(404, CodedError("task_not_found")) from None
 
 
 @router.get("/tasks/{task_id}/file")
@@ -194,9 +199,9 @@ def task_file(task_id: str, request: Request) -> FileResponse:
     try:
         path = _manager(request).file_path(task_id)
     except KeyError:
-        raise ApiError(404, "task_not_found", "找不到這個任務。") from None
+        raise ApiError(404, CodedError("task_not_found")) from None
     if path is None:
-        raise ApiError(404, "file_missing", "NAS 上找不到這個檔案，可能已被移動或刪除。")
+        raise ApiError(404, CodedError("file_missing"))
     return FileResponse(path, filename=path.name, media_type="application/octet-stream")
 
 
@@ -226,8 +231,8 @@ def put_settings(body: SettingsBody, request: Request) -> dict:
     manager = _manager(request)
     try:
         manager.update_preferences(body.model_dump(exclude_none=True))
-    except ValueError as exc:
-        raise ApiError(400, "invalid_settings", str(exc)) from None
+    except InvalidSettings as exc:
+        raise ApiError(400, exc) from None
     return _settings(manager)
 
 

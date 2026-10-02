@@ -8,7 +8,8 @@
 - 部署：自架在 NAS，少數人透過區網或 VPN 使用，不對外開放、沒有登入機制。所有人共用同一份任務清單與設定。
 - 下載方式：由後端下載並存到 NAS 磁碟，位置限定在後端設定的根目錄（`DOWNLOAD_DIR`）之內。
 - 支援的雲端：只有 Keep2Share（`k2s.cc`、`keep2share.cc`）。通用的直連 provider 已移除，任何不屬於支援雲端的網址一律拒絕。
-- 主要裝置：桌機。介面語言：繁體中文（`<html lang="zh-Hant-TW">`）。
+- 主要裝置：桌機。
+- 介面語言：以 i18n 支援繁體中文（`zh-Hant-TW`，預設）與英文（`en`），見「多語系」。
 - 產品名稱未定：集中在前端的單一常數 `APP_NAME`（`web/src/app-name.ts`），暫定值 `Downloader`。頁面標題與名稱標誌都從這裡讀取；`vite.config.ts` 以 `transformIndexHtml` 把它寫進 `<title>`。
 
 ## 工作方式
@@ -65,15 +66,16 @@
 
 - `status` 只有 6 種：`queued`、`downloading`、`paused`、`completed`、`failed`、`canceled`。
 - 內部的細節階段一律屬於 `downloading`，以 `phase` 區分：`resolving`、`captcha`、`waiting`（所有 IP 都在冷卻時的倒數）、`links`、`downloading`、`assembling`、`verifying`。
-- `message` 是給使用者看的繁體中文說明，例如冷卻倒數。
-- 錯誤一律是 `{ code, message }`。原始例外字串只寫入 log，不送到前端。
+- 說明文字以翻譯鍵表示：`message_key`（例如 `messages.captcha_attempt`）與 `message_params`（例如 `{ "n": 3 }`）。`message` 是依繁中翻譯檔產生的備援文字，前端只在找不到翻譯鍵時顯示。
+- 錯誤一律是 `{ code, key, params, message }`：`code` 是穩定的機器代碼，`key` 是翻譯鍵（通常是 `errors.<code>`，同一代碼可有變體，例如 `errors.quota_exceeded_wait`），`params` 是插值參數，`message` 是繁中備援。原始例外字串只寫入 log，不送到前端。
+- 冷卻倒數以參數傳送秒數（`{ "seconds": 125 }`），由前端依語系格式化。
 
 ### 錯誤代碼
 
 - 解析：`invalid_url`、`unsupported`、`not_found`、`private`、`premium_only`、`quota_exceeded`、`upstream_error`。
 - 任務：另有 `captcha_failed`、`links_expired`、`stalled`、`disk_full`、`internal_error`；階段 3 加入 `remote_changed`、`range_unsupported`。
 - 建立任務：`duplicate_active`、`duplicate_completed`（兩者都附 `task_id` 與 `task_status`）、`insufficient_space`。
-- 其他：`task_not_found`、`invalid_state`（動作不適用於目前狀態）、`file_missing`、`invalid_request`（格式錯誤）、`invalid_settings`、`not_found`（未知的 API 路徑）。
+- 其他：`task_not_found`、`invalid_state`（動作不適用於目前狀態）、`file_missing`、`invalid_request`（格式錯誤）、`invalid_settings`、`not_found`（未知的 API 路徑，包含 `/api` 本身）、`method_not_allowed`、`http_error`。
 - `ProviderError` 帶 `code` 屬性。
 
 ### 端點
@@ -89,11 +91,11 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
   - 成功時回傳：`provider`、`file_id`、`file_name`、`size`（未知時為 null）、`resumable`、`duplicate`、`free_bytes`、`required_bytes`。
   - `required_bytes`：下載這個檔案需要的空間（見建立任務的空間檢查），大小未知時為 null。前端以它和 `free_bytes` 比較，判斷空間是否足夠。
   - `duplicate`：同一檔案已有任務時為 `{ task_id, status }`，否則為 null。
-  - 失敗時回傳 4xx 與 `{ code, message }`。
+  - 失敗時回傳 4xx 與 `{ code, key, params, message }`。
 - `GET /api/tasks`：任務清單，新的在前。每筆欄位：
   - 識別：`id`、`provider`、`file_id`、`file_name`
   - 進度：`size`、`bytes_done`、`speed`（bytes/s，移動平均）、`eta`（秒，未知時為 null）
-  - 狀態：`status`、`phase`、`message`、`resumable`、`file_exists`、`error`（`{ code, message }` 或 null）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
+  - 狀態：`status`、`phase`、`message_key`、`message_params`、`message`、`resumable`、`file_exists`、`error`（`{ code, key, params, message }` 或 null）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
   - 時間：`created_at`、`completed_at`
 - `POST /api/tasks`，body `{ url, force }`：建立任務。
   - 同一檔案已有 `queued`、`downloading`、`paused`、`failed` 或 `canceled` 的任務時，一律以 409 `duplicate_active` 拒絕，並附上既有任務 ID（前端提供前往查看或重試）。
@@ -146,6 +148,7 @@ pytest 覆蓋：
 | `@tanstack/react-query` v5 | 新增 | query key、AbortSignal、以 `setQueryData` 接收 SSE |
 | `radix-ui`（只用 Dialog、Tooltip、Checkbox、VisuallyHidden） | 新增 | 無樣式，處理焦點與 ARIA。不使用 shadcn/ui，不帶預設外觀 |
 | `@fontsource-variable/archivo` | 新增 | 自架字型。安裝時確認包含 wdth 軸，沒有就回報 |
+| `i18next`、`react-i18next`、`i18next-browser-languagedetector` | 新增 | 多語系：插值、語系偵測與切換 |
 | `vitest`、`jsdom`、`@testing-library/react`、`@testing-library/user-event` | 新增（dev） | 目前沒有前端測試 |
 
 - 樣式：純 CSS。`styles/tokens.css` 定義所有顏色變數，各元件用 CSS Modules。選擇器以單一 class 為主，重設樣式包在 `:where()` 裡，避免權重互相抵銷。
@@ -165,7 +168,7 @@ pytest 覆蓋：
   - 欄位依序為：狀態（燈號加文字）、雲端、檔名、大小、進度、速度、剩餘時間、操作。
   - 狀態文字在 `downloading` 時依 `phase` 顯示細節，例如「解驗證碼（第 3 次）」「等待冷卻 12:30」。
   - 表格上方有狀態篩選（全部、進行中、已完成、失敗）與「清除所有已完成」。
-- 設定：連線數、分段大小、使用代理、同時下載數可編輯；下載根目錄只顯示。
+- 設定：連線數、分段大小、使用公開代理、同時下載數可編輯（存到後端，所有人共用）；下載根目錄只顯示；語言只存在這個瀏覽器。
 - 寬度小於 768px 時，表格每列改成兩行排列。只保證可以操作，不另外設計手機互動。
 
 ### 輸入與解析
@@ -180,12 +183,12 @@ pytest 覆蓋：
   3. 以正規化後的網址作為 query key。過期的請求用 AbortSignal 取消，較早的請求晚回來時，不能覆蓋較新的結果。
 - 預覽區顯示雲端圖示、檔名、大小、NAS 剩餘空間：
   - 空間不足：停用下載，並說明還差多少空間。
-  - 大小未知：標示「大小未知」，仍可下載。
+  - 大小未知：標示「大小未知」，並停用下載。目前的分段下載需要檔案大小；Keep2Share 一律回報大小，這個狀態只在上游資料異常時出現。
   - `duplicate` 是未完成的任務（排隊、下載中、已暫停）：不能下載，提供「前往查看」。
   - `duplicate` 是失敗或已取消的任務：不能下載，提供「重試」與「前往查看」。
   - `duplicate` 是已完成的任務：提示已下載過，提供「仍要下載」（送出 `force: true`）。
-- 解析失敗時，依 `code` 顯示對應文案與下一步。
-  - 文案集中在一個檔案（`lib/errors.ts`），未知的 `code` 才顯示後端的 `message`。
+- 解析失敗時，依錯誤的 `key` 與 `params` 顯示對應文案與下一步。
+  - 文案都在翻譯檔裡，找不到翻譯鍵時才顯示後端的 `message`。
   - 絕不顯示原始例外字串。
 - 鍵盤：預覽成功時按 Enter 開始下載，按 Esc 清空。送出成功後清空輸入框並保留焦點。
 - 輸入插槽右側的燈：
@@ -261,7 +264,8 @@ pytest 覆蓋：
 
 版面：首頁內容置中，最大寬度約 560px；狀態頁最大寬度約 1200px，表格靠左對齊。
 
-文案：
+文案（兩種語言都適用）：
+- 英文用句首大寫（sentence case），不用全大寫或每字大寫；不用 "please"、"successfully"。
 - 按鈕以動詞開頭，同一個動作在整個流程用同一個詞（按鈕「下載」對應通知「已開始下載」）。
 - 錯誤訊息要說明發生了什麼事、該怎麼處理。例如「這個檔案需要權限才能下載。把分享設定改為『知道連結的人皆可檢視』後再試一次。」不道歉，不加「錯誤：」前綴。
 - 空狀態是邀請：狀態頁沒有任務時，顯示「還沒有下載任務」與前往下載頁的連結。
@@ -274,9 +278,23 @@ pytest 覆蓋：
 - 狀態頁使用真正的 `<table>`。
 - 注意 CSS 選擇器的權重，避免樣式互相抵銷。
 
+### 多語系
+
+- 使用 i18next 與 react-i18next。支援 `zh-Hant-TW`（預設）與 `en`。
+- 翻譯檔：
+  - 介面文字：`web/src/locales/zh-Hant-TW.json`、`web/src/locales/en.json`。
+  - 後端訊息與錯誤：`shared/i18n/zh-Hant-TW.json`、`shared/i18n/en.json`，分為 `messages` 與 `errors` 兩個命名空間。後端以繁中檔產生備援 `message`，前端合併兩份翻譯檔使用。
+  - 插值一律用 i18next 的 `{{name}}` 語法。
+- 語系決定順序：使用者在設定頁的選擇（存在該瀏覽器的 `localStorage`，每人各自設定，不影響他人），其次是瀏覽器語言（`zh` 開頭用 `zh-Hant-TW`，其他用 `en`）。
+- 切換語系時，`<html lang>` 一併更新。
+- 數字、大小、速度、時間依語系以 `Intl` 格式化；數字仍用 Archivo 與 `tabular-nums`。
+- 設定頁新增「語言」欄位；它是瀏覽器端設定，不送到後端。
+
 ### 驗收
 
+- pytest：後端用到的每個翻譯鍵都存在於兩份 `shared/i18n` 翻譯檔，且兩種語言的插值參數相同。
 - Vitest：
+  - 兩份介面翻譯檔的鍵與插值參數一致
   - 網址擷取與 provider 比對（共用測試資料）
   - resolve 的延遲呼叫與過期請求處理
   - SSE 事件更新快取的邏輯

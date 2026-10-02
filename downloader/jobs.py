@@ -19,6 +19,7 @@ from .captcha import CaptchaSession, OcrSolver
 from .config import Settings
 from .engine import DownloadStalled, LinksExpired, Progress, SegmentedDownload, assemble, build_parts
 from .events import EventBus
+from .messages import CodedError, render
 from .providers import ProviderRegistry
 from .providers.base import Cancelled, FileRef, LinkContext, Provider, ProviderError
 from .proxies import ProxyPool
@@ -56,30 +57,24 @@ class Phase(str, Enum):
 
 ACTIVE = {Status.QUEUED, Status.DOWNLOADING}
 LEGACY_STATES = {"completed": Status.COMPLETED, "failed": Status.FAILED, "paused": Status.PAUSED}
-LEGACY_ERROR = {"code": "internal_error", "message": "這個任務在服務更新前就已失敗。按重試再試一次。"}
 LEGACY_MESSAGES = {
-    Status.COMPLETED: "已完成",
-    Status.FAILED: LEGACY_ERROR["message"],
-    Status.PAUSED: "已暫停。按繼續從中斷處下載。",
+    Status.COMPLETED: "messages.completed",
+    Status.FAILED: "errors.internal_error_legacy",
+    Status.PAUSED: "messages.paused_legacy",
 }
 FINISHING = {Phase.ASSEMBLING, Phase.VERIFYING}
 INTENT_RANK = {None: 0, "pause": 1, "cancel": 2, "delete": 3}
 
 
-class TaskError(Exception):
-    """A request the manager refuses, with a stable `code` and a zh-Hant `message`."""
-
-    def __init__(self, code: str, message: str):
-        super().__init__(message)
-        self.code = code
-        self.message = message
+class TaskError(CodedError):
+    """A request the manager refuses."""
 
 
 class DuplicateTask(TaskError):
     """A job for the same file exists; `task_id` and `task_status` point at it."""
 
-    def __init__(self, code: str, message: str, job: "Job"):
-        super().__init__(code, message)
+    def __init__(self, code: str, job: "Job"):
+        super().__init__(code)
         self.task_id = job.id
         self.task_status = job.status.value
 
@@ -87,12 +82,15 @@ class DuplicateTask(TaskError):
 class InsufficientSpace(TaskError):
     """The download root lacks room for the file."""
 
+    def __init__(self) -> None:
+        super().__init__("insufficient_space")
+
 
 class InvalidState(TaskError):
-    """The action does not apply to the job's current status."""
+    """The action does not apply to the job's current status; `key` says which rule applies."""
 
-    def __init__(self, message: str):
-        super().__init__("invalid_state", message)
+    def __init__(self, key: str):
+        super().__init__("invalid_state", key)
 
 
 @dataclass
@@ -101,6 +99,9 @@ class Job:
 
     - `output_path` is the final file name chosen when assembly starts; while the job is not
       completed, the file at that path plus PART_SUFFIX is the job's staging file.
+    - `message_key` and `message_params` describe the current step as a `messages.*`
+      translation key; `message` is its fallback text.
+    - `error` is a `{code, key, params, message}` object while the job has failed.
     - `etag` and `last_modified` are reserved for validating resumed downloads.
     """
 
@@ -114,6 +115,8 @@ class Job:
     size: int | None = None
     status: Status = Status.QUEUED
     phase: Phase | None = None
+    message_key: str | None = None
+    message_params: dict = field(default_factory=dict)
     message: str = ""
     error: dict | None = None
     created_at: float = field(default_factory=time.time)
@@ -155,6 +158,8 @@ class Job:
             "eta": eta,
             "status": self.status.value,
             "phase": self.phase.value if self.phase else None,
+            "message_key": self.message_key,
+            "message_params": self.message_params,
             "message": self.message,
             "resumable": self.resumable,
             "file_exists": file_exists,
@@ -185,8 +190,11 @@ class Job:
             data["file_name"] = data.get("requested_filename") or data.get("filename")
             data["bytes_done"] = data.get("done_bytes", 0)
             data["phase"] = None
-            data["message"] = LEGACY_MESSAGES[status]
-            data["error"] = dict(LEGACY_ERROR) if status == Status.FAILED else None
+            data["message_key"] = LEGACY_MESSAGES[status]
+            data["message_params"] = {}
+            data["message"] = render(LEGACY_MESSAGES[status])
+            legacy = CodedError("internal_error", "errors.internal_error_legacy")
+            data["error"] = legacy.as_error() if status == Status.FAILED else None
         known = {k: v for k, v in data.items() if k in cls.__dataclass_fields__}
         known["status"] = Status(known.get("status", Status.PAUSED))
         known["phase"] = Phase(known["phase"]) if known.get("phase") else None
@@ -303,14 +311,10 @@ class JobManager:
                     self._remove_staging(job)
                     shutil.rmtree(self._part_dir(job), ignore_errors=True)
                     job.bytes_done = job.size or job.bytes_done
-                    job.completed_at = job.completed_at or time.time()
-                    job.status = Status.COMPLETED
-                    job.phase = None
-                    job.message = f"已儲存為 {Path(job.output_path).name}"
+                    self._apply(job, Status.COMPLETED, None, "messages.saved_as",
+                                name=Path(job.output_path).name)
                 elif job.status in ACTIVE:
-                    job.status = Status.PAUSED
-                    job.phase = None
-                    job.message = "服務重新啟動，下載已暫停。按繼續從中斷處下載。"
+                    self._apply(job, Status.PAUSED, None, "messages.paused_restart")
                 job.active_connections = 0
                 job.speed = 0.0
                 self.jobs[job.id] = job
@@ -360,7 +364,7 @@ class JobManager:
             return
         free = shutil.disk_usage(self.root).free
         if needed > free or (size is not None and size > shutil.disk_usage(self.settings.data_dir).free):
-            raise InsufficientSpace("insufficient_space", "NAS 剩餘空間不足以存放這個檔案。清出空間後再試一次。")
+            raise InsufficientSpace()
 
     def find_duplicate(self, provider: str, file_id: str) -> Job | None:
         """The job for the same file, preferring an unfinished one over completed ones."""
@@ -399,7 +403,7 @@ class JobManager:
                 connections=prefs.connections, split_size=prefs.split_size,
                 file_name=safe_filename(info.name), size=info.size,
             )
-            job.message = "等待空閒的下載名額"
+            self._apply(job, Status.QUEUED, None, "messages.waiting_slot")
             self.jobs[job.id] = job
             run = self._register(job)
         self._commit(job, True)
@@ -412,9 +416,9 @@ class JobManager:
         if dup is None:
             return
         if dup.status != Status.COMPLETED:
-            raise DuplicateTask("duplicate_active", "這個檔案已經在下載清單中。", dup)
+            raise DuplicateTask("duplicate_active", dup)
         if not force:
-            raise DuplicateTask("duplicate_completed", "這個檔案已經下載過。", dup)
+            raise DuplicateTask("duplicate_completed", dup)
 
     def get(self, job_id: str) -> Job:
         """Return a job, raising KeyError when it does not exist."""
@@ -435,19 +439,19 @@ class JobManager:
             job = self.get(job_id)
             run = self._runs.get(job_id)
             if job.status not in ACTIVE or run is None:
-                raise InvalidState("只有排隊中或下載中的任務可以暫停。")
+                raise InvalidState("errors.invalid_state_pause")
             if job.phase in FINISHING:
-                raise InvalidState("檔案正在合併或檢查，完成前無法暫停。")
+                raise InvalidState("errors.invalid_state_finishing")
             run.stop("pause")
         return job
 
     def resume(self, job_id: str) -> Job:
         """Queue a paused job again; it continues from the bytes on disk."""
-        return self._requeue(job_id, {Status.PAUSED}, "只有已暫停的任務可以繼續。")
+        return self._requeue(job_id, {Status.PAUSED}, "errors.invalid_state_resume")
 
     def retry(self, job_id: str) -> Job:
         """Queue a failed or canceled job again."""
-        return self._requeue(job_id, {Status.FAILED, Status.CANCELED}, "只有失敗或已取消的任務可以重試。")
+        return self._requeue(job_id, {Status.FAILED, Status.CANCELED}, "errors.invalid_state_retry")
 
     def _requeue(self, job_id: str, allowed: set[Status], refusal: str) -> Job:
         """Start a new worker for a resting job whose status is in `allowed`.
@@ -461,7 +465,7 @@ class JobManager:
                 raise InvalidState(refusal)
             job.error = None
             run = self._register(job)
-            changed = self._apply(job, Status.QUEUED, None, "等待空閒的下載名額")
+            changed = self._apply(job, Status.QUEUED, None, "messages.waiting_slot")
         self._commit(job, changed)
         self._start(job, run)
         return job
@@ -476,15 +480,15 @@ class JobManager:
         with self._lock:
             job = self.get(job_id)
             if job.status not in ACTIVE | {Status.PAUSED}:
-                raise InvalidState("只有未完成的任務可以取消。")
+                raise InvalidState("errors.invalid_state_cancel")
             if job.phase in FINISHING:
-                raise InvalidState("檔案正在合併或檢查，完成前無法取消。")
+                raise InvalidState("errors.invalid_state_finishing")
             run = self._runs.get(job_id)
             if run is not None:
                 run.stop("cancel")
             else:
                 self._discard_partial(job)
-                changed = self._apply(job, Status.CANCELED, None, "已取消")
+                changed = self._apply(job, Status.CANCELED, None, "messages.canceled")
         if run is None:
             self._commit(job, changed)
         else:
@@ -501,7 +505,7 @@ class JobManager:
         with self._lock:
             job = self.get(job_id)
             if job.phase in FINISHING and job.status == Status.DOWNLOADING:
-                raise InvalidState("檔案正在合併或檢查，完成後再刪除。")
+                raise InvalidState("errors.invalid_state_finishing")
             run = self._runs.get(job_id)
             if run is not None:
                 run.delete_file = run.delete_file or delete_file
@@ -600,29 +604,29 @@ class JobManager:
         - How the run ended, including a pending pause, cancel or delete, is applied by `_finish_run`.
         """
         acquired = False
-        outcome: tuple[Status, str] | None = None
+        outcome: tuple[Status, str, dict] | None = None
         try:
             while not (acquired := self._slots.acquire(timeout=0.5)):
                 if run.cancelled.is_set():
                     raise Cancelled()
             self._execute(job, run)
         except Cancelled:
-            outcome = (Status.PAUSED, "已暫停")
+            outcome = (Status.PAUSED, "messages.paused", {})
         except ProviderError as exc:
-            outcome = self._fail(job, exc.code, exc.message)
+            outcome = self._fail(job, exc)
         except LinksExpired:
-            outcome = self._fail(job, "links_expired", "下載連結已失效，重新產生後仍被拒絕。按重試再試一次。")
+            outcome = self._fail(job, CodedError("links_expired"))
         except DownloadStalled:
-            outcome = self._fail(job, "stalled", "下載停滯太久而中斷。按重試從中斷處繼續。")
+            outcome = self._fail(job, CodedError("stalled"))
         except OSError as exc:
             if exc.errno != errno.ENOSPC:
                 log.exception("job %s crashed", job.id)
-                outcome = self._fail(job, "internal_error", "發生未預期的錯誤，詳細內容已寫入伺服器記錄。按重試再試一次。")
+                outcome = self._fail(job, CodedError("internal_error"))
             else:
-                outcome = self._fail(job, "disk_full", "NAS 空間不足，下載中斷。清出空間後按重試。")
+                outcome = self._fail(job, CodedError("disk_full"))
         except Exception:
             log.exception("job %s crashed", job.id)
-            outcome = self._fail(job, "internal_error", "發生未預期的錯誤，詳細內容已寫入伺服器記錄。按重試再試一次。")
+            outcome = self._fail(job, CodedError("internal_error"))
         finally:
             if acquired:
                 self._slots.release()
@@ -630,7 +634,7 @@ class JobManager:
             job.speed = 0.0
             self._finish_run(job, run, outcome)
 
-    def _finish_run(self, job: Job, run: _Run, outcome: tuple[Status, str] | None) -> None:
+    def _finish_run(self, job: Job, run: _Run, outcome: tuple[Status, str, dict] | None) -> None:
         """Apply how a run ended, honoring a pending cancel or delete, and retire the run.
 
         - The status change and the removal from `_runs` happen under one lock hold, so no
@@ -645,10 +649,10 @@ class JobManager:
                     removed = True
                 elif run.intent == "cancel" and job.status != Status.COMPLETED:
                     job.error = None
-                    self._apply(job, Status.CANCELED, None, "已取消")
+                    self._apply(job, Status.CANCELED, None, "messages.canceled")
                     self._discard_partial(job)
                 elif outcome is not None:
-                    self._apply(job, outcome[0], None, outcome[1])
+                    self._apply(job, outcome[0], None, outcome[1], **outcome[2])
             finally:
                 if self._runs.get(job.id) is run:
                     self._runs.pop(job.id)
@@ -659,10 +663,10 @@ class JobManager:
             self._publish(job, force=True)
 
     @staticmethod
-    def _fail(job: Job, code: str, message: str) -> tuple[Status, str]:
-        """Record an error on `job` and return the failed outcome."""
-        job.error = {"code": code, "message": message}
-        return Status.FAILED, message
+    def _fail(job: Job, error: CodedError) -> tuple[Status, str, dict]:
+        """Record `error` on `job` and return the failed outcome."""
+        job.error = error.as_error()
+        return Status.FAILED, error.key, error.params
 
     def _execute(self, job: Job, run: _Run) -> None:
         """Resolve, get links, download, assemble and verify one job."""
@@ -670,13 +674,13 @@ class JobManager:
         ref = FileRef(url=job.url, file_id=job.file_id)
 
         if job.file_name is None or job.size is None:
-            self._set(job, Status.DOWNLOADING, Phase.RESOLVING, "讀取檔案資訊")
+            self._set(job, Status.DOWNLOADING, Phase.RESOLVING, "messages.resolving")
             info = provider.get_info(ref)
             job.file_name = job.file_name or safe_filename(info.name)
             job.size = info.size
             self._persist(force=True)
         if not job.size:
-            raise ProviderError("upstream_error", "雲端沒有提供檔案大小，無法分段下載。")
+            raise ProviderError("upstream_error", "errors.upstream_error_no_size")
 
         retried = False
         while True:
@@ -690,9 +694,9 @@ class JobManager:
                     raise
                 retried = True
                 job.links = []
-                self._set(job, Status.DOWNLOADING, Phase.LINKS, "下載連結已失效，重新產生")
+                self._set(job, Status.DOWNLOADING, Phase.LINKS, "messages.links_regenerating")
 
-        self._set(job, Status.DOWNLOADING, Phase.ASSEMBLING, "合併分段")
+        self._set(job, Status.DOWNLOADING, Phase.ASSEMBLING, "messages.assembling")
         self._remove_staging(job)
         output, handle = claim_staging(self.root / job.file_name)
         job.output_path = str(output)
@@ -707,9 +711,9 @@ class JobManager:
         job.parts_done = job.parts_total
 
         if output.suffix.lower() in VIDEO_SUFFIXES and shutil.which("ffmpeg"):
-            self._set(job, Status.DOWNLOADING, Phase.VERIFYING, "以 ffmpeg 檢查影片")
+            self._set(job, Status.DOWNLOADING, Phase.VERIFYING, "messages.verifying")
             job.verified = "ok" if _ffmpeg_ok(output) else "corrupt"
-        self._set(job, Status.COMPLETED, None, f"已儲存為 {output.name}")
+        self._set(job, Status.COMPLETED, None, "messages.saved_as", name=output.name)
 
     def _links_fresh(self, job: Job, provider: Provider) -> bool:
         """True when stored links exist and are younger than the provider's link TTL."""
@@ -721,19 +725,19 @@ class JobManager:
         """Ask the provider for links, wiring captcha and status reporting to the job."""
 
         def on_attempt(attempt: int) -> None:
-            self._set(job, Status.DOWNLOADING, Phase.CAPTCHA, f"辨識驗證碼（第 {attempt} 次）")
+            self._set(job, Status.DOWNLOADING, Phase.CAPTCHA, "messages.captcha_attempt", n=attempt)
 
         if run.captcha is None:
             run.captcha = CaptchaSession(self.ocr, self.settings.captcha_max_attempts, run.cancelled, on_attempt)
         ctx = LinkContext(
             solve_captcha=run.captcha.solve,
-            set_status=lambda phase, message: self._set(job, Status.DOWNLOADING, Phase(phase), message),
+            set_status=lambda phase, key, **params: self._set(job, Status.DOWNLOADING, Phase(phase), key, **params),
             proxies=self.proxies,
             cancelled=run.cancelled,
         )
         links = provider.generate_links(ref, job.connections, ctx)
         if not links:
-            raise ProviderError("upstream_error", "雲端沒有提供下載連結。稍後再試一次。")
+            raise ProviderError("upstream_error", "errors.upstream_error_no_links")
         job.links = links
         job.links_created_at = time.time()
         self._persist(force=True)
@@ -751,7 +755,8 @@ class JobManager:
             self._publish(job)
             self._persist()
 
-        self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, f"透過 {len(job.links)} 條連線下載")
+        self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.downloading",
+                  connections=len(job.links))
         SegmentedDownload(
             links=job.links, size=job.size, part_dir=self._part_dir(job),
             split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
@@ -762,24 +767,27 @@ class JobManager:
         """Directory holding the part files of `job`."""
         return self.settings.data_dir / "jobs" / job.id
 
-    def _set(self, job: Job, status: Status, phase: Phase | None, message: str) -> None:
+    def _set(self, job: Job, status: Status, phase: Phase | None, key: str, **params) -> None:
         """Change a job's status, phase and message, then persist and publish."""
-        self._commit(job, self._apply(job, status, phase, message))
+        self._commit(job, self._apply(job, status, phase, key, **params))
 
-    def _apply(self, job: Job, status: Status, phase: Phase | None, message: str) -> bool:
+    def _apply(self, job: Job, status: Status, phase: Phase | None, key: str, **params) -> bool:
         """Change a job's status, phase and message in memory; return whether status or phase changed.
 
+        - `key` is a translation key and `params` its values; `message` gets the fallback text.
         - Safe to call under `self._lock`; it neither persists nor publishes.
         """
         changed = job.status != status or job.phase != phase
         job.status = status
         job.phase = phase
-        job.message = message
+        job.message_key = key
+        job.message_params = params
+        job.message = render(key, params)
         job.updated_at = time.time()
         if status == Status.COMPLETED and changed:
             job.completed_at = job.updated_at
         if changed:
-            log.info("job %s -> %s/%s: %s", job.id, status.value, phase.value if phase else "-", message)
+            log.info("job %s -> %s/%s: %s", job.id, status.value, phase.value if phase else "-", key)
         return changed
 
     def _commit(self, job: Job, changed: bool) -> None:

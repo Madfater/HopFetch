@@ -43,12 +43,12 @@ class ProviderRegistry:
         except ValueError:
             valid = False
         if not valid:
-            raise ProviderError("invalid_url", "這不是有效的網址。貼上以 https:// 開頭的分享連結。")
+            raise ProviderError("invalid_url")
         for provider in self._providers:
             file_id = provider.match(url)
             if file_id:
                 return provider, FileRef(url=url, file_id=file_id)
-        raise ProviderError("unsupported", "目前不支援這個網站的連結。")
+        raise ProviderError("unsupported")
 
 
 def default_registry() -> ProviderRegistry:
