@@ -11,7 +11,6 @@
     "waiting_free_slot": "Waiting for the free download slot, {{seconds}} s left",
     "links_generated": "Got {{done}} of {{total}} links",
     "links_regenerating": "Links expired, generating new ones",
-    "downloading": "Downloading over {{connections}} connections",
     "assembling": "Joining parts",
     "verifying": "Checking the video with ffmpeg",
     "saved_as": "Saved as {{name}}",
@@ -19,7 +18,9 @@
     "paused": "Paused",
     "paused_restart": "The server restarted, so the download paused. Resume continues where it stopped.",
     "paused_legacy": "Paused. Resume continues where it stopped.",
-    "canceled": "Canceled"
+    "canceled": "Canceled",
+    "downloading_one": "Downloading over {{count}} connection",
+    "downloading_other": "Downloading over {{count}} connections"
   },
   "errors": {
     "invalid_url": "This is not a valid URL. Paste a share link that starts with https://.",
@@ -28,7 +29,6 @@
     "private": "This file is private. The owner has to share it before it can be downloaded.",
     "premium_only": "This file is only available to premium members.",
     "quota_exceeded": "The free download quota on {{provider}} is used up. Try again later.",
-    "quota_exceeded_wait": "{{provider}} asks to wait about {{minutes}} minutes before the next free download. Try again later.",
     "upstream_error": "{{provider}} cannot be reached right now. Try again later.",
     "upstream_error_refused": "{{provider}} refused the download request. Try again later.",
     "upstream_error_no_key": "{{provider}} did not grant a free download key. Try again later.",
@@ -60,6 +60,8 @@
     "method_not_allowed": "This address does not accept this kind of request.",
     "http_error": "The request could not be completed.",
     "invalid_state": "This action does not apply to the task right now.",
-    "invalid_settings": "A setting is out of range."
+    "invalid_settings": "A setting is out of range.",
+    "quota_exceeded_wait_one": "{{provider}} asks to wait about {{count}} minute before the next free download. Try again later.",
+    "quota_exceeded_wait_other": "{{provider}} asks to wait about {{count}} minutes before the next free download. Try again later."
   }
 }

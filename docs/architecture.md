@@ -62,7 +62,7 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 ### Docker
 
-`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. `compose.yaml` runs it:
+`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. Both stages copy `shared/`, which holds the translation catalogs and the provider test cases. `compose.yaml` runs it:
 
 - `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
 - Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
@@ -116,7 +116,7 @@ The backend sends translation keys, and the frontend translates them.
 - Step descriptions are `messages.*` keys and failures are `errors.*` keys, each with a params object. The catalogs are `shared/i18n/zh-Hant-TW.json` and `shared/i18n/en.json`, using i18next's `{{name}}` interpolation.
 - An error's `code` is stable for program logic. Its `key` is usually `errors.<code>`; a variant of the same code has its own key, such as `errors.quota_exceeded_wait`.
 - Every answer also carries `message`, the zh-Hant text rendered from the catalog, for clients without the key.
-- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale.
+- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
 - `tests/test_messages.py` checks that both catalogs have the same keys and placeholders, and that every key and error code the backend uses exists.
 
 ## Keep2Share flow

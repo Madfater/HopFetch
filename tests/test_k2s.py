@@ -101,7 +101,7 @@ def test_cooldown_beyond_limit_fails_fast(monkeypatch, ctx):
         k2s.K2SProvider().generate_links(REF, 2, ctx)
     assert info.value.code == "quota_exceeded"
     assert info.value.key == "errors.quota_exceeded_wait"
-    assert info.value.params == {"provider": "Keep2Share", "minutes": 167}
+    assert info.value.params == {"provider": "Keep2Share", "count": 167}
     assert ctx.waits == []
 
 

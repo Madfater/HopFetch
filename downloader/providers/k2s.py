@@ -154,7 +154,7 @@ class K2SProvider(Provider):
             if wait > MAX_WAIT:
                 minutes = -(-wait // 60)
                 return None, wait, ProviderError("quota_exceeded", "errors.quota_exceeded_wait",
-                                                 provider=self.label, minutes=minutes)
+                                                 provider=self.label, count=minutes)
             if "free_download_key" not in reply:
                 return None, None, None
             ctx.wait(wait, "messages.waiting_free_slot")

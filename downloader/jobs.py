@@ -99,8 +99,9 @@ class Job:
 
     - `output_path` is the final file name chosen when assembly starts; while the job is not
       completed, the file at that path plus PART_SUFFIX is the job's staging file.
-    - `message_key` and `message_params` describe the current step as a `messages.*`
-      translation key; `message` is its fallback text.
+    - `message_key` and `message_params` describe the current state as a translation key:
+      `messages.*` for a step, or the error's `errors.*` key once the job has failed;
+      `message` is its fallback text.
     - `error` is a `{code, key, params, message}` object while the job has failed.
     - `etag` and `last_modified` are reserved for validating resumed downloads.
     """
@@ -181,7 +182,7 @@ class Job:
         """Rebuild a job from its stored form, including the older `state` layout; unknown keys are ignored.
 
         - Messages and errors of the older layout may hold raw exception text, so they are
-          replaced with fixed zh-Hant text.
+          replaced with fixed translation keys and their fallback text.
         """
         data = dict(data)
         if "state" in data and "status" not in data:
@@ -756,7 +757,7 @@ class JobManager:
             self._persist()
 
         self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.downloading",
-                  connections=len(job.links))
+                  count=len(job.links))
         SegmentedDownload(
             links=job.links, size=job.size, part_dir=self._part_dir(job),
             split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,

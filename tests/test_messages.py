@@ -12,13 +12,29 @@ from downloader.messages import CATALOG_DIR, CodedError, catalog, render
 LOCALES = ["zh-Hant-TW", "en"]
 SOURCE = Path(__file__).resolve().parent.parent / "downloader"
 KEY_LITERAL = re.compile(r'"((?:messages|errors)\.[a-z_]+)"')
-CODE_LITERAL = re.compile(r'(?:Error|__init__|_error\(\d+,)\s*\(?\s*"([a-z_]+)"')
+CODE_LITERAL = re.compile(r'(?:Error|DuplicateTask|InvalidState|__init__)\(\s*"([a-z_]+)"'
+                          r'|_error\([^,()]+(?:\.\w+)*,\s*"([a-z_]+)"')
+PLURAL_SUFFIX = re.compile(r"_(?:zero|one|two|few|many|other)$")
 PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
 
 
 def flat(locale: str) -> dict[str, str]:
-    """Every `namespace.key` of a catalog with its text."""
-    return {f"{ns}.{key}": text for ns, entries in catalog(locale).items() for key, text in entries.items()}
+    """Every `namespace.key` of a catalog with its text, plural forms folded into the base key.
+
+    - i18next plural variants such as `downloading_one` and `downloading_other` count as
+      `downloading`; their placeholders are merged.
+    """
+    keys: dict[str, str] = {}
+    for ns, entries in catalog(locale).items():
+        for key, text in entries.items():
+            base = f"{ns}.{PLURAL_SUFFIX.sub('', key)}"
+            keys[base] = keys.get(base, "") + text
+    return keys
+
+
+def codes_in_source() -> set[str]:
+    """Every error code passed as a string literal to an error constructor or `_error`."""
+    return {a or b for a, b in CODE_LITERAL.findall(source_text())}
 
 
 def source_text() -> str:
@@ -46,8 +62,11 @@ def test_every_key_the_backend_uses_exists():
 
 def test_every_error_code_has_a_default_key():
     keys = flat(LOCALES[0])
-    codes = set(CODE_LITERAL.findall(source_text()))
-    assert {"not_found", "invalid_state", "captcha_failed"} <= codes
+    codes = codes_in_source()
+    expected = {"not_found", "invalid_state", "captcha_failed", "duplicate_active",
+                "duplicate_completed", "http_error", "insufficient_space", "invalid_settings",
+                "task_not_found", "file_missing", "invalid_request", "method_not_allowed"}
+    assert expected <= codes, sorted(expected - codes)
     missing = sorted(code for code in codes if f"errors.{code}" not in keys)
     assert missing == []
 
@@ -55,9 +74,9 @@ def test_every_error_code_has_a_default_key():
 def test_render_fills_params_and_keeps_unknown_keys():
     assert render("messages.captcha_attempt", {"n": 3}) == "辨識驗證碼（第 3 次）"
     assert render("messages.nope") == "messages.nope"
-    error = CodedError("quota_exceeded", "errors.quota_exceeded_wait", provider="K", minutes=5)
+    error = CodedError("quota_exceeded", "errors.quota_exceeded_wait", provider="K", count=5)
     assert error.as_error() == {"code": "quota_exceeded", "key": "errors.quota_exceeded_wait",
-                                "params": {"provider": "K", "minutes": 5},
+                                "params": {"provider": "K", "count": 5},
                                 "message": "K 要求等待約 5 分鐘才能再次免費下載。稍後再試一次。"}
 
 

@@ -285,6 +285,7 @@ pytest 覆蓋：
   - 介面文字：`web/src/locales/zh-Hant-TW.json`、`web/src/locales/en.json`。
   - 後端訊息與錯誤：`shared/i18n/zh-Hant-TW.json`、`shared/i18n/en.json`，分為 `messages` 與 `errors` 兩個命名空間。後端以繁中檔產生備援 `message`，前端合併兩份翻譯檔使用。
   - 插值一律用 i18next 的 `{{name}}` 語法。
+  - 需要依數量變化的文字，數量參數一律命名為 `count`，英文以 i18next 的 `_one`、`_other` 變體提供單複數；繁中只有一個鍵。
 - 語系決定順序：使用者在設定頁的選擇（存在該瀏覽器的 `localStorage`，每人各自設定，不影響他人），其次是瀏覽器語言（`zh` 開頭用 `zh-Hant-TW`，其他用 `en`）。
 - 切換語系時，`<html lang>` 一併更新。
 - 數字、大小、速度、時間依語系以 `Intl` 格式化；數字仍用 Archivo 與 `tabular-nums`。
