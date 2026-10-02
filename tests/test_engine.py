@@ -9,6 +9,9 @@ import pytest
 
 from downloader.engine import (
     DownloadStalled,
+    RangeUnsupported,
+    RemoteChanged,
+    Validator,
     LinksExpired,
     SegmentedDownload,
     assemble,
@@ -135,13 +138,11 @@ def test_refused_links_raise_links_expired(server, tmp_path):
         make(server, tmp_path, links=2).run()
 
 
-def test_server_ignoring_range_never_corrupts_parts(server, tmp_path):
+def test_server_ignoring_range_is_reported_without_writing(server, tmp_path):
     server.ignore_range = True
-    download = make(server, tmp_path, links=2, stall_timeout=1)
-    started = time.monotonic()
-    with pytest.raises(DownloadStalled):
+    download = make(server, tmp_path, links=2)
+    with pytest.raises(RangeUnsupported):
         download.run()
-    assert time.monotonic() - started < 10
     assert all(not part_path(download.part_dir, p.index).exists()
                or part_path(download.part_dir, p.index).stat().st_size == 0
                for p in download.parts)
@@ -206,3 +207,42 @@ def test_publish_staging_without_hard_links_never_replaces(tmp_path, monkeypatch
     final = publish_staging(staging_path(output), output)
     assert final == tmp_path / "c (1).bin" and final.read_bytes() == b"new"
     assert output.read_bytes() == b"someone else"
+
+
+def test_validator_prefers_a_strong_etag():
+    assert Validator('"abc"', "Tue, 01 Sep 2026 00:00:00 GMT").if_range() == '"abc"'
+    assert Validator('W/"abc"', "Tue, 01 Sep 2026 00:00:00 GMT").if_range() == "Tue, 01 Sep 2026 00:00:00 GMT"
+    assert Validator().if_range() is None
+
+
+def test_first_answer_sets_the_validator_and_later_requests_send_it(server, content, tmp_path):
+    server.etag = '"v1"'
+    download = make(server, tmp_path, links=2)
+    download.run()
+    assert finish(download, tmp_path) == content
+    assert download.validator.etag == '"v1"'
+    assert '"v1"' in server.if_ranges
+
+
+def test_changed_remote_file_raises_without_mixing_versions(server, content, tmp_path):
+    server.etag = '"v1"'
+    server.delay = 0.02
+    validator = Validator()
+    cancelled = threading.Event()
+    first = make(server, tmp_path, links=2, cancelled=cancelled, validator=validator)
+    threading.Timer(0.3, cancelled.set).start()
+    with pytest.raises(Cancelled):
+        first.run()
+    before = {p.index: part_path(first.part_dir, p.index).read_bytes()
+              for p in first.parts if part_path(first.part_dir, p.index).exists()}
+    assert validator.etag == '"v1"' and any(before.values())
+
+    server.etag = '"v2"'
+    server.content = bytes(reversed(content))
+    server.delay = 0
+    second = make(server, tmp_path, links=2, validator=validator)
+    with pytest.raises(RemoteChanged):
+        second.run()
+    after = {p.index: part_path(second.part_dir, p.index).read_bytes()
+             for p in second.parts if part_path(second.part_dir, p.index).exists()}
+    assert after == before

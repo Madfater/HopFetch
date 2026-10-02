@@ -23,6 +23,9 @@ class RangeServer:
     - `refuse` makes every request answer 403, as an expired link does.
     - `ignore_range` answers 200 with the whole body, as a server without range support does.
     - `delay` sleeps between 16 KiB blocks, to make a download slow enough to interrupt.
+    - `etag` and `last_modified` are sent with every answer when set. A request whose If-Range
+      matches neither gets the whole body with 200, as HTTP requires for a changed file.
+    - `if_ranges` records the If-Range header of every request.
     """
 
     def __init__(self, content: bytes):
@@ -31,6 +34,9 @@ class RangeServer:
         self.refuse = False
         self.ignore_range = False
         self.delay = 0.0
+        self.etag: str | None = None
+        self.last_modified: str | None = None
+        self.if_ranges: list[str] = []
         server = self
 
         class Handler(BaseHTTPRequestHandler):
@@ -45,8 +51,16 @@ class RangeServer:
                     self.end_headers()
                     return
                 body, status, extra = server.content, 200, {}
+                if_range = self.headers.get("If-Range")
+                server.if_ranges.append(if_range or "")
+                current = {v for v in (server.etag, server.last_modified) if v}
+                stale = if_range is not None and if_range not in current
+                if server.etag:
+                    extra["ETag"] = server.etag
+                if server.last_modified:
+                    extra["Last-Modified"] = server.last_modified
                 found = re.fullmatch(r"bytes=(\d+)-(\d*)", rng or "")
-                if found and not server.ignore_range:
+                if found and not server.ignore_range and not stale:
                     start = int(found.group(1))
                     end = int(found.group(2)) if found.group(2) else len(server.content) - 1
                     body = server.content[start:end + 1]

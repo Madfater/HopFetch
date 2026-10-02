@@ -31,6 +31,44 @@ class DownloadStalled(Exception):
     """No byte arrived for longer than the stall timeout."""
 
 
+class RemoteChanged(Exception):
+    """The server answered a validated range request with the whole file: the file changed."""
+
+
+class RangeUnsupported(Exception):
+    """The server answered a range request with the whole file, so parts cannot be fetched."""
+
+
+@dataclass
+class Validator:
+    """What identifies the remote file version: its ETag and Last-Modified, once seen.
+
+    - `if_range` prefers a strong ETag and falls back to Last-Modified; a weak ETag cannot be
+      used with If-Range.
+    - `capture` keeps the first values seen and ignores later ones.
+    """
+
+    etag: str | None = None
+    last_modified: str | None = None
+
+    @property
+    def known(self) -> bool:
+        """True once either value was seen."""
+        return self.etag is not None or self.last_modified is not None
+
+    def if_range(self) -> str | None:
+        """The If-Range value to send, or None when nothing usable is known."""
+        if self.etag and not self.etag.startswith("W/"):
+            return self.etag
+        return self.last_modified
+
+    def capture(self, headers) -> None:
+        """Record ETag and Last-Modified from a response when none was recorded yet."""
+        if not self.known:
+            self.etag = headers.get("ETag")
+            self.last_modified = headers.get("Last-Modified")
+
+
 @dataclass(frozen=True)
 class Part:
     """One byte range of the file, `start` and `end` inclusive, stored in its own part file."""
@@ -96,13 +134,17 @@ class SegmentedDownload:
       dropped, `run` raises `LinksExpired`.
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
       for `stall_timeout` seconds.
+    - Every request carries `If-Range` once `validator` knows the file version; the first 206
+      answer fills it in. A 200 answer to a request with If-Range raises `RemoteChanged`, and a
+      200 answer to a plain range request raises `RangeUnsupported`; nothing of a 200 body is
+      written.
     """
 
     def __init__(self, links: list[str], size: int, part_dir: Path, split_size: int,
                  headers: dict[str, str], cancelled: threading.Event,
                  on_progress: Callable[[Progress], None] | None = None,
                  read_timeout: float = 20, stall_timeout: float = 600,
-                 progress_interval: float = 0.5):
+                 progress_interval: float = 0.5, validator: Validator | None = None):
         self.links = list(links)
         self.size = size
         self.part_dir = part_dir
@@ -113,6 +155,8 @@ class SegmentedDownload:
         self.read_timeout = read_timeout
         self.stall_timeout = stall_timeout
         self.progress_interval = progress_interval
+        self.validator = validator if validator is not None else Validator()
+        self._fatal: Exception | None = None
 
         self._lock = threading.Lock()
         self._wake = threading.Event()
@@ -133,6 +177,8 @@ class SegmentedDownload:
         last_report = 0.0
         try:
             while pending or self._busy:
+                if self._fatal is not None:
+                    raise self._fatal
                 if self.cancelled.is_set():
                     raise Cancelled()
                 if not self._busy and pending and self._alive_links() == []:
@@ -160,6 +206,8 @@ class SegmentedDownload:
             for thread in self._threads:
                 thread.join()
             self._report()
+        if self._fatal is not None:
+            raise self._fatal
 
     def _alive_links(self) -> list[int]:
         """Indexes of links that have not been dropped."""
@@ -210,18 +258,25 @@ class SegmentedDownload:
         if have >= part.size:
             return 206
         start = part.start + have
+        headers = {**self.headers, "Range": f"bytes={start}-{part.end}"}
+        with self._lock:
+            if_range = self.validator.if_range()
+        if if_range:
+            headers["If-Range"] = if_range
         try:
-            resp = requests.get(
-                self.links[link],
-                headers={**self.headers, "Range": f"bytes={start}-{part.end}"},
-                stream=True, timeout=(10, self.read_timeout),
-            )
+            resp = requests.get(self.links[link], headers=headers, stream=True,
+                                timeout=(10, self.read_timeout))
             with resp:
+                if resp.status_code == 200:
+                    self._fail(RemoteChanged() if if_range else RangeUnsupported())
+                    return 200
                 if resp.status_code != 206:
                     return resp.status_code
                 served = re.match(r"bytes (\d+)-", resp.headers.get("Content-Range", ""))
                 if not served or int(served.group(1)) != start:
                     return None
+                with self._lock:
+                    self.validator.capture(resp.headers)
                 remaining = part.size - have
                 with path.open("ab") as out:
                     for block in resp.iter_content(BLOCK_SIZE):
@@ -238,6 +293,14 @@ class SegmentedDownload:
             return 206
         except (requests.RequestException, OSError):
             return None
+
+    def _fail(self, error: Exception) -> None:
+        """Record the first fatal error and stop every worker."""
+        with self._lock:
+            if self._fatal is None:
+                self._fatal = error
+        self._stop.set()
+        self._wake.set()
 
     def _report(self) -> None:
         """Send a progress snapshot to `on_progress`."""

@@ -213,7 +213,7 @@ def test_delete_file_refuses_symlinks(tmp_path, provider):
     target = tmp_path / "downloads" / "link.bin"
     target.unlink()
     target.symlink_to(outside)
-    assert manager.file_path(job.id) is None
+    assert manager.open_file(job.id) is None
     manager.delete(job.id, delete_file=True)
     assert outside.read_bytes() == b"precious"
 
@@ -433,3 +433,96 @@ def test_captcha_attempts_env_must_be_positive(monkeypatch):
     assert Settings.from_env().captcha_max_attempts == 50
     monkeypatch.setenv("CAPTCHA_MAX_ATTEMPTS", "7")
     assert Settings.from_env().captcha_max_attempts == 7
+
+
+def pause_midway(manager, job):
+    """Wait until `job` has some bytes, pause it, and wait for the pause."""
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    manager.pause(job.id)
+    wait_for(lambda: job.status == Status.PAUSED)
+
+
+def test_upstream_without_ranges_fails_and_cannot_pause(tmp_path, provider, server):
+    server.ignore_range = True
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("norange"))
+    wait_for(lambda: job.status == Status.FAILED)
+    assert job.error["code"] == "range_unsupported" and job.resumable is False
+    assert manager.public(job)["resumable"] is False
+    assert not list((tmp_path / "downloads").iterdir())
+
+
+def test_resume_regenerates_links_and_sends_if_range(tmp_path, provider, server, content):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("refresh"))
+    pause_midway(manager, job)
+    assert job.etag == '"v1"'
+    calls = provider.link_calls
+    server.delay = 0
+    server.if_ranges.clear()
+    manager.resume(job.id)
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert provider.link_calls == calls + 1
+    assert server.if_ranges and set(server.if_ranges) == {'"v1"'}
+    assert job.notice_key is None
+    assert (tmp_path / "downloads" / "refresh.bin").read_bytes() == content
+
+
+def test_changed_remote_file_is_downloaded_again_once(tmp_path, provider, server, content):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("changed"))
+    pause_midway(manager, job)
+
+    new_content = bytes(reversed(content))
+    server.content = new_content
+    server.etag = '"v2"'
+    server.delay = 0
+    manager.resume(job.id)
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    assert job.status == Status.COMPLETED, job.error
+    assert job.notice_key == "messages.remote_changed"
+    assert manager.public(job)["notice_key"] == "messages.remote_changed"
+    assert (tmp_path / "downloads" / "changed.bin").read_bytes() == new_content
+
+
+def test_remote_file_changing_again_fails(tmp_path, provider):
+    from downloader.jobs import _Run
+    from downloader.messages import CodedError
+
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("flappy"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    run = _Run()
+    manager._start_over(job, run)
+    assert run.restarted and job.notice_key == "messages.remote_changed" and job.bytes_done == 0
+    with pytest.raises(CodedError) as info:
+        manager._start_over(job, run)
+    assert info.value.code == "remote_changed"
+
+
+def test_restart_while_paused_keeps_the_pause(tmp_path, provider, server, content):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("restart"))
+    pause_midway(manager, job)
+    saved = job.bytes_done
+    manager.shutdown()
+
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert (again.status, again.etag, again.bytes_done) == (Status.PAUSED, '"v1"', saved)
+
+
+def test_restart_fails_active_jobs_that_cannot_resume(tmp_path, provider):
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("fixed"))
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="downloading", resumable=False)
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status == Status.FAILED and again.error["code"] == "interrupted"

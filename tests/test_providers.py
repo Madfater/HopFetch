@@ -63,8 +63,15 @@ def test_captcha_spec_normalize(raw, expected):
     assert CaptchaSpec(length=6).normalize(raw) == expected
 
 
-def test_providers_snapshot_matches_the_registry():
+def test_providers_snapshot_matches_the_endpoint(tmp_path):
+    from fastapi.testclient import TestClient
+
+    from downloader.app import create_app
+    from downloader.config import Settings
+
+    settings = Settings(data_dir=tmp_path / "data", download_dir=tmp_path / "downloads",
+                        web_dist=tmp_path / "no-dist", use_proxies=False)
+    with TestClient(create_app(settings, preload_proxies=False)) as client:
+        live = client.get("/api/providers").json()
     snapshot = json.loads((Path(__file__).resolve().parent.parent / "shared" / "providers.json").read_text())
-    live = [{"id": p.name, "name": p.label, "icon": p.icon, "patterns": list(p.patterns)}
-            for p in default_registry().all()]
     assert snapshot == live, "refresh shared/providers.json from GET /api/providers"

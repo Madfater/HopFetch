@@ -17,8 +17,19 @@ from pathlib import Path
 
 from .captcha import CaptchaSession, OcrSolver
 from .config import Settings
-from .engine import DownloadStalled, LinksExpired, Progress, SegmentedDownload, assemble, build_parts
+from .engine import (
+    DownloadStalled,
+    LinksExpired,
+    Progress,
+    RangeUnsupported,
+    RemoteChanged,
+    SegmentedDownload,
+    Validator,
+    assemble,
+    build_parts,
+)
 from .events import EventBus
+from .files import open_in_root
 from .messages import CodedError, render
 from .providers import ProviderRegistry
 from .providers.base import Cancelled, FileRef, LinkContext, Provider, ProviderError
@@ -103,7 +114,11 @@ class Job:
       `messages.*` for a step, or the error's `errors.*` key once the job has failed;
       `message` is its fallback text.
     - `error` is a `{code, key, params, message}` object while the job has failed.
-    - `etag` and `last_modified` are reserved for validating resumed downloads.
+    - `etag` and `last_modified` identify the remote file version the part files belong to; they
+      are sent as If-Range so a changed file is never mixed into existing parts.
+    - `resumable` turns false once the upstream ignored a range request.
+    - `notice_key` is a lasting `messages.*` note shown beside the status, such as a restart
+      after the remote file changed.
     """
 
     id: str
@@ -135,6 +150,7 @@ class Job:
     resumable: bool = True
     etag: str | None = None
     last_modified: str | None = None
+    notice_key: str | None = None
 
     def public(self, root: Path) -> dict:
         """Return the task object the API exposes; links and paths stay private.
@@ -163,10 +179,12 @@ class Job:
             "message_params": self.message_params,
             "message": self.message,
             "resumable": self.resumable,
+            "notice_key": self.notice_key,
             "file_exists": file_exists,
             "error": self.error,
             "verified": self.verified,
             "created_at": self.created_at,
+            "updated_at": self.updated_at,
             "completed_at": self.completed_at,
         }
 
@@ -242,6 +260,9 @@ class _Run:
       pending stronger one.
     - `delete_file` goes with the `delete` intent and, once requested, stays requested.
     - `captcha` is shared by every link generation of the run, so the OCR limit counts per run.
+    - `refresh` makes the run read the file info again and generate new links, as a resume or
+      retry does, since direct links expire.
+    - `restarted` is set once the run started over after the remote file changed.
     """
 
     def __init__(self) -> None:
@@ -250,6 +271,8 @@ class _Run:
         self.delete_file = False
         self.thread: threading.Thread | None = None
         self.captcha: CaptchaSession | None = None
+        self.refresh = False
+        self.restarted = False
 
     def stop(self, intent: str) -> None:
         """Raise the intent to `intent` unless a stronger one is pending, and signal the worker."""
@@ -299,7 +322,8 @@ class JobManager:
 
         - A job stopped while assembling or verifying whose file was already published is
           marked completed, and a leftover staging file is removed.
-        - Any other active job becomes paused, keeping its part files.
+        - Any other active job becomes paused, keeping its part files, when it can resume; one
+          whose upstream cannot serve ranges fails with `interrupted` and can be retried.
         """
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.download_dir.mkdir(parents=True, exist_ok=True)
@@ -314,8 +338,12 @@ class JobManager:
                     job.bytes_done = job.size or job.bytes_done
                     self._apply(job, Status.COMPLETED, None, "messages.saved_as",
                                 name=Path(job.output_path).name)
-                elif job.status in ACTIVE:
+                elif job.status in ACTIVE and job.resumable:
                     self._apply(job, Status.PAUSED, None, "messages.paused_restart")
+                elif job.status in ACTIVE:
+                    error = CodedError("interrupted")
+                    job.error = error.as_error()
+                    self._apply(job, Status.FAILED, None, error.key)
                 job.active_connections = 0
                 job.speed = 0.0
                 self.jobs[job.id] = job
@@ -447,6 +475,8 @@ class JobManager:
                 raise InvalidState("errors.invalid_state_pause")
             if job.phase in FINISHING:
                 raise InvalidState("errors.invalid_state_finishing")
+            if not job.resumable:
+                raise InvalidState("errors.invalid_state_not_resumable")
             run.stop("pause")
         return job
 
@@ -469,7 +499,9 @@ class JobManager:
             if job.status not in allowed or job_id in self._runs:
                 raise InvalidState(refusal)
             job.error = None
+            job.notice_key = None
             run = self._register(job)
+            run.refresh = True
             changed = self._apply(job, Status.QUEUED, None, "messages.waiting_slot")
         self._commit(job, changed)
         self._start(job, run)
@@ -543,19 +575,22 @@ class JobManager:
             self.bus.publish_removed(job_id)
         return len(done)
 
-    def file_path(self, job_id: str) -> Path | None:
-        """The finished file of a completed job, or None when it is missing or outside the root.
+    def open_file(self, job_id: str) -> tuple[int, os.stat_result, str] | None:
+        """Open the finished file of a completed job; return its descriptor, fstat and name.
 
+        - The file must be a regular file directly inside the root and is opened without
+          following symlinks (see `files.open_in_root`); the caller closes the descriptor.
         - A missing file publishes the job again so clients see `file_exists` turn false.
         """
         job = self.get(job_id)
         if job.status != Status.COMPLETED or not job.output_path:
             return None
         path = Path(job.output_path)
-        if inside(self.root, path):
-            return path
-        self._publish(job, force=True)
-        return None
+        opened = open_in_root(self.root, path)
+        if opened is None:
+            self._publish(job, force=True)
+            return None
+        return opened[0], opened[1], path.name
 
     def _join(self, run: _Run | None) -> None:
         """Wait for a stopped run's worker to finish."""
@@ -617,7 +652,7 @@ class JobManager:
             self._execute(job, run)
         except Cancelled:
             outcome = (Status.PAUSED, "messages.paused", {})
-        except ProviderError as exc:
+        except CodedError as exc:
             outcome = self._fail(job, exc)
         except LinksExpired:
             outcome = self._fail(job, CodedError("links_expired"))
@@ -678,10 +713,15 @@ class JobManager:
         provider = self.registry.get(job.provider)
         ref = FileRef(url=job.url, file_id=job.file_id)
 
-        if job.file_name is None or job.size is None:
+        if run.refresh:
+            job.links = []
+            job.links_created_at = None
+        if run.refresh or job.file_name is None or job.size is None:
             self._set(job, Status.DOWNLOADING, Phase.RESOLVING, "messages.resolving")
             info = provider.get_info(ref)
             job.file_name = job.file_name or safe_filename(info.name)
+            if job.size is not None and info.size is not None and info.size != job.size:
+                self._start_over(job, run)
             job.size = info.size
             self._persist(force=True)
         if not job.size:
@@ -700,6 +740,11 @@ class JobManager:
                 retried = True
                 job.links = []
                 self._set(job, Status.DOWNLOADING, Phase.LINKS, "messages.links_regenerating")
+            except RemoteChanged:
+                self._start_over(job, run)
+            except RangeUnsupported:
+                job.resumable = False
+                raise CodedError("range_unsupported") from None
 
         self._set(job, Status.DOWNLOADING, Phase.ASSEMBLING, "messages.assembling")
         self._remove_staging(job)
@@ -719,6 +764,24 @@ class JobManager:
             self._set(job, Status.DOWNLOADING, Phase.VERIFYING, "messages.verifying")
             job.verified = "ok" if _ffmpeg_ok(output) else "corrupt"
         self._set(job, Status.COMPLETED, None, "messages.saved_as", name=output.name)
+
+    def _start_over(self, job: Job, run: _Run) -> None:
+        """Drop the part files of an older remote version and download again from the start.
+
+        - Happens at most once per run; a second change fails the job with `remote_changed`.
+        - The job keeps the notice `messages.remote_changed` once it starts over.
+        """
+        if run.restarted:
+            raise CodedError("remote_changed")
+        run.restarted = True
+        log.info("job %s: remote file changed, starting over", job.id)
+        shutil.rmtree(self._part_dir(job), ignore_errors=True)
+        job.etag = None
+        job.last_modified = None
+        job.bytes_done = 0
+        job.parts_done = 0
+        job.notice_key = "messages.remote_changed"
+        self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.remote_changed_restarting")
 
     def _links_fresh(self, job: Job, provider: Provider) -> bool:
         """True when stored links exist and are younger than the provider's link TTL."""
@@ -750,7 +813,7 @@ class JobManager:
     def _download(self, job: Job, run: _Run, provider: Provider) -> None:
         """Run the segmented download over the job's links."""
 
-        def on_progress(p: Progress) -> None:
+        def record(p: Progress) -> None:
             job.bytes_done = p.done_bytes
             job.parts_total = p.parts_total
             job.parts_done = p.parts_done
@@ -760,13 +823,22 @@ class JobManager:
             self._publish(job)
             self._persist()
 
+        validator = Validator(job.etag, job.last_modified)
+
+        def on_progress(p: Progress) -> None:
+            job.etag, job.last_modified = validator.etag, validator.last_modified
+            record(p)
+
         self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.downloading",
                   count=len(job.links))
-        SegmentedDownload(
-            links=job.links, size=job.size, part_dir=self._part_dir(job),
-            split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
-            on_progress=on_progress,
-        ).run()
+        try:
+            SegmentedDownload(
+                links=job.links, size=job.size, part_dir=self._part_dir(job),
+                split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
+                on_progress=on_progress, validator=validator,
+            ).run()
+        finally:
+            job.etag, job.last_modified = validator.etag, validator.last_modified
 
     def _part_dir(self, job: Job) -> Path:
         """Directory holding the part files of `job`."""
