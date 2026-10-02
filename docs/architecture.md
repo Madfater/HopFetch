@@ -79,7 +79,7 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 - Job `image` builds the `Dockerfile` for `linux/amd64` and pushes `ghcr.io/madfater/k2s-downloader` tagged `latest` and `sha-<short commit>`.
 - Job `deploy` runs after `image` succeeds. It POSTs to the Arcane project redeploy webhook in the `ARCANE_WEBHOOK_URL` repository secret, and fails when the secret is missing.
-- Runs never overlap: a newer push waits for the running deploy.
+- Runs never overlap: a newer push waits for the running deploy. Only one run waits; a later push replaces it, and the replaced run shows as cancelled.
 
 The Arcane project `k2s-downloader` runs `deploy/arcane/compose.yaml`:
 

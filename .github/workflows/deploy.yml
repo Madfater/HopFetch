@@ -5,6 +5,7 @@ on:
     branches: [main]
 
 # - Runs one deploy at a time; a newer push waits for the running one instead of cancelling it.
+# - Keeps at most one run pending; a later push replaces the pending run, which shows as cancelled.
 concurrency:
   group: deploy-main
   cancel-in-progress: false
@@ -60,6 +61,6 @@ jobs:
             exit 1
           fi
       # - Calls the Arcane project redeploy webhook, which pulls the latest image and recreates the service.
-      # - Reads the URL from the environment so it is never written into the command line.
+      # - Reads the URL from the environment, so the secret is never interpolated into the script text.
       - name: Redeploy on Arcane
         run: curl -fsS --max-time 60 --retry 3 --retry-all-errors -X POST "$ARCANE_WEBHOOK_URL" -o /dev/null
