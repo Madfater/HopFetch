@@ -1,0 +1,178 @@
+/*
+ * - The home column, centered and at most 560px wide.
+ * - The input slot is the one element with depth: a recessed field drawn with a darker top
+ *   edge and a lighter bottom edge, no shadow.
+ */
+.home {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 12vh var(--space-4) var(--space-6);
+}
+
+.logo {
+  margin-bottom: var(--space-5);
+  font-family: var(--font-numeric);
+  font-stretch: 125%;
+  font-weight: 500;
+  font-size: 2.4rem;
+  line-height: 1.1;
+  text-align: center;
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-left-color: var(--color-slot-edge-top);
+  border-radius: var(--radius);
+  background: var(--color-slot);
+}
+
+.slot:focus-within {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  border: 0;
+  background: transparent;
+  font-size: 1rem;
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--color-steel);
+}
+
+.status {
+  min-height: 1.5em;
+  margin-top: var(--space-2);
+  color: var(--color-steel);
+}
+
+.statusError {
+  color: var(--color-red);
+}
+
+.preview {
+  margin-top: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+  animation: slide-out 200ms ease-out;
+}
+
+@keyframes slide-out {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview {
+    animation: none;
+  }
+}
+
+.file {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.fileName {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: var(--space-3) 0 0;
+  color: var(--color-steel);
+}
+
+.facts dd {
+  margin: 0;
+  color: var(--color-ink);
+}
+
+.fact {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.note {
+  margin-top: var(--space-3);
+}
+
+.noteError {
+  color: var(--color-red-on-panel);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.keys {
+  color: var(--color-steel);
+  font-size: 0.85rem;
+}
+
+.recent {
+  margin-top: var(--space-6);
+}
+
+.recentHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: var(--space-2);
+}
+
+.recentTitle {
+  font-size: 1rem;
+  color: var(--color-steel);
+  font-weight: 600;
+}
+
+.recentItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) 0;
+  border: 0;
+  border-bottom: 1px solid var(--color-divider);
+  background: none;
+  text-align: left;
+  cursor: pointer;
+}
+
+.recentName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

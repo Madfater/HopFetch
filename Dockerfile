@@ -21,4 +21,4 @@ COPY --from=web /app/web/dist web/dist
 ENV DATA_DIR=/data DOWNLOAD_DIR=/downloads
 VOLUME ["/data", "/downloads"]
 EXPOSE 8000
-CMD ["uvicorn", "downloader.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "downloader.app:app", "--host", "0.0.0.0", "--port", "8000", "--timeout-graceful-shutdown", "5"]

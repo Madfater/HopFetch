@@ -1,0 +1,75 @@
+/*
+ * - Shared buttons and fields. `primary` is the only amber button style and is used for the
+ *   download action alone.
+ */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 34px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-radius: var(--radius);
+  background: var(--color-panel);
+  color: var(--color-ink);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:disabled,
+.button[aria-disabled='true'] {
+  cursor: not-allowed;
+  color: var(--color-steel);
+  border-color: var(--color-divider);
+}
+
+.primary {
+  background: var(--color-amber);
+  border-color: var(--color-amber);
+  color: var(--color-on-amber);
+  font-weight: 600;
+}
+
+.primary:disabled {
+  background: var(--color-panel);
+  border-color: var(--color-divider);
+  color: var(--color-steel);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.label {
+  font-weight: 600;
+}
+
+.hint {
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
+.input {
+  min-height: 34px;
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-radius: var(--radius);
+  background: var(--color-slot);
+}
+
+.error {
+  color: var(--color-red);
+}

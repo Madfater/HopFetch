@@ -1,101 +1,84 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { api, type Job, type Provider } from './api'
-import AddForm from './components/AddForm'
-import JobCard from './components/JobCard'
-import Toasts, { type Toast } from './components/Toasts'
+import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query'
+import { Tooltip } from 'radix-ui'
+import { useEffect, useRef, useState } from 'react'
+import { useTranslation } from 'react-i18next'
+import { BrowserRouter, Outlet, Route, Routes } from 'react-router'
+import { APP_NAME } from './app-name'
+import { api } from './api/client'
+import { NavBar } from './components/NavBar'
+import { ToastProvider } from './components/Toasts'
+import { useToast } from './components/toast-context'
+import { connectEvents } from './lib/events'
+import { errorText } from './lib/messages'
+import { isActive, type Finished } from './lib/tasks'
+import { useTasks } from './hooks/useTasks'
+import { Home } from './routes/Home'
+import { Settings } from './routes/Settings'
+import { Tasks } from './routes/Tasks'
 
-const POLL_MS = 1000
+// - App shell: query cache, router, tooltips and toasts, then one event stream for the whole app.
+// - The tab title shows `(n) APP_NAME` while n tasks are queued or downloading.
+// - A task that completes or fails while the page is open raises a toast.
 
-// - Polls the job list every second while the tab is visible.
-// - Shows a banner when the backend cannot be reached, and clears it on the next good poll.
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
+})
+
 export default function App() {
-  const [jobs, setJobs] = useState<Job[] | null>(null)
-  const [providers, setProviders] = useState<Provider[]>([])
-  const [offline, setOffline] = useState(false)
-  const [toasts, setToasts] = useState<Toast[]>([])
-  const nextToast = useRef(1)
+  return (
+    <QueryClientProvider client={queryClient}>
+      <BrowserRouter>
+        <Tooltip.Provider delayDuration={300}>
+          <ToastProvider>
+            <Routes>
+              <Route element={<Layout />}>
+                <Route index element={<Home />} />
+                <Route path="tasks" element={<Tasks />} />
+                <Route path="settings" element={<Settings />} />
+                <Route path="*" element={<Home />} />
+              </Route>
+            </Routes>
+          </ToastProvider>
+        </Tooltip.Provider>
+      </BrowserRouter>
+    </QueryClientProvider>
+  )
+}
 
-  const notify = useCallback((text: string, kind: Toast['kind'] = 'error') => {
-    const id = nextToast.current++
-    setToasts((all) => [...all, { id, text, kind }])
-    window.setTimeout(() => setToasts((all) => all.filter((t) => t.id !== id)), 5000)
-  }, [])
+function Layout() {
+  const { t } = useTranslation()
+  const toast = useToast()
+  const client = useQueryClient()
+  const [connected, setConnected] = useState(true)
+  const tasks = useTasks()
 
-  const refresh = useCallback(async () => {
-    try {
-      setJobs(await api.jobs())
-      setOffline(false)
-    } catch {
-      setOffline(true)
-    }
-  }, [])
-
+  const notify = useRef<(finished: Finished) => void>(() => {})
   useEffect(() => {
-    api.providers().then(setProviders).catch(() => setOffline(true))
-    refresh()
-    const timer = window.setInterval(() => {
-      if (document.visibilityState === 'visible') refresh()
-    }, POLL_MS)
-    return () => window.clearInterval(timer)
-  }, [refresh])
+    notify.current = ({ task, outcome }) => {
+      const name = task.file_name ?? t('tasks.unnamed')
+      if (outcome === 'completed') toast(t('toast.completed', { name }), 'success')
+      else toast(t('toast.failed', { name, reason: errorText(t, task.error) }), 'error')
+    }
+  }, [t, toast])
 
-  const act = useCallback(
-    async (action: () => Promise<unknown>, success?: string): Promise<boolean> => {
-      try {
-        await action()
-        if (success) notify(success, 'info')
-        return true
-      } catch (err) {
-        notify(err instanceof Error ? err.message : String(err))
-        return false
-      } finally {
-        refresh()
-      }
-    },
-    [notify, refresh],
+  useEffect(
+    () =>
+      connectEvents(client, () => api.tasks(), {
+        onConnection: setConnected,
+        onFinished: (finished) => notify.current(finished),
+      }),
+    [client],
   )
 
-  const labels = Object.fromEntries(providers.map((p) => [p.name, p.label]))
+  const active = (tasks.data ?? []).filter(isActive).length
+  useEffect(() => {
+    document.title = active > 0 ? `(${active}) ${APP_NAME}` : APP_NAME
+  }, [active])
 
   return (
-    <div className="page">
-      <header className="header">
-        <div className="brand">
-          <img src="/favicon.svg" alt="" width={28} height={28} />
-          <h1>Downloader</h1>
-        </div>
-        <p className="supported">
-          {providers.length > 0 && <>Supports {providers.map((p) => p.label).join(', ')}</>}
-        </p>
-      </header>
-
-      {offline && (
-        <div className="banner" role="alert">
-          Cannot reach the server. Retrying...
-        </div>
-      )}
-
-      <AddForm onCreate={(job) => act(() => api.create(job), 'Download added')} />
-
-      <section className="jobs" aria-label="Downloads">
-        <h2>Downloads</h2>
-        {jobs === null ? (
-          <p className="muted">Loading...</p>
-        ) : jobs.length === 0 ? (
-          <div className="empty">
-            <p className="empty-title">No downloads yet</p>
-            <p className="muted">Paste a file link above to start one.</p>
-          </div>
-        ) : (
-          <ul className="job-list">
-            {jobs.map((job) => (
-              <JobCard key={job.id} job={job} providerLabel={labels[job.provider] ?? job.provider} act={act} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <Toasts toasts={toasts} />
-    </div>
+    <>
+      <NavBar connected={connected} />
+      <Outlet />
+    </>
   )
 }

@@ -25,6 +25,8 @@ HARNESS_COMMANDS: list[list[str]] = [
 PROJECT_COMMANDS: list[list[str]] = [
     ["uv", "run", "--locked", "pytest", "-q"],
     ["npm", "--prefix", "web", "ci", "--no-audit", "--no-fund"],
+    ["npm", "--prefix", "web", "run", "lint"],
+    ["npm", "--prefix", "web", "test"],
     ["npm", "--prefix", "web", "run", "build"],
 ]
 

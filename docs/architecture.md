@@ -29,7 +29,8 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
 | `shared/provider-test-cases.json` | URL matching cases run by both pytest and the frontend tests |
 | `shared/i18n/` | Catalogs of backend messages and errors, `zh-Hant-TW.json` and `en.json`, shared with the frontend |
-| `web/` | Vite, React and TypeScript dashboard. `src/api.ts` is the typed API client |
+| `web/` | Vite, React and TypeScript dashboard, see [Frontend](#frontend) |
+| `shared/providers.json` | Snapshot of `GET /api/providers` for the frontend tests, kept equal to the registry by pytest |
 | `tests/` | pytest suite. `conftest.py` has a local Range server used by the engine, job and API tests |
 | `script/` | Harness scripts: checks, GitHub client, apply |
 | `docs/` | Knowledge |
@@ -41,7 +42,7 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 uv sync                                   # backend dependencies
 npm --prefix web ci                       # frontend dependencies
 npm --prefix web run build                # build web/dist, served by the backend
-uv run uvicorn downloader.app:app         # http://127.0.0.1:8000
+uv run uvicorn downloader.app:app --timeout-graceful-shutdown 5   # http://127.0.0.1:8000
 npm --prefix web run dev                  # optional: Vite dev server, proxies /api to :8000
 ```
 
@@ -67,7 +68,8 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 - `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
 - Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
 - Create `data/` and `downloads/` before the first start, or Docker creates them owned by root.
-- `stop_grace_period` is longer than the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
+- uvicorn runs with `--timeout-graceful-shutdown 5`. An open event stream never ends by itself, so without the limit uvicorn would wait for browsers forever and never reach the app's shutdown. After 5 seconds the streams are cancelled, browsers reconnect later, and running jobs are paused.
+- `stop_grace_period` (40 seconds) covers those 5 seconds plus the 30 second job shutdown, so `docker compose down` pauses jobs cleanly.
 - uvicorn listens on `0.0.0.0` inside the container. The port is published on `${BIND_ADDR}:8000`, where `BIND_ADDR` comes from `.env` and defaults to `127.0.0.1`. Set it to the NAS's LAN address, or `0.0.0.0`, to reach the app from other machines on the LAN or VPN.
 - The variables in the table above are set under `environment:` of the service.
 
@@ -109,6 +111,25 @@ Stopping the server pauses running jobs the same way, and a server start marks a
 - A `: ping` comment goes out after 15 seconds without events, and the response sets `X-Accel-Buffering: no` so a reverse proxy does not buffer it.
 - Free space is checked every 5 seconds and published when it changes.
 
+## Frontend
+
+`web/src/` is a React app on React Router, TanStack Query, Radix UI primitives and i18next. Styles are plain CSS: color tokens named by role in `styles/tokens.css`, element defaults inside `:where()` in `styles/base.css`, and CSS Modules per component.
+
+| Path | Responsibility |
+| --- | --- |
+| `app-name.ts` | `APP_NAME`, the only place the product name is written. `vite.config.ts` puts it in `<title>` and preloads the Archivo font |
+| `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the `(n) APP_NAME` tab title |
+| `api/` | Typed client for `/api`. Errors become `ApiError` holding the backend's `{code, key, params, message}` |
+| `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, cancels any task-list fetch in flight, refetches the task list, storage and providers, and replays events that arrived during the refetch. A status change or removal invalidates cached resolve answers |
+| `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |
+| `hooks/useResolve.ts` | Local URL check against the provider patterns, then `/api/resolve`: 400 ms after typing stops, at once after a paste. Results are keyed by normalized URL, and outdated requests are aborted |
+| `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, `Intl` formatting, translation of backend keys, and pure task-list helpers |
+| `routes/` | The download, files and settings pages |
+| `components/` | Navigation bar, lamps, icon buttons with tooltips, delete dialog, toasts |
+| `i18n.ts`, `locales/` | i18next setup. Interface text in `locales/<lang>.json`, merged one section deep with `shared/i18n/<lang>.json`. The language is chosen per browser in `localStorage`, then from `navigator.language` |
+
+Vitest runs `src/**/*.test.ts(x)` in jsdom: URL matching against `shared/provider-test-cases.json`, resolve timing and stale answers, cache updates from events, formatting, and catalog parity.
+
 ## Messages
 
 The backend sends translation keys, and the frontend translates them.
@@ -116,7 +137,7 @@ The backend sends translation keys, and the frontend translates them.
 - Step descriptions are `messages.*` keys and failures are `errors.*` keys, each with a params object. The catalogs are `shared/i18n/zh-Hant-TW.json` and `shared/i18n/en.json`, using i18next's `{{name}}` interpolation.
 - An error's `code` is stable for program logic. Its `key` is usually `errors.<code>`; a variant of the same code has its own key, such as `errors.quota_exceeded_wait`.
 - Every answer also carries `message`, the zh-Hant text rendered from the catalog, for clients without the key.
-- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
+- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A countdown uses `{{seconds, duration}}`: the `duration` formatter, defined in both `downloader/messages.py` and `web/src/i18n.ts`, shows `m:ss` or `h:mm:ss`. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
 - `tests/test_messages.py` checks that both catalogs have the same keys and placeholders, and that every key and error code the backend uses exists.
 
 ## Keep2Share flow

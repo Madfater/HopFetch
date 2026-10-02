@@ -1,0 +1,10 @@
+[
+  {
+    "id": "k2s",
+    "name": "Keep2Share",
+    "icon": "k2s",
+    "patterns": [
+      "^https?://(?:www\\.)?(?:k2s\\.cc|keep2share\\.cc)/file/([A-Za-z0-9]+)(?:[/?#].*)?$"
+    ]
+  }
+]
