@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from downloader.messages import CATALOG_DIR, CodedError, catalog, render
+from downloader.messages import CATALOG_DIR, FORMATTERS, CodedError, catalog, render
 
 LOCALES = ["zh-Hant-TW", "en"]
 SOURCE = Path(__file__).resolve().parent.parent / "downloader"
@@ -15,7 +15,7 @@ KEY_LITERAL = re.compile(r'"((?:messages|errors)\.[a-z0-9_]+)"')
 CODE_LITERAL = re.compile(r'(?:Error|DuplicateTask|InvalidState|__init__)\(\s*"([a-z_]+)"'
                           r'|_error\([^,()]+(?:\.\w+)*,\s*"([a-z_]+)"')
 PLURAL_SUFFIX = re.compile(r"_(?:zero|one|two|few|many|other)$")
-PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*\}\}")
+PLACEHOLDER = re.compile(r"\{\{\s*(\w+)\s*(?:,\s*(\w+)\s*)?\}\}")
 
 
 def flat(locale: str) -> dict[str, str]:
@@ -77,6 +77,15 @@ def test_every_error_code_has_a_default_key():
     assert expected <= codes, sorted(expected - codes)
     missing = sorted(code for code in codes if f"errors.{code}" not in keys)
     assert missing == []
+
+
+def test_formats_are_known_and_render():
+    for locale in LOCALES:
+        for key, text in flat(locale).items():
+            for _, fmt in PLACEHOLDER.findall(text):
+                assert not fmt or fmt in FORMATTERS, (locale, key, fmt)
+    assert render("messages.waiting_cooldown", {"seconds": 750}) == "等待冷卻 12:30"
+    assert render("messages.waiting_cooldown", {"seconds": 3725}) == "等待冷卻 1:02:05"
 
 
 def test_render_fills_params_and_keeps_unknown_keys():

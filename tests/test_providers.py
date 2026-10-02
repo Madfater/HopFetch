@@ -61,3 +61,10 @@ def test_normalize_url_lowercases_scheme_and_host_only():
 ])
 def test_captcha_spec_normalize(raw, expected):
     assert CaptchaSpec(length=6).normalize(raw) == expected
+
+
+def test_providers_snapshot_matches_the_registry():
+    snapshot = json.loads((Path(__file__).resolve().parent.parent / "shared" / "providers.json").read_text())
+    live = [{"id": p.name, "name": p.label, "icon": p.icon, "patterns": list(p.patterns)}
+            for p in default_registry().all()]
+    assert snapshot == live, "refresh shared/providers.json from GET /api/providers"
