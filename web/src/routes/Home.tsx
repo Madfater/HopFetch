@@ -9,7 +9,7 @@ import { Lamp, StatusLamp, type LampColor } from '../components/Lamp'
 import { ProviderMark } from '../components/icons'
 import { useToast } from '../components/toast-context'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
-import { formatBytes } from '../lib/format'
+import { formatBytes, formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
 import { STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
 import { extractSingleUrl } from '../lib/url'
@@ -289,7 +289,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
         </div>
         <div className={styles.fact}>
           <dt>{t('nav.storage')}</dt>
-          <dd className="num">{formatBytes(locale, free)}</dd>
+          <dd className="num">{formatStorage(locale, free)}</dd>
         </div>
         <div className={styles.fact}>
           <dt className="visually-hidden">{t('tasks.column.provider')}</dt>

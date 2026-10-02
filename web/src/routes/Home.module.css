@@ -125,7 +125,7 @@
 }
 
 .noteError {
-  color: var(--color-red);
+  color: var(--color-red-on-panel);
 }
 
 .actions {

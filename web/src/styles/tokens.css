@@ -1,6 +1,8 @@
 /*
  * - Every color the app uses, named by role. A light theme only needs another set of these
  *   values under a selector such as [data-theme='light'].
+ * - `--color-red-on-panel` is red text on the panel color, slightly lighter than the lamp red
+ *   so it keeps a 4.5:1 contrast there.
  */
 :root {
   --color-chassis: #202428;
@@ -15,6 +17,7 @@
   --color-on-amber: #1b1e21;
   --color-green: #3dba6f;
   --color-red: #ee6a61;
+  --color-red-on-panel: #f0716a;
 
   --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   --font-numeric: 'Archivo Variable', system-ui, sans-serif;

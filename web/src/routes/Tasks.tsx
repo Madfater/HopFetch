@@ -186,6 +186,9 @@ function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
         <span className={styles.statusText}>
           <StatusLamp status={task.status} text={statusText} />
         </span>
+        {task.status === 'failed' && task.error && (
+          <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
+        )}
         {task.status === 'completed' && !task.file_exists && (
           <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.fileMissing')}</span>
         )}
@@ -211,7 +214,7 @@ function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
               style={{ width: `${ratio * 100}%` }}
             />
           </div>
-          <span className="num">{formatPercent(locale, ratio)}</span>
+          <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
         </div>
       </td>
       <td className={`${styles.cellSpeed} ${styles.right} num`}>{showSpeed ? formatSpeed(locale, task.speed) : ''}</td>

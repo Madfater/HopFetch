@@ -8,7 +8,7 @@ import { isHttpUrl, matchProvider, normalizeUrl } from '../lib/url'
 // - Typed input waits RESOLVE_DELAY_MS after the last change; pasted or dropped input is
 //   checked at once.
 // - Each lookup is keyed by the normalized URL, so an older answer can never stand in for a
-//   newer input, and a request whose key is no longer in use is aborted through its signal.
+//   newer input, and a request whose key has lost every observer is aborted through its signal.
 
 export const RESOLVE_DELAY_MS = 400
 

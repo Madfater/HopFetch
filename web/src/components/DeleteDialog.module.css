@@ -56,6 +56,6 @@
 }
 
 .danger {
-  border-color: var(--color-red);
-  color: var(--color-red);
+  border-color: var(--color-red-on-panel);
+  color: var(--color-red-on-panel);
 }

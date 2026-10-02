@@ -117,7 +117,13 @@
   color: var(--color-red);
 }
 
-.right {
+.table .right {
+  text-align: right;
+}
+
+.percent {
+  flex: none;
+  min-width: 4ch;
   text-align: right;
 }
 
@@ -186,6 +192,8 @@
   }
 
   .table tr {
+    --mobile-actions: 100px;
+
     display: flex;
     flex-wrap: wrap;
     align-items: center;
@@ -201,12 +209,13 @@
 
   .cellName {
     order: 1;
-    flex: 1 1 calc(100% - 150px);
+    flex: 0 0 calc(100% - var(--mobile-actions) - var(--space-4));
     min-width: 0;
   }
 
   .cellActions {
     order: 2;
+    flex: 0 0 var(--mobile-actions);
   }
 
   .cellStatus {
@@ -228,7 +237,7 @@
     flex: 1 1 120px;
   }
 
-  .right {
+  .table .right {
     text-align: left;
   }
 }
