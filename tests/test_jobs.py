@@ -580,3 +580,73 @@ def test_cancel_forgets_the_file_version(tmp_path, provider, server):
     job.notice_key = "messages.remote_changed"
     manager.cancel(job.id)
     assert (job.etag, job.last_modified, job.notice_key) == (None, None, None)
+
+
+def test_a_grown_file_found_mid_run_is_downloaded_whole(tmp_path, provider, server, content):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("grow"))
+    pause_midway(manager, job)
+
+    grown = content + b"z" * 5000
+    original_info = provider.get_info
+    reads = []
+
+    def stale_then_fresh(ref):
+        reads.append(ref)
+        info = original_info(ref)
+        info.size = len(content) if len(reads) == 1 else len(grown)
+        return info
+
+    provider.get_info = stale_then_fresh
+    server.content = grown
+    server.etag = '"v2"'
+    server.delay = 0
+    manager.resume(job.id)
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    assert job.status == Status.COMPLETED, job.error
+    assert job.size == len(grown) and len(reads) == 2
+    assert (tmp_path / "downloads" / "grow.bin").read_bytes() == grown
+
+
+def test_the_file_version_is_saved_as_soon_as_it_is_seen(tmp_path, provider, server):
+    server.etag = '"v1"'
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("saved"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    assert next(j for j in stored if j["id"] == job.id)["etag"] == '"v1"'
+    manager.cancel(job.id)
+
+
+def test_a_second_change_in_one_run_fails_the_job(tmp_path, provider, server, content):
+    gate = threading.Event()
+    entered = threading.Event()
+    original_links = provider.generate_links
+
+    def held(ref, count, ctx):
+        entered.set()
+        gate.wait(5)
+        return original_links(ref, count, ctx)
+
+    provider.generate_links = held
+    manager = build_manager(tmp_path, provider, connections=2)
+    job = manager.create(URL.format("twice"))
+    assert entered.wait(5)
+    job.split_size = 100_000
+
+    versions = iter(['"v1"'] * 2 + ['"v2"'] * 3 + ['"v3"'] * 1000)
+    original_get = server.httpd.RequestHandlerClass.do_GET
+
+    def changing(handler):
+        server.etag = next(versions)
+        original_get(handler)
+
+    server.httpd.RequestHandlerClass.do_GET = changing
+    server.delay = 0.01
+    gate.set()
+    wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
+    server.httpd.RequestHandlerClass.do_GET = original_get
+    assert job.status == Status.FAILED and job.error["code"] == "remote_changed"

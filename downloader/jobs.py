@@ -748,6 +748,7 @@ class JobManager:
                 self._set(job, Status.DOWNLOADING, Phase.LINKS, "messages.links_regenerating")
             except RemoteChanged:
                 self._start_over(job, run)
+                self._reread_size(job, provider, ref)
             except RangeUnsupported:
                 job.resumable = False
                 raise CodedError("range_unsupported") from None
@@ -770,6 +771,15 @@ class JobManager:
             self._set(job, Status.DOWNLOADING, Phase.VERIFYING, "messages.verifying")
             job.verified = "ok" if _ffmpeg_ok(output) else "corrupt"
         self._set(job, Status.COMPLETED, None, "messages.saved_as", name=output.name)
+
+    def _reread_size(self, job: Job, provider: Provider, ref: FileRef) -> None:
+        """Read the size of a changed remote file again and check that it still fits."""
+        info = provider.get_info(ref)
+        if not info.size:
+            raise ProviderError("upstream_error", "errors.upstream_error_no_size")
+        job.size = info.size
+        self.check_space(job.size)
+        self._persist(force=True)
 
     def _start_over(self, job: Job, run: _Run, phase: Phase = Phase.DOWNLOADING) -> None:
         """Drop the part files of an older remote version and download again from the start.
@@ -836,13 +846,17 @@ class JobManager:
             job.etag, job.last_modified = validator.etag, validator.last_modified
             record(p)
 
+        def on_validator(seen: Validator) -> None:
+            job.etag, job.last_modified = seen.etag, seen.last_modified
+            self._persist(force=True)
+
         self._set(job, Status.DOWNLOADING, Phase.DOWNLOADING, "messages.downloading",
                   count=len(job.links))
         try:
             SegmentedDownload(
                 links=job.links, size=job.size, part_dir=self._part_dir(job),
                 split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
-                on_progress=on_progress, validator=validator,
+                on_progress=on_progress, validator=validator, on_validator=on_validator,
             ).run()
         finally:
             job.etag, job.last_modified = validator.etag, validator.last_modified

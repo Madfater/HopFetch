@@ -162,8 +162,9 @@ class SegmentedDownload:
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
       for `stall_timeout` seconds.
     - Every request carries `If-Range` once `validator` knows the file version; the first 206
-      answer fills it in. A 206 naming another version raises `RemoteChanged` before anything
-      is written, which also covers the first parallel requests and servers ignoring If-Range.
+      answer fills it in and calls `on_validator` once. A 206 naming another version, or a
+      Content-Range total other than `size`, raises `RemoteChanged` before anything is written;
+      this also covers the first parallel requests and servers ignoring If-Range.
     - A 200 answer carrying a whole file raises `RemoteChanged` when the request had If-Range,
       and `RangeUnsupported` otherwise; see `_whole_file`. Any other 200 answer, such as an error
       page, counts as a failed request. Nothing of a 200 body is written.
@@ -173,7 +174,8 @@ class SegmentedDownload:
                  headers: dict[str, str], cancelled: threading.Event,
                  on_progress: Callable[[Progress], None] | None = None,
                  read_timeout: float = 20, stall_timeout: float = 600,
-                 progress_interval: float = 0.5, validator: Validator | None = None):
+                 progress_interval: float = 0.5, validator: Validator | None = None,
+                 on_validator: Callable[[Validator], None] | None = None):
         self.links = list(links)
         self.size = size
         self.part_dir = part_dir
@@ -185,6 +187,7 @@ class SegmentedDownload:
         self.stall_timeout = stall_timeout
         self.progress_interval = progress_interval
         self.validator = validator if validator is not None else Validator()
+        self.on_validator = on_validator
         self._fatal: Exception | None = None
 
         self._lock = threading.Lock()
@@ -302,12 +305,19 @@ class SegmentedDownload:
                     return 200
                 if resp.status_code != 206:
                     return resp.status_code
-                served = re.match(r"bytes (\d+)-", resp.headers.get("Content-Range", ""))
+                served = re.match(r"bytes (\d+)-\d+/(\d+|\*)", resp.headers.get("Content-Range", ""))
                 if not served or int(served.group(1)) != start:
                     return None
+                if served.group(2) != "*" and int(served.group(2)) != self.size:
+                    self._fail(RemoteChanged())
+                    return 206
                 with self._lock:
+                    was_known = self.validator.known
                     self.validator.capture(resp.headers)
+                    learned = self.validator.known and not was_known
                     same = self.validator.matches(resp.headers)
+                if learned and self.on_validator:
+                    self.on_validator(self.validator)
                 if not same:
                     self._fail(RemoteChanged())
                     return 206

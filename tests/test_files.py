@@ -155,3 +155,15 @@ def test_descriptor_closes_after_a_complete_answer(tmp_path):
 
     fd = _serve(tmp_path, receive, send)
     assert len(b"".join(body)) == 4 * 1024 * 1024 and _closed(fd)
+
+
+def test_an_unsent_response_closes_its_descriptor(tmp_path):
+    import gc
+
+    path = tmp_path / "f.bin"
+    path.write_bytes(b"data")
+    fd, info = open_in_root(tmp_path, path)
+    response = file_response(fd, info, "f.bin", None, None)
+    del response
+    gc.collect()
+    assert _closed(fd)

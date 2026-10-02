@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import re
 import stat
+import weakref
 from pathlib import Path
 from typing import AsyncIterator
 from urllib.parse import quote
@@ -96,23 +97,38 @@ async def _read(fd: int, start: int, length: int) -> AsyncIterator[bytes]:
         yield block
 
 
+class _Closer:
+    """Closes one descriptor at most once."""
+
+    def __init__(self, fd: int):
+        self.fd: int | None = fd
+
+    def close(self) -> None:
+        fd, self.fd = self.fd, None
+        if fd is not None:
+            os.close(fd)
+
+
 class DescriptorResponse(StreamingResponse):
     """A streaming response that owns an open file descriptor and closes it when it ends.
 
     - The descriptor is closed in a `finally` around the whole ASGI call, so it is closed on
       every path: completion, an error, or a client that disconnects before or during the body.
       Starlette does not close the body iterator on disconnect, so the iterator cannot own it.
+    - A response that is never sent, for example when the request is cancelled first, closes
+      the descriptor when it is garbage collected.
     """
 
     def __init__(self, fd: int, start: int, length: int, **kwargs):
-        self.fd = fd
+        self.closer = _Closer(fd)
+        weakref.finalize(self, self.closer.close)
         super().__init__(_read(fd, start, length), media_type="application/octet-stream", **kwargs)
 
     async def __call__(self, scope, receive, send) -> None:
         try:
             await super().__call__(scope, receive, send)
         finally:
-            os.close(self.fd)
+            self.closer.close()
 
 
 def file_response(fd: int, info: os.stat_result, name: str, range_header: str | None,

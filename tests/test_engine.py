@@ -301,3 +301,22 @@ def test_a_validated_200_of_another_size_is_a_changed_file(server, content, tmp_
     download = make(server, tmp_path, links=1, validator=Validator(etag='"v1"'))
     with pytest.raises(RemoteChanged):
         download.run()
+
+
+def test_a_content_range_total_of_another_size_is_a_changed_file(server, content, tmp_path):
+    server.content = content + b"more"
+    download = make(server, tmp_path, links=2)
+    download.size = len(content)
+    download.parts = build_parts(len(content), SPLIT)
+    with pytest.raises(RemoteChanged):
+        download.run()
+    assert not any(part_path(download.part_dir, p.index).exists()
+                   and part_path(download.part_dir, p.index).stat().st_size for p in download.parts)
+
+
+def test_on_validator_is_called_once_with_the_first_version(server, tmp_path):
+    server.etag = '"v1"'
+    seen = []
+    download = make(server, tmp_path, links=3, on_validator=lambda v: seen.append(v.etag))
+    download.run()
+    assert seen == ['"v1"']
