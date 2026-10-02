@@ -44,6 +44,7 @@ function planFor(data: Resolved, free: number): { plan: Plan; short: number } {
 function lampFor(state: ResolveState, plan: Plan | null, many: boolean): LampColor {
   if (many) return 'red'
   if (state.local.kind === 'empty') return 'off'
+  if (state.local.kind === 'waiting') return 'amber'
   if (state.local.kind !== 'matched' || state.error) return 'red'
   if (state.pending || !state.data) return 'amber'
   return plan?.kind === 'download' ? 'green' : 'red'
@@ -63,7 +64,7 @@ export function Home() {
   const providers = useProviders()
   const tasks = useTasks()
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
-  const state = useResolve(input, providers.data ?? [], immediate)
+  const state = useResolve(input, providers.data, immediate)
 
   const free = storage?.free_bytes ?? state.data?.free_bytes ?? 0
   const planned = state.data ? planFor(state.data, free) : null
@@ -248,6 +249,8 @@ function statusLine(t: ReturnType<typeof useTranslation>['t'], state: ResolveSta
       return { text: t('errors.invalid_url'), error: true }
     case 'unsupported':
       return { text: t('errors.unsupported'), error: true }
+    case 'waiting':
+      return { text: t('home.checking'), error: false }
   }
   if (state.error) {
     const error = state.error instanceof ApiError ? state.error.error : null

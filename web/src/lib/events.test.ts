@@ -8,7 +8,8 @@ function task(id: string, change: Partial<Task> = {}): Task {
   return {
     id, provider: 'k2s', file_id: id, file_name: `${id}.bin`, size: 100, bytes_done: 0, speed: 0, eta: null,
     status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true,
-    file_exists: false, error: null, verified: null, created_at: 1, completed_at: null, ...change,
+    notice_key: null, file_exists: false, error: null, verified: null, created_at: 1, updated_at: 1,
+    completed_at: null, ...change,
   }
 }
 
@@ -102,5 +103,44 @@ describe('resolve answers', () => {
     applyEvent(client, 'task', task('a', { status: 'failed' }))
     applyEvent(client, 'task_removed', { id: 'a' })
     expect(spy.mock.calls.map((call) => call[0]?.queryKey)).toEqual([RESOLVE_KEY, RESOLVE_KEY])
+  })
+})
+
+describe('newest copy wins', () => {
+  it('ignores a copy older than the cached one', () => {
+    const client = new QueryClient()
+    client.setQueryData(TASKS_KEY, [task('a', { status: 'paused', updated_at: 5 })])
+    applyEvent(client, 'task', task('a', { status: 'downloading', updated_at: 4 }))
+    expect(client.getQueryData<Task[]>(TASKS_KEY)![0].status).toBe('paused')
+    applyEvent(client, 'task', task('a', { status: 'queued', updated_at: 6 }))
+    expect(client.getQueryData<Task[]>(TASKS_KEY)![0].status).toBe('queued')
+  })
+})
+
+describe('resync retries', () => {
+  it('tries a failed fetch again until it succeeds', async () => {
+    const client = new QueryClient()
+    let calls = 0
+    const fetchTasks = async () => {
+      calls += 1
+      if (calls < 3) throw new Error('down')
+      return [task('a')]
+    }
+    await resync(client, fetchTasks, [], () => false, 1)
+    expect(calls).toBe(3)
+    expect(client.getQueryData<Task[]>(TASKS_KEY)!.map((t) => t.id)).toEqual(['a'])
+  })
+
+  it('stops trying once the stream is gone', async () => {
+    const client = new QueryClient()
+    let calls = 0
+    let stop = false
+    const fetchTasks = async () => {
+      calls += 1
+      stop = true
+      throw new Error('down')
+    }
+    await resync(client, fetchTasks, [], () => stop, 1)
+    expect(calls).toBe(1)
   })
 })

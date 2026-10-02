@@ -195,6 +195,7 @@ function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
         <span className={styles.statusText}>
           <StatusLamp status={task.status} text={statusText} />
         </span>
+        {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
         {task.status === 'failed' && task.error && (
           <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
         )}
