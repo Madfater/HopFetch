@@ -55,8 +55,9 @@ def etag_of(info: os.stat_result) -> str:
 def parse_range(header: str | None, size: int) -> tuple[int, int] | None | str:
     """The inclusive byte range a Range header asks for.
 
-    - Returns None to send the whole file (no header, several ranges, or a form not handled),
-      and "unsatisfiable" when the range starts beyond the file.
+    - Returns None to send the whole file (no header, several ranges, an invalid range such as
+      `bytes=5-3`, or a form not handled), and "unsatisfiable" when the range starts beyond the
+      file.
     """
     if not header:
         return None
@@ -70,6 +71,8 @@ def parse_range(header: str | None, size: int) -> tuple[int, int] | None | str:
     else:
         start = max(0, size - int(last))
         end = size - 1
+    if first and last and int(last) < start:
+        return None
     if start >= size or start > end:
         return "unsatisfiable"
     return start, end
@@ -82,27 +85,42 @@ def disposition(name: str) -> str:
 
 
 async def _read(fd: int, start: int, length: int) -> AsyncIterator[bytes]:
-    """Yield `length` bytes from `fd` starting at `start`, closing `fd` at the end.
+    """Yield `length` bytes from `fd` starting at `start`; reads run in a worker thread."""
+    offset, left = start, length
+    while left > 0:
+        block = await anyio.to_thread.run_sync(os.pread, fd, min(CHUNK, left), offset)
+        if not block:
+            break
+        offset += len(block)
+        left -= len(block)
+        yield block
 
-    - Reads run in a worker thread. The generator is async so that a client disconnect, which
-      cancels the response, runs the `finally` at once and closes `fd`.
+
+class DescriptorResponse(StreamingResponse):
+    """A streaming response that owns an open file descriptor and closes it when it ends.
+
+    - The descriptor is closed in a `finally` around the whole ASGI call, so it is closed on
+      every path: completion, an error, or a client that disconnects before or during the body.
+      Starlette does not close the body iterator on disconnect, so the iterator cannot own it.
     """
-    try:
-        offset, left = start, length
-        while left > 0:
-            block = await anyio.to_thread.run_sync(os.pread, fd, min(CHUNK, left), offset)
-            if not block:
-                break
-            offset += len(block)
-            left -= len(block)
-            yield block
-    finally:
-        os.close(fd)
+
+    def __init__(self, fd: int, start: int, length: int, **kwargs):
+        self.fd = fd
+        super().__init__(_read(fd, start, length), media_type="application/octet-stream", **kwargs)
+
+    async def __call__(self, scope, receive, send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            os.close(self.fd)
 
 
 def file_response(fd: int, info: os.stat_result, name: str, range_header: str | None,
                   if_range: str | None) -> Response:
-    """Answer with the whole file, one range of it, or 416, reading from the open `fd`."""
+    """Answer with the whole file, one range of it, or 416, reading from the open `fd`.
+
+    - The returned response owns `fd` and closes it when it has been sent.
+    """
     size = info.st_size
     etag = etag_of(info)
     headers = {"Accept-Ranges": "bytes", "ETag": etag, "Content-Disposition": disposition(name),
@@ -112,10 +130,9 @@ def file_response(fd: int, info: os.stat_result, name: str, range_header: str | 
         os.close(fd)
         return Response(status_code=416, headers={**headers, "Content-Range": f"bytes */{size}"})
     if wanted is None:
-        return StreamingResponse(_read(fd, 0, size), media_type="application/octet-stream",
-                                 headers={**headers, "Content-Length": str(size)})
+        return DescriptorResponse(fd, 0, size, headers={**headers, "Content-Length": str(size)})
     start, end = wanted
     length = end - start + 1
-    return StreamingResponse(_read(fd, start, length), status_code=206, media_type="application/octet-stream",
-                             headers={**headers, "Content-Length": str(length),
-                                      "Content-Range": f"bytes {start}-{end}/{size}"})
+    return DescriptorResponse(fd, start, length, status_code=206,
+                              headers={**headers, "Content-Length": str(length),
+                                       "Content-Range": f"bytes {start}-{end}/{size}"})

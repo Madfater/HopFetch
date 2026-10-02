@@ -577,5 +577,6 @@ def test_cancel_forgets_the_file_version(tmp_path, provider, server):
     job = manager.create(URL.format("forget"))
     pause_midway(manager, job)
     assert job.etag == '"v1"'
+    job.notice_key = "messages.remote_changed"
     manager.cancel(job.id)
-    assert (job.etag, job.last_modified) == (None, None)
+    assert (job.etag, job.last_modified, job.notice_key) == (None, None, None)

@@ -293,3 +293,11 @@ def test_a_short_200_page_is_a_failed_request_not_a_new_file(server, tmp_path):
     with pytest.raises(DownloadStalled):
         download.run()
     server.httpd.RequestHandlerClass.do_GET = original
+
+
+def test_a_validated_200_of_another_size_is_a_changed_file(server, content, tmp_path):
+    server.etag = '"v2"'
+    server.content = content[:-500]
+    download = make(server, tmp_path, links=1, validator=Validator(etag='"v1"'))
+    with pytest.raises(RemoteChanged):
+        download.run()

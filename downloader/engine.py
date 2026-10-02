@@ -138,6 +138,19 @@ def assemble(part_dir: Path, parts: list[Part], out: BinaryIO) -> None:
                 out.write(block)
 
 
+def _whole_file(headers, size: int, validated: bool) -> bool:
+    """True when a 200 answer to a range request carries a whole file rather than an error page.
+
+    - An HTML body is an error page.
+    - A plain range request expects the known size, or no length at all.
+    - A validated request may get a replaced file of another size, so any non-HTML body counts.
+    """
+    if headers.get("Content-Type", "").lower().startswith("text/html"):
+        return False
+    length = headers.get("Content-Length")
+    return validated or length is None or length == str(size)
+
+
 class SegmentedDownload:
     """Downloads `size` bytes from `links` into part files under `part_dir`.
 
@@ -151,10 +164,9 @@ class SegmentedDownload:
     - Every request carries `If-Range` once `validator` knows the file version; the first 206
       answer fills it in. A 206 naming another version raises `RemoteChanged` before anything
       is written, which also covers the first parallel requests and servers ignoring If-Range.
-    - A 200 answer carrying the whole file (Content-Length equal to the size, or none) raises
-      `RemoteChanged` when the request had If-Range, and `RangeUnsupported` otherwise. Any other
-      200 answer, such as an error page, counts as a failed request. Nothing of a 200 body is
-      written.
+    - A 200 answer carrying a whole file raises `RemoteChanged` when the request had If-Range,
+      and `RangeUnsupported` otherwise; see `_whole_file`. Any other 200 answer, such as an error
+      page, counts as a failed request. Nothing of a 200 body is written.
     """
 
     def __init__(self, links: list[str], size: int, part_dir: Path, split_size: int,
@@ -285,8 +297,7 @@ class SegmentedDownload:
                                 timeout=(10, self.read_timeout))
             with resp:
                 if resp.status_code == 200:
-                    length = resp.headers.get("Content-Length")
-                    if length is None or length == str(self.size):
+                    if _whole_file(resp.headers, self.size, validated=bool(if_range)):
                         self._fail(RemoteChanged() if if_range else RangeUnsupported())
                     return 200
                 if resp.status_code != 206:

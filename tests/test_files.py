@@ -21,6 +21,7 @@ from downloader.files import disposition, etag_of, file_response, open_in_root, 
     ("bytes=0-1,5-6", None),
     ("items=0-1", None),
     ("bytes=-", None),
+    ("bytes=5-3", None),
 ])
 def test_parse_range(header, expected):
     assert parse_range(header, 100) == expected
@@ -85,20 +86,72 @@ def test_ranges_and_if_range(client):
     assert (beyond.status_code, beyond.headers["content-range"]) == (416, "bytes */100")
 
 
-def test_descriptor_closes_when_the_stream_is_abandoned(tmp_path):
+def _closed(fd: int) -> bool:
+    try:
+        os.fstat(fd)
+    except OSError:
+        return True
+    return False
+
+
+def _serve(tmp_path, receive, send, spec="2.3"):
+    """Run a DescriptorResponse for a 4 MiB file through ASGI; return its descriptor."""
     import asyncio
 
-    from downloader.files import _read
-
     path = tmp_path / "big.bin"
-    path.write_bytes(b"x" * (1024 * 1024))
-    fd, _ = open_in_root(tmp_path, path)
+    path.write_bytes(b"x" * (4 * 1024 * 1024))
+    fd, info = open_in_root(tmp_path, path)
+    response = file_response(fd, info, "big.bin", None, None)
+    scope = {"type": "http", "asgi": {"spec_version": spec}, "method": "GET", "headers": []}
 
-    async def scenario():
-        stream = _read(fd, 0, 1024 * 1024)
-        await stream.__anext__()
-        await stream.aclose()
+    async def run():
+        try:
+            await response(scope, receive, send)
+        except Exception:
+            pass
 
-    asyncio.run(scenario())
-    with pytest.raises(OSError):
-        os.fstat(fd)
+    asyncio.run(run())
+    return fd
+
+
+def test_descriptor_closes_when_the_client_is_gone_before_the_body(tmp_path):
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        raise OSError("client gone")
+
+    assert _closed(_serve(tmp_path, receive, send, spec="2.4"))
+
+
+def test_descriptor_closes_when_the_client_leaves_mid_stream(tmp_path):
+    import asyncio
+
+    sent = []
+
+    async def receive():
+        await asyncio.sleep(0.05)
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        sent.append(message["type"])
+        await asyncio.sleep(0.01)
+
+    fd = _serve(tmp_path, receive, send)
+    assert "http.response.start" in sent and _closed(fd)
+
+
+def test_descriptor_closes_after_a_complete_answer(tmp_path):
+    import asyncio
+
+    async def receive():
+        await asyncio.sleep(10)
+        return {"type": "http.disconnect"}
+
+    body = []
+
+    async def send(message):
+        body.append(message.get("body", b""))
+
+    fd = _serve(tmp_path, receive, send)
+    assert len(b"".join(body)) == 4 * 1024 * 1024 and _closed(fd)

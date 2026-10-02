@@ -110,7 +110,7 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
   - 進行中的任務先取消再移除。
 - `POST /api/tasks/clear-completed`：移除所有已完成任務的紀錄，不刪檔案。
 - `GET /api/tasks/{id}/file`：把已完成的檔案下載到使用者電腦。
-  - 支援 Range（Starlette `FileResponse` 內建）。
+  - 支援單一範圍的 Range 與 If-Range，由 `downloader/files.py` 從以 `O_NOFOLLOW` 開啟的檔案描述元直接提供。
   - `Content-Disposition` 以 RFC 5987 格式（`filename*=UTF-8''…`）處理中文檔名。
   - 檔案已不存在時回 404，並把該任務的 `file_exists` 設為 false。
 - `GET /api/storage`：下載根目錄所在檔案系統的 `free_bytes`、`total_bytes`。

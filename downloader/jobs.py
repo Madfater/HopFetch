@@ -604,6 +604,7 @@ class JobManager:
         self._remove_staging(job)
         job.etag = None
         job.last_modified = None
+        job.notice_key = None
         job.bytes_done = 0
         job.parts_done = 0
         job.parts_total = 0
