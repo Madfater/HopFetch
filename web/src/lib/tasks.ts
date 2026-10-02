@@ -18,10 +18,13 @@ export function isActive(task: Task): boolean {
 }
 
 // - Replaces the task with the same id, or puts a new one first.
+// - A copy older than the one held, by `updated_at`, is ignored: an action's HTTP answer can
+//   arrive after the event the action caused.
 export function upsertTask(list: Task[] | undefined, task: Task): Task[] | undefined {
   if (!list) return list
   const index = list.findIndex((t) => t.id === task.id)
   if (index === -1) return [task, ...list]
+  if (list[index].updated_at > task.updated_at) return list
   const next = list.slice()
   next[index] = task
   return next

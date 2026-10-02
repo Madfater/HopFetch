@@ -31,6 +31,58 @@ class DownloadStalled(Exception):
     """No byte arrived for longer than the stall timeout."""
 
 
+class RemoteChanged(Exception):
+    """The server answered a validated range request with the whole file: the file changed."""
+
+
+class RangeUnsupported(Exception):
+    """The server answered a range request with the whole file, so parts cannot be fetched."""
+
+
+@dataclass
+class Validator:
+    """What identifies the remote file version: its ETag and Last-Modified, once seen.
+
+    - `if_range` prefers a strong ETag and falls back to Last-Modified; a weak ETag cannot be
+      used with If-Range.
+    - `capture` keeps the first values seen and ignores later ones.
+    """
+
+    etag: str | None = None
+    last_modified: str | None = None
+
+    @property
+    def known(self) -> bool:
+        """True once either value was seen."""
+        return self.etag is not None or self.last_modified is not None
+
+    def if_range(self) -> str | None:
+        """The If-Range value to send, or None when nothing usable is known."""
+        if self.etag and not self.etag.startswith("W/"):
+            return self.etag
+        return self.last_modified
+
+    def capture(self, headers) -> None:
+        """Record ETag and Last-Modified from a response when none was recorded yet."""
+        if not self.known:
+            self.etag = headers.get("ETag")
+            self.last_modified = headers.get("Last-Modified")
+
+    def matches(self, headers) -> bool:
+        """False when a response names a different version than the one recorded.
+
+        - Compares the ETag when both sides have one, else Last-Modified; a response that sends
+          neither cannot be told apart and matches.
+        """
+        etag = headers.get("ETag")
+        if self.etag and etag:
+            return etag == self.etag
+        modified = headers.get("Last-Modified")
+        if self.last_modified and modified:
+            return modified == self.last_modified
+        return True
+
+
 @dataclass(frozen=True)
 class Part:
     """One byte range of the file, `start` and `end` inclusive, stored in its own part file."""
@@ -86,6 +138,19 @@ def assemble(part_dir: Path, parts: list[Part], out: BinaryIO) -> None:
                 out.write(block)
 
 
+def _whole_file(headers, size: int, validated: bool) -> bool:
+    """True when a 200 answer to a range request carries a whole file rather than an error page.
+
+    - An HTML body is an error page.
+    - A plain range request expects the known size, or no length at all.
+    - A validated request may get a replaced file of another size, so any non-HTML body counts.
+    """
+    if headers.get("Content-Type", "").lower().startswith("text/html"):
+        return False
+    length = headers.get("Content-Length")
+    return validated or length is None or length == str(size)
+
+
 class SegmentedDownload:
     """Downloads `size` bytes from `links` into part files under `part_dir`.
 
@@ -96,13 +161,21 @@ class SegmentedDownload:
       dropped, `run` raises `LinksExpired`.
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
       for `stall_timeout` seconds.
+    - Every request carries `If-Range` once `validator` knows the file version; the first 206
+      answer fills it in and calls `on_validator` once. A 206 naming another version, or a
+      Content-Range total other than `size`, raises `RemoteChanged` before anything is written;
+      this also covers the first parallel requests and servers ignoring If-Range.
+    - A 200 answer carrying a whole file raises `RemoteChanged` when the request had If-Range,
+      and `RangeUnsupported` otherwise; see `_whole_file`. Any other 200 answer, such as an error
+      page, counts as a failed request. Nothing of a 200 body is written.
     """
 
     def __init__(self, links: list[str], size: int, part_dir: Path, split_size: int,
                  headers: dict[str, str], cancelled: threading.Event,
                  on_progress: Callable[[Progress], None] | None = None,
                  read_timeout: float = 20, stall_timeout: float = 600,
-                 progress_interval: float = 0.5):
+                 progress_interval: float = 0.5, validator: Validator | None = None,
+                 on_validator: Callable[[Validator], None] | None = None):
         self.links = list(links)
         self.size = size
         self.part_dir = part_dir
@@ -113,6 +186,9 @@ class SegmentedDownload:
         self.read_timeout = read_timeout
         self.stall_timeout = stall_timeout
         self.progress_interval = progress_interval
+        self.validator = validator if validator is not None else Validator()
+        self.on_validator = on_validator
+        self._fatal: Exception | None = None
 
         self._lock = threading.Lock()
         self._wake = threading.Event()
@@ -133,6 +209,8 @@ class SegmentedDownload:
         last_report = 0.0
         try:
             while pending or self._busy:
+                if self._fatal is not None:
+                    raise self._fatal
                 if self.cancelled.is_set():
                     raise Cancelled()
                 if not self._busy and pending and self._alive_links() == []:
@@ -160,6 +238,8 @@ class SegmentedDownload:
             for thread in self._threads:
                 thread.join()
             self._report()
+        if self._fatal is not None:
+            raise self._fatal
 
     def _alive_links(self) -> list[int]:
         """Indexes of links that have not been dropped."""
@@ -210,18 +290,37 @@ class SegmentedDownload:
         if have >= part.size:
             return 206
         start = part.start + have
+        headers = {**self.headers, "Range": f"bytes={start}-{part.end}"}
+        with self._lock:
+            if_range = self.validator.if_range()
+        if if_range:
+            headers["If-Range"] = if_range
         try:
-            resp = requests.get(
-                self.links[link],
-                headers={**self.headers, "Range": f"bytes={start}-{part.end}"},
-                stream=True, timeout=(10, self.read_timeout),
-            )
+            resp = requests.get(self.links[link], headers=headers, stream=True,
+                                timeout=(10, self.read_timeout))
             with resp:
+                if resp.status_code == 200:
+                    if _whole_file(resp.headers, self.size, validated=bool(if_range)):
+                        self._fail(RemoteChanged() if if_range else RangeUnsupported())
+                    return 200
                 if resp.status_code != 206:
                     return resp.status_code
-                served = re.match(r"bytes (\d+)-", resp.headers.get("Content-Range", ""))
+                served = re.match(r"bytes (\d+)-\d+/(\d+|\*)", resp.headers.get("Content-Range", ""))
                 if not served or int(served.group(1)) != start:
                     return None
+                if served.group(2) != "*" and int(served.group(2)) != self.size:
+                    self._fail(RemoteChanged())
+                    return 206
+                with self._lock:
+                    was_known = self.validator.known
+                    self.validator.capture(resp.headers)
+                    learned = self.validator.known and not was_known
+                    same = self.validator.matches(resp.headers)
+                if learned and self.on_validator:
+                    self.on_validator(self.validator)
+                if not same:
+                    self._fail(RemoteChanged())
+                    return 206
                 remaining = part.size - have
                 with path.open("ab") as out:
                     for block in resp.iter_content(BLOCK_SIZE):
@@ -238,6 +337,14 @@ class SegmentedDownload:
             return 206
         except (requests.RequestException, OSError):
             return None
+
+    def _fail(self, error: Exception) -> None:
+        """Record the first fatal error and stop every worker."""
+        with self._lock:
+            if self._fatal is None:
+                self._fatal = error
+        self._stop.set()
+        self._wake.set()
 
     def _report(self) -> None:
         """Send a progress snapshot to `on_progress`."""

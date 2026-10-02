@@ -19,7 +19,9 @@
     "paused": "已暫停",
     "paused_restart": "服務重新啟動，下載已暫停。按繼續從中斷處下載。",
     "paused_legacy": "已暫停。按繼續從中斷處下載。",
-    "canceled": "已取消"
+    "canceled": "已取消",
+    "remote_changed": "遠端檔案已變更，已重新下載",
+    "remote_changed_restarting": "遠端檔案已變更，從頭重新下載"
   },
   "errors": {
     "invalid_url": "這不是有效的網址。貼上以 https:// 開頭的分享連結。",
@@ -61,6 +63,10 @@
     "http_error": "要求無法完成。",
     "invalid_state": "這個任務目前無法執行這個動作。",
     "invalid_settings": "設定值超出允許範圍。",
-    "page_not_found": "找不到這個位址。"
+    "page_not_found": "找不到這個位址。",
+    "remote_changed": "下載期間遠端檔案又變更了一次。按重試從頭下載。",
+    "range_unsupported": "雲端不支援分段下載，無法下載這個檔案。",
+    "interrupted": "服務重新啟動，下載中斷。按重試再試一次。",
+    "invalid_state_not_resumable": "這個任務無法暫停，因為雲端不支援續傳。"
   }
 }

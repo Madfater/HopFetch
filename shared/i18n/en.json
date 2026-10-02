@@ -21,7 +21,9 @@
     "downloading_one": "Downloading over {{count}} connection",
     "downloading_other": "Downloading over {{count}} connections",
     "links_generated_one": "Got {{done}} of {{count}} link",
-    "links_generated_other": "Got {{done}} of {{count}} links"
+    "links_generated_other": "Got {{done}} of {{count}} links",
+    "remote_changed": "The remote file changed, so it was downloaded again",
+    "remote_changed_restarting": "The remote file changed, downloading again from the start"
   },
   "errors": {
     "invalid_url": "This is not a valid URL. Paste a share link that starts with https://.",
@@ -64,6 +66,10 @@
     "invalid_settings": "A setting is out of range.",
     "quota_exceeded_wait_one": "{{provider}} asks to wait about {{count}} minute before the next free download. Try again later.",
     "quota_exceeded_wait_other": "{{provider}} asks to wait about {{count}} minutes before the next free download. Try again later.",
-    "page_not_found": "This address does not exist."
+    "page_not_found": "This address does not exist.",
+    "remote_changed": "The remote file changed again during the download. Retry to download it from the start.",
+    "range_unsupported": "The host does not support ranged downloads, so this file cannot be downloaded.",
+    "interrupted": "The server restarted and the download stopped. Retry to try again.",
+    "invalid_state_not_resumable": "This task cannot be paused because the host does not support resuming."
   }
 }

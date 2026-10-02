@@ -16,14 +16,17 @@ export const RESOLVE_DELAY_MS = 400
 
 export type Local =
   | { kind: 'empty' }
+  | { kind: 'waiting' }
   | { kind: 'invalid' }
   | { kind: 'unsupported' }
   | { kind: 'matched'; url: string; provider: Provider }
 
-export function checkLocally(input: string, providers: Provider[]): Local {
+// - `waiting` means the provider list has not loaded yet, so a URL cannot be judged.
+export function checkLocally(input: string, providers: Provider[] | undefined): Local {
   const text = input.trim()
   if (!text) return { kind: 'empty' }
   if (!isHttpUrl(text)) return { kind: 'invalid' }
+  if (!providers) return { kind: 'waiting' }
   const match = matchProvider(text, providers)
   if (!match) return { kind: 'unsupported' }
   return { kind: 'matched', url: normalizeUrl(text), provider: match.provider }
@@ -38,7 +41,7 @@ export interface ResolveState {
 
 // - `immediate` is a counter the caller bumps on paste or drop, which skips the delay for the
 //   current input.
-export function useResolve(input: string, providers: Provider[], immediate: number): ResolveState {
+export function useResolve(input: string, providers: Provider[] | undefined, immediate: number): ResolveState {
   const local = checkLocally(input, providers)
   const candidate = local.kind === 'matched' ? local.url : null
   const [target, setTarget] = useState<string | null>(null)
@@ -68,7 +71,7 @@ export function useResolve(input: string, providers: Provider[], immediate: numb
   const current = active !== null && active === candidate
   return {
     local,
-    pending: candidate !== null && (!current || query.isFetching),
+    pending: local.kind === 'waiting' || (candidate !== null && (!current || query.isFetching)),
     data: current ? query.data : undefined,
     error: current ? query.error : null,
   }

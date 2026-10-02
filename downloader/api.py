@@ -10,10 +10,11 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Request
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel
 
 from .events import HEARTBEAT_SECONDS, event_stream
+from .files import file_response
 from .jobs import DuplicateTask, JobManager, TaskError
 from .messages import CodedError
 from .providers.base import ProviderError
@@ -193,16 +194,17 @@ def delete_task(task_id: str, request: Request, delete_file: bool = False) -> No
 
 
 @router.get("/tasks/{task_id}/file")
-def task_file(task_id: str, request: Request) -> FileResponse:
+def task_file(task_id: str, request: Request) -> Response:
     """Send a finished file to the browser, with Range support and an RFC 5987 file name."""
     _job(request, task_id)
     try:
-        path = _manager(request).file_path(task_id)
+        opened = _manager(request).open_file(task_id)
     except KeyError:
         raise ApiError(404, CodedError("task_not_found")) from None
-    if path is None:
+    if opened is None:
         raise ApiError(404, CodedError("file_missing"))
-    return FileResponse(path, filename=path.name, media_type="application/octet-stream")
+    fd, info, name = opened
+    return file_response(fd, info, name, request.headers.get("range"), request.headers.get("if-range"))
 
 
 @router.get("/storage")

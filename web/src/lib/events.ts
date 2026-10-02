@@ -37,12 +37,23 @@ export function applyEvent(client: QueryClient, type: string, data: unknown, han
 
 // - Cancels any task-list fetch already in flight, whose snapshot may predate the stream,
 //   refetches, then replays the events received meanwhile over the new list.
-export async function resync(client: QueryClient, fetchTasks: () => Promise<Task[]>, buffer: [string, unknown][]) {
-  try {
-    await client.cancelQueries({ queryKey: TASKS_KEY })
-    await client.fetchQuery({ queryKey: TASKS_KEY, queryFn: fetchTasks, staleTime: 0 })
-  } catch {
-    // - The list stays as it was; the stream's own error handling reconnects.
+// - A failed fetch is tried again every `retryMs` until it succeeds or `stopped()` says the
+//   stream was closed or reopened, which starts its own resync.
+export async function resync(
+  client: QueryClient,
+  fetchTasks: () => Promise<Task[]>,
+  buffer: [string, unknown][],
+  stopped: () => boolean = () => false,
+  retryMs = RECONNECT_MS,
+) {
+  while (!stopped()) {
+    try {
+      await client.cancelQueries({ queryKey: TASKS_KEY })
+      await client.fetchQuery({ queryKey: TASKS_KEY, queryFn: fetchTasks, staleTime: 0, retry: false })
+      break
+    } catch {
+      await new Promise((resolve) => setTimeout(resolve, retryMs))
+    }
   }
   for (const [type, data] of buffer.splice(0)) applyEvent(client, type, data)
 }
@@ -64,7 +75,7 @@ export function connectEvents(
       handlers.onConnection?.(true)
       const pending: [string, unknown][] = []
       buffer = pending
-      void resync(client, fetchTasks, pending).finally(() => {
+      void resync(client, fetchTasks, pending, () => stopped || buffer !== pending).finally(() => {
         if (buffer === pending) buffer = null
       })
       void client.invalidateQueries({ queryKey: STORAGE_KEY })

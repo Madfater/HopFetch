@@ -110,7 +110,7 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
   - 進行中的任務先取消再移除。
 - `POST /api/tasks/clear-completed`：移除所有已完成任務的紀錄，不刪檔案。
 - `GET /api/tasks/{id}/file`：把已完成的檔案下載到使用者電腦。
-  - 支援 Range（Starlette `FileResponse` 內建）。
+  - 支援單一範圍的 Range 與 If-Range，由 `downloader/files.py` 從以 `O_NOFOLLOW` 開啟的檔案描述元直接提供。
   - `Content-Disposition` 以 RFC 5987 格式（`filename*=UTF-8''…`）處理中文檔名。
   - 檔案已不存在時回 404，並把該任務的 `file_exists` 設為 false。
 - `GET /api/storage`：下載根目錄所在檔案系統的 `free_bytes`、`total_bytes`。
@@ -313,7 +313,7 @@ pytest 覆蓋：
 
 - 繼續前重新解析分享連結、清除舊的直連網址並重新產生，因為直連網址有時效。
 - 分段請求帶 `Range` 與 `If-Range`（優先用 ETag，沒有時用 Last-Modified）。
-- 對可續傳的任務，上游回 200 而不是 206，代表遠端檔案已變更。此時捨棄分段檔、從頭下載一次，並在任務列顯示「遠端檔案已變更，已重新下載」。
+- 對可續傳的任務，上游回 200 而不是 206，代表遠端檔案已變更。此時捨棄分段檔、從頭下載一次，並在任務列顯示「遠端檔案已變更，已重新下載」。同一次執行中再變更一次，任務以 `remote_changed` 失敗，避免無限重下（例如直連重新產生後 ETag 不同時）。
 - `resumable` 依實際回應判斷（`Accept-Ranges` 或 206 回應），不只依 provider 推測。上游不支援 Range 時，任務以 `range_unsupported` 失敗，`resumable` 為 false；不另外實作單一連線的備援下載。
 - 後端重啟時，可續傳的進行中任務改為「已暫停」；不可續傳的改為「失敗」，錯誤原因為「服務重新啟動，下載中斷」，可以重試。
 - 前端：`resumable` 為 true 時才顯示暫停與繼續；不可續傳的任務只有取消。

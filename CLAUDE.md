@@ -47,7 +47,7 @@ uv sync && npm --prefix web ci                 # install dependencies
 npm --prefix web run build                     # build the dashboard into web/dist
 uv run uvicorn downloader.app:app --timeout-graceful-shutdown 5   # serve API and dashboard on http://127.0.0.1:8000
 uv run pytest -q                               # backend tests
-python3 script/check.py                        # harness tests, pytest, frontend install and build
+python3 script/check.py                        # harness tests, pytest, frontend install, lint, tests and build
 ```
 
 Invariants, detailed in [docs/architecture.md](docs/architecture.md#invariants):

@@ -98,6 +98,17 @@ describe('useResolve', () => {
     expect(hook.result.current.data?.file_id).toBe('bbb222')
   })
 
+  it('waits for the provider list before judging a URL', () => {
+    fakeResolve()
+    const client = new QueryClient()
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    )
+    const hook = renderHook(() => useResolve(A, undefined, 0), { wrapper })
+    expect(hook.result.current.local.kind).toBe('waiting')
+    expect(hook.result.current.pending).toBe(true)
+  })
+
   it('checks locally without the backend', () => {
     const { calls } = fakeResolve()
     const hook = setup()

@@ -28,10 +28,12 @@ export interface Task {
   message_params: Params
   message: string
   resumable: boolean
+  notice_key: string | null
   file_exists: boolean
   error: CodedError | null
   verified: 'ok' | 'corrupt' | null
   created_at: number
+  updated_at: number
   completed_at: number | null
 }
 
