@@ -80,23 +80,23 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 `.github/workflows/deploy.yml` runs on every push to `main`:
 
-- Job `image` builds the `Dockerfile` for `linux/amd64` and pushes `ghcr.io/madfater/k2s-downloader` tagged `latest` and `sha-<short commit>`.
+- Job `image` builds the `Dockerfile` for `linux/amd64` and pushes `ghcr.io/madfater/hop-fetch` tagged `latest` and `sha-<short commit>`.
 - Job `deploy` runs after `image` succeeds. It POSTs to the Arcane project redeploy webhook in the `ARCANE_WEBHOOK_URL` repository secret, and fails when the secret is missing.
 - Runs never overlap: a newer push waits for the running deploy. Only one run waits; a later push replaces it, and the replaced run shows as cancelled.
 
-The Arcane project `k2s-downloader` runs `deploy/arcane/compose.yaml`:
+An Arcane project runs `deploy/arcane/compose.yaml`:
 
-- Pulls `ghcr.io/madfater/k2s-downloader:latest` on every redeploy. The package is public, since the Arcane host has no registry credentials.
+- Pulls `ghcr.io/madfater/hop-fetch:latest` on every redeploy. The package is public, since the Arcane host has no registry credentials.
 - Uses `network_mode: host`, so uvicorn listens on port 8000 on every host interface. The app has no authentication: the host must not expose port 8000 to the internet.
 - Reads `UID`, `GID`, `DATA_PATH` and `DOWNLOAD_PATH` from the project's `.env`. The paths default to `./data` and `./downloads` next to the compose file. Create them before the first start, or Docker creates them owned by root.
 - Keeps the user, grace period and restart policy of the root `compose.yaml`.
 
 One-time setup:
 
-1. In Arcane, create the project `k2s-downloader` from `deploy/arcane/compose.yaml` and fill in its `.env`.
+1. In Arcane, create a project, for example `hop-fetch`, from `deploy/arcane/compose.yaml` and fill in its `.env`.
 2. In Arcane, create a webhook targeting that project with action `redeploy`, and copy its trigger URL.
 3. In the GitHub repository settings, add the Actions secret `ARCANE_WEBHOOK_URL` with that URL.
-4. After the first `deploy.yml` run, set the `k2s-downloader` package visibility to public in its GitHub package settings.
+4. After the first `deploy.yml` run, set the `hop-fetch` package visibility to public in its GitHub package settings.
 
 ## Runtime files
 

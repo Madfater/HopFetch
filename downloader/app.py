@@ -68,7 +68,7 @@ def create_app(settings: Settings | None = None, manager: JobManager | None = No
         stop.set()
         manager.shutdown()
 
-    app = FastAPI(title="Downloader", lifespan=lifespan)
+    app = FastAPI(title="Hop fetch", lifespan=lifespan)
     app.state.manager = manager
 
     @app.exception_handler(ApiError)

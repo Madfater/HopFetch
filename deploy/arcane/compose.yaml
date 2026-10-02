@@ -4,7 +4,7 @@
 # - Reads UID, GID, DATA_PATH and DOWNLOAD_PATH from the project's .env.
 services:
   downloader:
-    image: ghcr.io/madfater/k2s-downloader:latest
+    image: ghcr.io/madfater/hop-fetch:latest
     pull_policy: always
     network_mode: host
     user: "${UID:-1000}:${GID:-1000}"
