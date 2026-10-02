@@ -54,14 +54,14 @@ class CaptchaSession:
         if self.cancelled.is_set():
             raise Cancelled()
         if self.attempts >= self.max_attempts:
-            raise ProviderError("captcha_failed", "驗證碼自動辨識多次失敗。稍後按重試再試一次。")
+            raise ProviderError("captcha_failed")
         self.attempts += 1
         self.on_attempt(self.attempts)
         try:
             text = self.ocr.read(image)
         except Exception as exc:
             log.warning("OCR failed: %s", exc)
-            raise ProviderError("captcha_failed", "驗證碼辨識元件無法執行。檢查伺服器記錄後再試一次。") from exc
+            raise ProviderError("captcha_failed", "errors.captcha_failed_ocr") from exc
         answer = spec.normalize(text)
         log.info("OCR read %r -> %r", text, answer)
         return answer

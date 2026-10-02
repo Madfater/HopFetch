@@ -14,6 +14,7 @@ from conftest import build_manager, wait_for
 from fastapi.testclient import TestClient
 
 from downloader.app import create_app
+from downloader.messages import render
 from downloader.providers.base import ProviderError
 
 URL = "https://fake.test/f/{}"
@@ -67,7 +68,7 @@ def test_resolve(client, content):
 def test_resolve_rejects_unsupported(client, url, status, code):
     resp = client.post("/api/resolve", json={"url": url})
     assert (resp.status_code, resp.json()["code"]) == (status, code)
-    assert resp.json()["message"]
+    assert resp.json()["key"] == f"errors.{code}" and resp.json()["message"]
 
 
 @pytest.mark.parametrize("code,status", [
@@ -75,10 +76,12 @@ def test_resolve_rejects_unsupported(client, url, status, code):
     ("quota_exceeded", 429), ("upstream_error", 502),
 ])
 def test_resolve_maps_upstream_errors(client, provider, code, status):
-    provider.info_error = ProviderError(code, "說明")
+    provider.info_error = ProviderError(code, provider="Fake host")
     resp = client.post("/api/resolve", json={"url": URL.format("x")})
     assert resp.status_code == status
-    assert resp.json() == {"code": code, "message": "說明"}
+    body = resp.json()
+    assert (body["code"], body["key"], body["params"]) == (code, f"errors.{code}", {"provider": "Fake host"})
+    assert body["message"] == render(f"errors.{code}", {"provider": "Fake host"})
 
 
 def test_unexpected_errors_answer_json(tmp_path, provider):
@@ -114,6 +117,7 @@ def test_task_lifecycle(client, content, tmp_path):
     duplicate = client.post("/api/tasks", json={"url": URL.format("one")})
     assert duplicate.status_code == 409
     assert duplicate.json()["code"] == "duplicate_active" and duplicate.json()["task_id"] == task["id"]
+    assert duplicate.json()["task_status"] in ("queued", "downloading", "completed")
     resolved = client.post("/api/resolve", json={"url": URL.format("one")}).json()
     assert resolved["duplicate"]["task_id"] == task["id"]
 
@@ -325,3 +329,13 @@ def test_sse_stream(live):
         requests.delete(f"{live}/api/tasks/{task_id}", timeout=10)
         items = read_events(lines, lambda got: any(k == "task_removed" for k, _ in got))
         assert ("task_removed", f'{{"id": "{task_id}"}}') in items
+
+
+@pytest.mark.parametrize("method,path,key", [
+    ("GET", "/api", "errors.route_not_found"),
+    ("POST", "/api/nope", "errors.route_not_found"),
+])
+def test_unknown_api_paths_answer_json(client, method, path, key):
+    resp = client.request(method, path)
+    assert resp.status_code == 404
+    assert (resp.json()["code"], resp.json()["key"]) == ("not_found", key)

@@ -104,7 +104,7 @@ def test_restart_marks_active_jobs_paused(tmp_path, provider, server):
     restarted = build_manager(tmp_path, provider)
     stored = restarted.get(job.id)
     assert stored.status == Status.PAUSED and stored.phase is None
-    assert "重新啟動" in stored.message
+    assert stored.message_key == "messages.paused_restart" and stored.message
     manager.delete(job.id)
 
 

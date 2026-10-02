@@ -18,14 +18,15 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from .api import ApiError, router
 from .config import Settings
 from .jobs import JobManager
+from .messages import CodedError
 from .providers import default_registry
 
 STORAGE_INTERVAL = 5.0
 
 
-def _error(status: int, code: str, message: str, **extra) -> JSONResponse:
-    """A `{code, message}` error answer."""
-    return JSONResponse({"code": code, "message": message, **extra}, status_code=status)
+def _error(status: int, code: str, key: str | None = None) -> JSONResponse:
+    """A `{code, key, params, message}` error answer without parameters."""
+    return JSONResponse(CodedError(code, key).as_error(), status_code=status)
 
 
 def _watch_storage(manager: JobManager, stop: threading.Event, interval: float) -> None:
@@ -72,31 +73,32 @@ def create_app(settings: Settings | None = None, manager: JobManager | None = No
 
     @app.exception_handler(ApiError)
     async def api_error(request: Request, exc: ApiError) -> JSONResponse:
-        return _error(exc.status, exc.code, exc.message, **exc.extra)
+        return JSONResponse(exc.body(), status_code=exc.status)
 
     @app.exception_handler(RequestValidationError)
     async def invalid_request(request: Request, exc: RequestValidationError) -> JSONResponse:
-        return _error(422, "invalid_request", "送出的資料格式不正確。")
+        return _error(422, "invalid_request")
 
     @app.exception_handler(Exception)
     async def unexpected(request: Request, exc: Exception) -> JSONResponse:
         logging.getLogger(__name__).error("unhandled error on %s", request.url.path, exc_info=exc)
-        return _error(500, "internal_error", "發生未預期的錯誤，詳細內容已寫入伺服器記錄。")
+        return _error(500, "internal_error")
 
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         if exc.status_code == 404:
-            return _error(404, "not_found", "找不到這個位址。")
+            return _error(404, "not_found", "errors.page_not_found")
         if exc.status_code == 405:
-            return _error(405, "method_not_allowed", "這個位址不接受這種要求。")
-        return _error(exc.status_code, "http_error", "要求無法完成。")
+            return _error(405, "method_not_allowed")
+        return _error(exc.status_code, "http_error")
 
     app.include_router(router)
 
+    @app.api_route("/api", methods=["GET", "POST", "PUT", "PATCH", "DELETE"], include_in_schema=False)
     @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
                    include_in_schema=False)
-    def api_not_found(rest: str) -> JSONResponse:
-        return _error(404, "not_found", "找不到這個 API。")
+    def api_not_found(rest: str = "") -> JSONResponse:
+        return _error(404, "not_found", "errors.route_not_found")
 
     if settings.web_dist.is_dir():
         dist = settings.web_dist.resolve()

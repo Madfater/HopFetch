@@ -133,7 +133,7 @@ class FakeProvider(Provider):
     def generate_links(self, ref, count, ctx: LinkContext):
         self.link_calls += 1
         while True:
-            ctx.set_status(PHASE_CAPTCHA, "solving")
+            ctx.set_status(PHASE_CAPTCHA, "messages.captcha_fetching")
             if ctx.solve_captcha(b"png", CaptchaSpec(length=6)) == "abc123":
                 break
         if self.expire_first and self.link_calls == 1:

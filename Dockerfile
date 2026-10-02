@@ -3,6 +3,7 @@ WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
 RUN npm ci
 COPY web/ ./
+COPY shared/ /app/shared/
 RUN npm run build
 
 FROM python:3.12-slim
@@ -15,6 +16,7 @@ ENV UV_LINK_MODE=copy UV_COMPILE_BYTECODE=1 PATH=/app/.venv/bin:$PATH
 COPY pyproject.toml uv.lock Readme.md ./
 RUN uv sync --frozen --no-dev
 COPY downloader/ downloader/
+COPY shared/ shared/
 COPY --from=web /app/web/dist web/dist
 ENV DATA_DIR=/data DOWNLOAD_DIR=/downloads
 VOLUME ["/data", "/downloads"]

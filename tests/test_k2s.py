@@ -51,7 +51,7 @@ def ctx(tmp_path):
     pool = ProxyPool(tmp_path / "proxies.txt")
     (tmp_path / "proxies.txt").write_text("1.1.1.1:80\n2.2.2.2:80")
     context = LinkContext(solve_captcha=lambda image, spec: "abc123",
-                          set_status=lambda state, message: None, proxies=pool)
+                          set_status=lambda phase, key, **params: None, proxies=pool)
     context.waits = []
     context.wait = lambda seconds, message: context.waits.append(seconds)
     return context
@@ -100,7 +100,8 @@ def test_cooldown_beyond_limit_fails_fast(monkeypatch, ctx):
     with pytest.raises(ProviderError) as info:
         k2s.K2SProvider().generate_links(REF, 2, ctx)
     assert info.value.code == "quota_exceeded"
-    assert "167 分鐘" in info.value.message
+    assert info.value.key == "errors.quota_exceeded_wait"
+    assert info.value.params == {"provider": "Keep2Share", "count": 167}
     assert ctx.waits == []
 
 
@@ -109,8 +110,9 @@ def test_user_proxy_tried_second_without_leaking_credentials(monkeypatch, tmp_pa
                      user_proxies=["socks5h://user:secret@proxy.example:1080"])
     messages = []
     context = LinkContext(solve_captcha=lambda image, spec: "abc123",
-                          set_status=lambda state, message: messages.append(message), proxies=pool)
-    context.wait = lambda seconds, message: None
+                          set_status=lambda phase, key, **params: messages.append((key, params)),
+                          proxies=pool)
+    context.wait = lambda seconds, key: None
     fake = FakeK2S([
         {"status": "success", "time_wait": 2201},
         {"status": "success", "time_wait": 0, "free_download_key": "K"},
@@ -118,15 +120,15 @@ def test_user_proxy_tried_second_without_leaking_credentials(monkeypatch, tmp_pa
     install(monkeypatch, fake)
     assert k2s.K2SProvider().generate_links(REF, 1, context) == ["K-0"]
     assert [call[0] for call in fake.key_calls] == [None, "socks5h://user:secret@proxy.example:1080"]
-    assert "透過 socks5h://proxy.example:1080 取得下載授權" in messages
-    assert not any("secret" in message for message in messages)
+    assert ("messages.requesting_key_proxy", {"proxy": "socks5h://proxy.example:1080"}) in messages
+    assert not any("secret" in repr(message) for message in messages)
 
 
 def test_failed_key_request_log_hides_credentials(monkeypatch, tmp_path, caplog):
     proxy = "socks5h://user:secret@proxy.example:1080"
     pool = ProxyPool(tmp_path / "proxies.txt", enabled=False, user_proxies=[proxy])
     context = LinkContext(solve_captcha=lambda image, spec: "abc123",
-                          set_status=lambda state, message: None, proxies=pool)
+                          set_status=lambda phase, key, **params: None, proxies=pool)
     fake = FakeK2S([{"status": "error", "message": "Download limit"}])
     install(monkeypatch, fake)
 

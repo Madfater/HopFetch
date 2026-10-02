@@ -14,11 +14,12 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 
 | Path | Responsibility |
 | --- | --- |
-| `downloader/app.py` | App factory and the `app` instance for uvicorn. Starts and stops the job manager, preloads proxies, watches free space, maps errors to `{code, message}`, serves `web/dist` with an SPA fallback |
+| `downloader/app.py` | App factory and the `app` instance for uvicorn. Starts and stops the job manager, preloads proxies, watches free space, maps errors to `{code, key, params, message}`, serves `web/dist` with an SPA fallback |
 | `downloader/api.py` | Routes under `/api`: providers, resolve, tasks and their actions, file, storage, settings, events |
 | `downloader/jobs.py` | `JobManager`: status and phase state machine, one worker thread per job, `jobs.json` persistence, events, link reuse and regeneration |
 | `downloader/events.py` | `EventBus` from worker threads to asyncio subscribers, per-task throttling, and the SSE generator |
 | `downloader/settings_store.py` | `SettingsStore`: the editable settings in `settings.json` |
+| `downloader/messages.py` | Translation keys for user-facing text: `CodedError`, and `render` for the zh-Hant fallback |
 | `downloader/engine.py` | `SegmentedDownload`: splits the file into ranges, one connection per link, resumable part files, `assemble` |
 | `downloader/captcha.py` | `OcrSolver` (ddddocr) and `CaptchaSession`, which tries OCR up to a limit |
 | `downloader/proxies.py` | `ProxyPool`: user proxies from `PROXIES` and `proxies.user.txt`, then public proxies fetched from proxyscrape, tested and cached in `proxies.txt`; URL helpers that hide credentials |
@@ -27,6 +28,7 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
 | `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
 | `shared/provider-test-cases.json` | URL matching cases run by both pytest and the frontend tests |
+| `shared/i18n/` | Catalogs of backend messages and errors, `zh-Hant-TW.json` and `en.json`, shared with the frontend |
 | `web/` | Vite, React and TypeScript dashboard. `src/api.ts` is the typed API client |
 | `tests/` | pytest suite. `conftest.py` has a local Range server used by the engine, job and API tests |
 | `script/` | Harness scripts: checks, GitHub client, apply |
@@ -60,7 +62,7 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 ### Docker
 
-`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. `compose.yaml` runs it:
+`Dockerfile` builds `web/dist` in a Node stage, then installs the locked backend dependencies and `ffmpeg` into a Python image. Both stages copy `shared/`, which holds the translation catalogs and the provider test cases. `compose.yaml` runs it:
 
 - `DATA_DIR=/data` and `DOWNLOAD_DIR=/downloads` inside the container, mounted from `./data` and `./downloads`.
 - Runs as `${UID}:${GID}`, read from `.env` next to `compose.yaml`, so files on the host belong to the user. Without `.env` it runs as `1000:1000`. Bash does not export `UID` and marks it read-only, so the file is the way to set it.
@@ -84,7 +86,7 @@ Run exactly one uvicorn worker. Jobs, their threads and the event bus live in th
 
 ## Job flow
 
-A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `failed` and `canceled`. While `downloading`, `phase` names the step: `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` or `verifying`, and `message` carries zh-Hant detail such as a countdown. Failures are `{code, message}`.
+A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `failed` and `canceled`. While `downloading`, `phase` names the step: `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` or `verifying`, and `message_key` with `message_params` describe the step, such as a countdown in seconds. Failures are `{code, key, params, message}`. See [Messages](#messages).
 
 1. `POST /api/tasks` checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component of at most 200 UTF-8 bytes, so ` (N)` and `.part` still fit the filesystem's limit.
 2. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the phase follows: `captcha`, `waiting` and `links`.
@@ -106,6 +108,16 @@ Stopping the server pauses running jobs the same way, and a server start marks a
 - A subscriber whose queue fills up is dropped; the browser reconnects and refetches the task list.
 - A `: ping` comment goes out after 15 seconds without events, and the response sets `X-Accel-Buffering: no` so a reverse proxy does not buffer it.
 - Free space is checked every 5 seconds and published when it changes.
+
+## Messages
+
+The backend sends translation keys, and the frontend translates them.
+
+- Step descriptions are `messages.*` keys and failures are `errors.*` keys, each with a params object. The catalogs are `shared/i18n/zh-Hant-TW.json` and `shared/i18n/en.json`, using i18next's `{{name}}` interpolation.
+- An error's `code` is stable for program logic. Its `key` is usually `errors.<code>`; a variant of the same code has its own key, such as `errors.quota_exceeded_wait`.
+- Every answer also carries `message`, the zh-Hant text rendered from the catalog, for clients without the key.
+- Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
+- `tests/test_messages.py` checks that both catalogs have the same keys and placeholders, and that every key and error code the backend uses exists.
 
 ## Keep2Share flow
 
@@ -133,5 +145,5 @@ The engine, jobs and API need no changes. A captcha is solved through `ctx.solve
 - Index 0 of the proxy list is `None`, meaning the direct connection.
 - Split sizes under 20 MiB and connection counts outside 1 to 64 are rejected.
 - Job links and file paths never leave the backend. Task routes take only an id of 12 hex digits, and every file served or deleted is checked to be a regular file, not a symlink, whose real path is inside the download root.
-- Only URLs matching a provider pattern reach the network. Error answers carry a code and a zh-Hant message, never raw exception text.
+- Only URLs matching a provider pattern reach the network. Error answers carry a code, a translation key with its params, and fallback text, never raw exception text.
 - Tests never touch the network. They use the local Range server in `tests/conftest.py` and scripted fakes.
