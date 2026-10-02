@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  IMAGE: ghcr.io/madfater/k2s-downloader
+  IMAGE: ghcr.io/madfater/hop-fetch
 
 jobs:
   image:

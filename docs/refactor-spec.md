@@ -10,7 +10,7 @@
 - 支援的雲端：只有 Keep2Share（`k2s.cc`、`keep2share.cc`）。通用的直連 provider 已移除，任何不屬於支援雲端的網址一律拒絕。
 - 主要裝置：桌機。
 - 介面語言：以 i18n 支援繁體中文（`zh-Hant-TW`，預設）與英文（`en`），見「多語系」。
-- 產品名稱未定：集中在前端的單一常數 `APP_NAME`（`web/src/app-name.ts`），暫定值 `Downloader`。頁面標題與名稱標誌都從這裡讀取；`vite.config.ts` 以 `transformIndexHtml` 把它寫進 `<title>`。
+- 產品名稱：Hop fetch，集中在前端的單一常數 `APP_NAME`（`web/src/app-name.ts`）。頁面標題與名稱標誌都從這裡讀取；`vite.config.ts` 以 `transformIndexHtml` 把它寫進 `<title>`。
 
 ## 工作方式
 

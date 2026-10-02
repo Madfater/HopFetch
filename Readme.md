@@ -1,4 +1,4 @@
-# Downloader
+# Hop fetch
 
 A self-hosted web app that downloads files from file hosting platforms to a NAS over many connections at once, with pause, resume and automatic captcha solving.
 

@@ -1,5 +1,5 @@
 [project]
-name = "k2s-downloader"
+name = "hop-fetch"
 version = "0.2.0"
 description = "Web app for multi-connection downloads from file hosting platforms"
 readme = "Readme.md"

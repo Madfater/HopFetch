@@ -1,5 +1,5 @@
 {
-  "name": "downloader-web",
+  "name": "hop-fetch-web",
   "private": true,
   "version": "0.0.0",
   "type": "module",
