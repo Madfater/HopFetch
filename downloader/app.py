@@ -87,7 +87,7 @@ def create_app(settings: Settings | None = None, manager: JobManager | None = No
     @app.exception_handler(StarletteHTTPException)
     async def http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
         if exc.status_code == 404:
-            return _error(404, "not_found", "errors.route_not_found")
+            return _error(404, "not_found", "errors.page_not_found")
         if exc.status_code == 405:
             return _error(405, "method_not_allowed")
         return _error(exc.status_code, "http_error")

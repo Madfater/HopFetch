@@ -117,6 +117,7 @@ def test_task_lifecycle(client, content, tmp_path):
     duplicate = client.post("/api/tasks", json={"url": URL.format("one")})
     assert duplicate.status_code == 409
     assert duplicate.json()["code"] == "duplicate_active" and duplicate.json()["task_id"] == task["id"]
+    assert duplicate.json()["task_status"] in ("queued", "downloading", "completed")
     resolved = client.post("/api/resolve", json={"url": URL.format("one")}).json()
     assert resolved["duplicate"]["task_id"] == task["id"]
 
@@ -328,3 +329,13 @@ def test_sse_stream(live):
         requests.delete(f"{live}/api/tasks/{task_id}", timeout=10)
         items = read_events(lines, lambda got: any(k == "task_removed" for k, _ in got))
         assert ("task_removed", f'{{"id": "{task_id}"}}') in items
+
+
+@pytest.mark.parametrize("method,path,key", [
+    ("GET", "/api", "errors.route_not_found"),
+    ("POST", "/api/nope", "errors.route_not_found"),
+])
+def test_unknown_api_paths_answer_json(client, method, path, key):
+    resp = client.request(method, path)
+    assert resp.status_code == 404
+    assert (resp.json()["code"], resp.json()["key"]) == ("not_found", key)

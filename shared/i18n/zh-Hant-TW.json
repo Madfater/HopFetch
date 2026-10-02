@@ -9,7 +9,7 @@
     "captcha_attempt": "辨識驗證碼（第 {{n}} 次）",
     "waiting_cooldown": "所有連線都在冷卻，剩餘 {{seconds}} 秒",
     "waiting_free_slot": "等待免費下載名額，剩餘 {{seconds}} 秒",
-    "links_generated": "已取得 {{done}}/{{total}} 條連結",
+    "links_generated": "已取得 {{done}}/{{count}} 條連結",
     "links_regenerating": "下載連結已失效，重新產生",
     "downloading": "透過 {{count}} 條連線下載",
     "assembling": "合併分段",
@@ -60,6 +60,7 @@
     "method_not_allowed": "這個位址不接受這種要求。",
     "http_error": "要求無法完成。",
     "invalid_state": "這個任務目前無法執行這個動作。",
-    "invalid_settings": "設定值超出允許範圍。"
+    "invalid_settings": "設定值超出允許範圍。",
+    "page_not_found": "找不到這個位址。"
   }
 }

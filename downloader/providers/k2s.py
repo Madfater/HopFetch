@@ -205,7 +205,7 @@ class K2SProvider(Provider):
                         links.append(future.result().json()["url"])
                     except (requests.RequestException, KeyError, ValueError):
                         continue
-                    ctx.set_status(PHASE_LINKS, "messages.links_generated", done=len(links), total=count)
+                    ctx.set_status(PHASE_LINKS, "messages.links_generated", done=len(links), count=count)
                 if len(links) == before:
                     break
         return links

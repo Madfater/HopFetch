@@ -34,11 +34,6 @@ def render(key: str, params: dict | None = None) -> str:
     return _PLACEHOLDER.sub(lambda m: str(values.get(m.group(1), m.group(0))), node)
 
 
-def text(key: str, **params) -> dict:
-    """A `{key, params, message}` triple for `key`."""
-    return {"key": key, "params": params, "message": render(key, params)}
-
-
 class CodedError(Exception):
     """A failure with a stable `code`, a translation `key`, its `params` and fallback `message`.
 

@@ -9,7 +9,6 @@
     "captcha_attempt": "Reading the captcha (try {{n}})",
     "waiting_cooldown": "Every connection is cooling down, {{seconds}} s left",
     "waiting_free_slot": "Waiting for the free download slot, {{seconds}} s left",
-    "links_generated": "Got {{done}} of {{total}} links",
     "links_regenerating": "Links expired, generating new ones",
     "assembling": "Joining parts",
     "verifying": "Checking the video with ffmpeg",
@@ -20,7 +19,9 @@
     "paused_legacy": "Paused. Resume continues where it stopped.",
     "canceled": "Canceled",
     "downloading_one": "Downloading over {{count}} connection",
-    "downloading_other": "Downloading over {{count}} connections"
+    "downloading_other": "Downloading over {{count}} connections",
+    "links_generated_one": "Got {{done}} of {{count}} link",
+    "links_generated_other": "Got {{done}} of {{count}} links"
   },
   "errors": {
     "invalid_url": "This is not a valid URL. Paste a share link that starts with https://.",
@@ -62,6 +63,7 @@
     "invalid_state": "This action does not apply to the task right now.",
     "invalid_settings": "A setting is out of range.",
     "quota_exceeded_wait_one": "{{provider}} asks to wait about {{count}} minute before the next free download. Try again later.",
-    "quota_exceeded_wait_other": "{{provider}} asks to wait about {{count}} minutes before the next free download. Try again later."
+    "quota_exceeded_wait_other": "{{provider}} asks to wait about {{count}} minutes before the next free download. Try again later.",
+    "page_not_found": "This address does not exist."
   }
 }

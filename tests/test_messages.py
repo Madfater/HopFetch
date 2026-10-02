@@ -11,7 +11,7 @@ from downloader.messages import CATALOG_DIR, CodedError, catalog, render
 
 LOCALES = ["zh-Hant-TW", "en"]
 SOURCE = Path(__file__).resolve().parent.parent / "downloader"
-KEY_LITERAL = re.compile(r'"((?:messages|errors)\.[a-z_]+)"')
+KEY_LITERAL = re.compile(r'"((?:messages|errors)\.[a-z0-9_]+)"')
 CODE_LITERAL = re.compile(r'(?:Error|DuplicateTask|InvalidState|__init__)\(\s*"([a-z_]+)"'
                           r'|_error\([^,()]+(?:\.\w+)*,\s*"([a-z_]+)"')
 PLURAL_SUFFIX = re.compile(r"_(?:zero|one|two|few|many|other)$")
@@ -52,6 +52,14 @@ def test_locales_share_keys_and_placeholders():
         assert other.keys() == base.keys(), locale
         for key, text in base.items():
             assert set(PLACEHOLDER.findall(other[key])) == set(PLACEHOLDER.findall(text)), (locale, key)
+
+
+def test_plural_variants_are_complete():
+    for locale in LOCALES:
+        keys = {f"{ns}.{key}" for ns, entries in catalog(locale).items() for key in entries}
+        for key in keys:
+            if key.endswith("_one"):
+                assert key[:-4] + "_other" in keys, (locale, key)
 
 
 def test_every_key_the_backend_uses_exists():
