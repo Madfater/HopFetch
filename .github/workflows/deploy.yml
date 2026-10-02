@@ -44,3 +44,22 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    needs: image
+    runs-on: ubuntu-latest
+    permissions: {}
+    env:
+      ARCANE_WEBHOOK_URL: ${{ secrets.ARCANE_WEBHOOK_URL }}
+    steps:
+      # - Fails the run when the secret is missing, so a skipped deploy never shows as green.
+      - name: Require webhook secret
+        run: |
+          if [ -z "$ARCANE_WEBHOOK_URL" ]; then
+            echo "::error::Secret ARCANE_WEBHOOK_URL is not set, see docs/architecture.md#deployment"
+            exit 1
+          fi
+      # - Calls the Arcane project redeploy webhook, which pulls the latest image and recreates the service.
+      # - Reads the URL from the environment so it is never written into the command line.
+      - name: Redeploy on Arcane
+        run: curl -fsS --retry 3 --retry-all-errors -X POST "$ARCANE_WEBHOOK_URL" -o /dev/null
