@@ -322,11 +322,15 @@ class JobManager:
         self._persist(force=True)
 
     def shutdown(self, timeout: float = 30) -> None:
-        """Pause every running job and wait for the workers to stop."""
+        """Pause every running job and wait for the workers to stop.
+
+        - Intents are raised under the manager lock, the same lock control actions hold, so a
+          concurrent delete or cancel is never lowered to a pause.
+        """
         with self._lock:
             runs = list(self._runs.values())
-        for run in runs:
-            run.stop("pause")
+            for run in runs:
+                run.stop("pause")
         for run in runs:
             if run.thread:
                 run.thread.join(timeout)
