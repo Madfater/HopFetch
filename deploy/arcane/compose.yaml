@@ -1,0 +1,15 @@
+# - Compose file for the Arcane project that the deploy workflow redeploys.
+# - Pulls the published image on every deploy instead of building from source.
+# - Uses host networking, so uvicorn listens on port 8000 on every host interface.
+# - Reads UID, GID, DATA_PATH and DOWNLOAD_PATH from the project's .env.
+services:
+  downloader:
+    image: ghcr.io/madfater/k2s-downloader:latest
+    pull_policy: always
+    network_mode: host
+    user: "${UID:-1000}:${GID:-1000}"
+    volumes:
+      - ${DATA_PATH:-./data}:/data
+      - ${DOWNLOAD_PATH:-./downloads}:/downloads
+    stop_grace_period: 40s
+    restart: unless-stopped
