@@ -2,7 +2,8 @@
  * - A dense, left-aligned table up to 1200px wide; the name column takes the room the fixed
  *   columns leave.
  * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
- *   fades it out; a row that arrives while the page is open flashes once.
+ *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
+ *   where its red notes still keep 4.5:1.
  * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
  *   progress events.
  * - The empty page shows an empty drive bay: a recessed slot with its lamp off.
@@ -67,7 +68,7 @@
 
 @keyframes arrive {
   from {
-    background: var(--color-raised);
+    background: var(--color-panel);
   }
 }
 
