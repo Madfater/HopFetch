@@ -115,9 +115,10 @@ class FakeSources:
 
 def test_parse_source_handles_list_formats():
     text = ("1.2.3.4:80\nhttp://5.6.7.8:3128\n9.9.9.9:8080:Indonesia\n  10.0.0.1:1080 US\n"
-            "# comment\n\nnot a proxy\n1.1.1.1:0\n1.1.1.1:70000\n1.1.1.1\n")
+            "# comment\n\nnot a proxy\n1.1.1.1:0\n1.1.1.1:70000\n1.1.1.1\n999.1.1.1:80\n"
+            "010.001.002.003:0080\n")
     assert parse_source(text, "http") == ["1.2.3.4:80", "5.6.7.8:3128", "9.9.9.9:8080",
-                                          "10.0.0.1:1080"]
+                                          "10.0.0.1:1080", "10.1.2.3:80"]
     assert parse_source("socks5://2.2.2.2:1080\n3.3.3.3:9050\n", "socks5h") == [
         "socks5h://2.2.2.2:1080", "socks5h://3.3.3.3:9050"]
 
@@ -221,3 +222,21 @@ def test_missing_cache_is_built_from_fetched_candidates(monkeypatch, tmp_path):
     assert tested == [["1.1.1.1:80", "socks5h://2.2.2.2:1080"]]
     assert cache.read_text() == "socks5h://2.2.2.2:1080"
     assert pool._refresh_thread is None
+
+
+def test_refresh_ends_quietly_when_the_cache_is_gone(monkeypatch, tmp_path, caplog):
+    cache = tmp_path / "proxies.txt"
+    cache.write_text("1.1.1.1:80")
+    age(cache, proxies.CACHE_MAX_AGE + 60)
+
+    def vanish():
+        cache.unlink()
+        return ["2.2.2.2:80"]
+
+    monkeypatch.setattr(proxies, "fetch_candidates", vanish)
+    monkeypatch.setattr(ProxyPool, "_test", staticmethod(lambda candidates: []))
+    pool = ProxyPool(cache)
+    assert pool.all() == [None, "1.1.1.1:80"]
+    pool._refresh_thread.join(5)
+    assert pool.all() == [None, "1.1.1.1:80"]
+    assert "proxy refresh failed" in caplog.text

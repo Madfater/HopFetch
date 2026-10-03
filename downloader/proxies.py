@@ -105,15 +105,20 @@ def parse_source(text: str, scheme: str) -> list[str]:
     """Return the `ip:port` proxies of a public list, one per line.
 
     - A leading `scheme://` and anything after the port, such as a country, are ignored.
-    - Lines without an IPv4 address and a port from 1 to 65535 are skipped.
+    - Lines without an IPv4 address of octets 0 to 255 and a port from 1 to 65535 are skipped.
+    - Zero-padded octets and ports are written without the padding.
     - HTTP proxies come back as `ip:port`, others as `scheme://ip:port`.
     """
     proxies = []
     for line in text.splitlines():
         match = _SOURCE_LINE.match(line)
-        if not match or not 0 < int(match[2]) < 65536:
+        if not match:
             continue
-        address = f"{match[1]}:{int(match[2])}"
+        octets = [int(octet) for octet in match[1].split(".")]
+        port = int(match[2])
+        if max(octets) > 255 or not 0 < port < 65536:
+            continue
+        address = f"{'.'.join(map(str, octets))}:{port}"
         proxies.append(address if scheme == "http" else f"{scheme}://{address}")
     return proxies
 
@@ -254,17 +259,26 @@ class ProxyPool:
 
         - A cache refreshed meanwhile by another process is read instead of fetched again.
         - With no working proxy, the old file is kept and its mtime is reset.
+        - A cache file removed or unreadable meanwhile ends the refresh with a warning.
+        - The swap takes `_load_lock` after the cache lock is released, so the two are never held
+          together.
         """
-        with file_lock(self.cache_path.with_name(self.cache_path.name + ".lock")):
-            if self._stale():
-                working = self._test(fetch_candidates())
-                if not working:
-                    log.warning("proxy refresh found no working proxy, keeping the old list")
-                    os.utime(self.cache_path)
+        try:
+            with file_lock(self.cache_path.with_name(self.cache_path.name + ".lock")):
+                if not self.cache_path.exists():
                     return
-                self.cache_path.write_text("\n".join(working))
-            else:
-                working = [p for p in self.cache_path.read_text().splitlines() if p.strip()]
+                if self._stale():
+                    working = self._test(fetch_candidates())
+                    if not working:
+                        log.warning("proxy refresh found no working proxy, keeping the old list")
+                        os.utime(self.cache_path)
+                        return
+                    self.cache_path.write_text("\n".join(working))
+                else:
+                    working = [p for p in self.cache_path.read_text().splitlines() if p.strip()]
+        except OSError as exc:
+            log.warning("proxy refresh failed: %s", exc)
+            return
         with self._load_lock:
             self._public = working
         log.info("proxy pool refreshed with %d public proxies", len(working))
