@@ -758,8 +758,15 @@ class JobManager:
         output, handle = claim_staging(self.root / job.file_name)
         job.output_path = str(output)
         self._persist(force=True)
-        with handle:
-            assemble(self._part_dir(job), build_parts(job.size, job.split_size), handle)
+        try:
+            with handle:
+                assemble(self._part_dir(job), build_parts(job.size, job.split_size), handle,
+                         provider.decoder(ref))
+        except ProviderError as exc:
+            if exc.code == "integrity_failed":
+                self._discard_partial(job)
+                self._persist(force=True)
+            raise
         output = publish_staging(staging_path(output), output)
         job.output_path = str(output)
         self._persist(force=True)

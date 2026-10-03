@@ -13,7 +13,16 @@ import pytest
 from downloader.config import Settings
 from downloader.jobs import JobManager
 from downloader.providers import ProviderRegistry
-from downloader.providers.base import PHASE_CAPTCHA, CaptchaSpec, FileInfo, FileRef, LinkContext, Provider
+from downloader.providers.base import (
+    PHASE_CAPTCHA,
+    CaptchaSpec,
+    Decoder,
+    FileInfo,
+    FileRef,
+    LinkContext,
+    Provider,
+    ProviderError,
+)
 from downloader.proxies import ProxyPool
 
 
@@ -118,12 +127,32 @@ class FakeOcr:
         return self.readings.pop(0) if self.readings else self.default
 
 
+class XorDecoder(Decoder):
+    """XORs every byte with `key`, counts what it saw, and fails `finish` when `corrupt`."""
+
+    def __init__(self, key: int, corrupt: bool = False):
+        self.key = key
+        self.corrupt = corrupt
+        self.seen = 0
+        self.finished = False
+
+    def update(self, data: bytes) -> bytes:
+        self.seen += len(data)
+        return bytes(b ^ self.key for b in data)
+
+    def finish(self) -> None:
+        self.finished = True
+        if self.corrupt:
+            raise ProviderError("integrity_failed")
+
+
 class FakeProvider(Provider):
     """A platform at `https://fake.test/f/<id>` whose links all point at a RangeServer.
 
     - Link generation solves captchas until one reads `abc123`.
     - `names` maps file ids to remote names; others are `<id>.bin`.
     - `info_error` makes `get_info` raise it; `expire_first` makes the first links answer 410.
+    - `xor` sets a one-byte `XorDecoder` for assembly; `corrupt` makes its `finish` fail.
     """
 
     name = "fake"
@@ -138,6 +167,11 @@ class FakeProvider(Provider):
         self.size: int | None = len(server.content)
         self.link_calls = 0
         self.expire_first = False
+        self.xor: int | None = None
+        self.corrupt = False
+
+    def decoder(self, ref: FileRef) -> Decoder | None:
+        return None if self.xor is None else XorDecoder(self.xor, self.corrupt)
 
     def get_info(self, ref: FileRef) -> FileInfo:
         if self.info_error:

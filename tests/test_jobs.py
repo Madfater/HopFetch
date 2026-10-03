@@ -650,3 +650,27 @@ def test_a_second_change_in_one_run_fails_the_job(tmp_path, provider, server, co
     wait_for(lambda: job.status in (Status.COMPLETED, Status.FAILED))
     server.httpd.RequestHandlerClass.do_GET = original_get
     assert job.status == Status.FAILED and job.error["code"] == "remote_changed"
+
+
+def test_the_provider_decoder_turns_parts_into_the_saved_file(tmp_path, provider, content):
+    provider.xor = 0x5A
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("decoded"))
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "decoded.bin").read_bytes() == bytes(b ^ 0x5A for b in content)
+
+
+def test_a_failed_integrity_check_drops_the_download(tmp_path, provider, content):
+    provider.xor = 0x5A
+    provider.corrupt = True
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("broken"))
+    wait_for(lambda: job.status == Status.FAILED)
+    assert job.error["code"] == "integrity_failed"
+    assert job.bytes_done == 0 and job.output_path is None
+    assert not (tmp_path / "data" / "jobs" / job.id).exists()
+    assert list((tmp_path / "downloads").iterdir()) == []
+    provider.corrupt = False
+    manager.retry(job.id)
+    wait_for(lambda: job.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "broken.bin").read_bytes() == bytes(b ^ 0x5A for b in content)

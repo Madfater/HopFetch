@@ -73,7 +73,7 @@
 ### 錯誤代碼
 
 - 解析：`invalid_url`、`unsupported`、`not_found`、`private`、`premium_only`、`quota_exceeded`、`upstream_error`。
-- 任務：另有 `captcha_failed`、`links_expired`、`stalled`、`disk_full`、`internal_error`；階段 3 加入 `remote_changed`、`range_unsupported`。
+- 任務：另有 `captcha_failed`、`links_expired`、`stalled`、`disk_full`、`internal_error`；階段 3 加入 `remote_changed`、`range_unsupported`；`integrity_failed` 表示組合時 provider 的 `Decoder` 完整性檢查不通過（例如 MEGA 的 MAC 不符）。
 - 建立任務：`duplicate_active`、`duplicate_completed`（兩者都附 `task_id` 與 `task_status`）、`insufficient_space`。
 - 其他：`task_not_found`、`invalid_state`（動作不適用於目前狀態）、`file_missing`、`invalid_request`（格式錯誤）、`invalid_settings`、`not_found`（未知的 API 路徑，包含 `/api` 本身）、`method_not_allowed`、`http_error`。
 - `ProviderError` 帶 `code` 屬性。
