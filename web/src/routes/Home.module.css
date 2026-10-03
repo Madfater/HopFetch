@@ -27,7 +27,7 @@
   border: 1px solid var(--color-slot-edge-bottom);
   border-top-color: var(--color-slot-edge-top);
   border-left-color: var(--color-slot-edge-top);
-  border-radius: var(--radius);
+  border-radius: var(--radius-l);
   background: var(--color-slot);
 }
 
@@ -60,13 +60,13 @@
 }
 
 .statusError {
-  color: var(--color-red);
+  color: var(--color-red-text);
 }
 
 .preview {
   margin-top: var(--space-3);
   padding: var(--space-4);
-  border-radius: var(--radius);
+  border-radius: var(--radius-l);
   background: var(--color-panel);
   animation: slide-out 200ms ease-out;
 }
@@ -125,7 +125,7 @@
 }
 
 .noteError {
-  color: var(--color-red-on-panel);
+  color: var(--color-red-text);
 }
 
 .actions {

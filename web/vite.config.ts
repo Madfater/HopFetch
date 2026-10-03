@@ -7,6 +7,8 @@ import { APP_NAME } from './src/app-name.ts'
 // - `shared/` (translation catalogs, provider test cases) sits beside `web/` and is allowed.
 // - The page title comes from APP_NAME, and the Latin Archivo width-axis font is preloaded so
 //   the logo does not change face after the first paint.
+// - Vitest replaces CSS with empty strings, except `tokens.css`, which the contrast test
+//   reads as text.
 
 const FONT_FILE = 'archivo-latin-wdth-normal'
 
@@ -41,5 +43,6 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/test/setup.ts'],
     include: ['src/**/*.test.{ts,tsx}'],
+    css: { include: [/tokens\.css/] },
   },
 })

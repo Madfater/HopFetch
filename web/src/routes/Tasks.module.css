@@ -25,7 +25,7 @@
 .filters {
   display: flex;
   border: 1px solid var(--color-slot-edge-bottom);
-  border-radius: var(--radius);
+  border-radius: var(--radius-m);
 }
 
 .filter {
@@ -114,11 +114,7 @@
 }
 
 .subError {
-  color: var(--color-red);
-}
-
-.focused .subError {
-  color: var(--color-red-on-panel);
+  color: var(--color-red-text);
 }
 
 .table .right {

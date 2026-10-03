@@ -1,29 +1,59 @@
 /*
- * - Every color the app uses, named by role. A light theme only needs another set of these
- *   values under a selector such as [data-theme='light'].
- * - `--color-red-on-panel` is red text on the panel color, slightly lighter than the lamp red
- *   so it keeps a 4.5:1 contrast there.
+ * - Every color, radius, shadow and motion value the app uses, named by role. A light theme
+ *   only needs another set of the color values under a selector such as [data-theme='light'].
+ * - Surfaces, from back to front: chassis (page), panel (plates), raised (hovered and selected
+ *   faces), and slot (recessed fields and tracks). Steel text keeps 4.5:1 on all of them.
+ * - `--color-red-text` is the red of every error text; it keeps 4.5:1 on the chassis and the
+ *   panel, where the lamp red does not.
+ * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
+ *   with 3:1 against the plate around it. `--color-selected` is the face of a chosen segment,
+ *   3:1 against its track.
+ * - Depth encodes elevation only: recessed fields get `--shadow-recess`, flush plates the
+ *   `--shadow-plate` highlight, and floating layers `--shadow-float`.
+ * - Motion: `fast` for hover, press and tooltips, `base` for toggles and small entrances,
+ *   `slow` for page changes and the preview. `--ease-spring` overshoots slightly and is kept
+ *   for things that snap into place.
  */
 :root {
   --color-chassis: #202428;
   --color-panel: #2a2f34;
+  --color-raised: #31373e;
   --color-slot: #15181b;
   --color-slot-edge-top: #0e1012;
   --color-slot-edge-bottom: #3a4046;
+  --color-field-edge: #747c85;
+  --color-selected: #5f666e;
   --color-ink: #e4e7e4;
-  --color-steel: #9097a0;
+  --color-steel: #9aa1aa;
   --color-divider: #2f3439;
   --color-amber: #f0a03a;
   --color-on-amber: #1b1e21;
   --color-green: #3dba6f;
   --color-red: #ee6a61;
-  --color-red-on-panel: #f0716a;
+  --color-red-text: #f0716a;
+  --color-edge-light: rgb(255 255 255 / 6%);
+  --color-shade: rgb(0 0 0 / 45%);
   --color-scrim: rgb(0 0 0 / 55%);
 
   --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   --font-numeric: 'Archivo Variable', system-ui, sans-serif;
 
-  --radius: 4px;
+  --radius-s: 4px;
+  --radius-m: 8px;
+  --radius-l: 14px;
+  --radius-round: 999px;
+
+  --shadow-recess: inset 0 1px 3px var(--color-shade);
+  --shadow-plate: inset 0 1px 0 var(--color-edge-light);
+  --shadow-float: inset 0 1px 0 var(--color-edge-light), 0 12px 32px var(--color-shade);
+
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --motion-slow: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.6, 1);
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
