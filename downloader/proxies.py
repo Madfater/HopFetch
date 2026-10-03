@@ -41,7 +41,7 @@ PROXY_SOURCES = [
 ]
 MAX_CANDIDATES = 4000
 CACHE_MAX_AGE = 6 * 3600
-TEST_URL = "https://api.myip.com"
+TEST_URL = "https://api.ipify.org"
 
 _SOURCE_LINE = re.compile(r"^\s*(?:[a-z0-9]+://)?(\d{1,3}(?:\.\d{1,3}){3}):(\d{1,5})(?!\d)", re.I)
 
