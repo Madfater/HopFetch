@@ -150,7 +150,7 @@ export function Home() {
     if (event.key === 'Enter') {
       event.preventDefault()
       start()
-    } else if (event.key === 'Escape') {
+    } else if (event.key === 'Escape' && (input || many || submitError)) {
       withViewTransition(clear)
     }
   }
