@@ -6,7 +6,11 @@ Navigation map of the codebase. When this file and the code disagree, the code w
 
 A web app, meant for a NAS on a LAN, that downloads files from file hosting platforms over many connections at once. A FastAPI backend runs download jobs in background threads, pushes changes to the browser over server-sent events, and serves a React dashboard. Each platform is a provider: it turns a user's URL into file info and a list of direct links. A shared engine then fetches byte ranges over those links in parallel into resumable part files.
 
-Keep2Share (k2s.cc) is the only provider. Its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR and turns one free download key into many links. The provider patterns are the allowlist: any other URL is rejected, so the backend never fetches addresses a user picks.
+There are two providers:
+- **Keep2Share (k2s.cc):** its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR and turns one free download key into many links.
+- **MEGA (mega.nz):** public file links. Content is encrypted with the key in the link, so the app decrypts it while assembling.
+
+The provider patterns are the allowlist: any other URL is rejected, so the backend never fetches addresses a user picks.
 
 The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](refactor-spec.md).
 
@@ -24,9 +28,10 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/engine.py` | `SegmentedDownload`: splits the file into ranges, one connection per link, resumable part files, `assemble` |
 | `downloader/captcha.py` | `OcrSolver` (ddddocr) and `CaptchaSession`, which tries OCR up to a limit |
 | `downloader/proxies.py` | `ProxyPool`: user proxies from `PROXIES` and `proxies.user.txt`, then public proxies fetched from proxyscrape, tested and cached in `proxies.txt`; URL helpers that hide credentials |
-| `downloader/providers/base.py` | `Provider` interface, `normalize_url`, `FileRef`, `FileInfo`, `CaptchaSpec`, `LinkContext`, `ProviderError` with its code |
+| `downloader/providers/base.py` | `Provider` interface, `normalize_url`, `FileRef`, `FileInfo`, `CaptchaSpec`, `LinkContext`, `Decoder`, `ProviderError` with its code |
 | `downloader/providers/__init__.py` | `ProviderRegistry`, the URL allowlist, and `default_registry()` |
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
+| `downloader/providers/mega.py` | MEGA public file links over the `cs` API, and `MegaDecoder` for decryption and the MAC check |
 | `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
 | `shared/provider-test-cases.json` | URL matching cases run by both pytest and the frontend tests |
 | `shared/i18n/` | Catalogs of backend messages and errors, `zh-Hant-TW.json` and `en.json`, shared with the frontend |
@@ -124,7 +129,7 @@ A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `fail
    - A 200 answer to a plain range request with the file's size, or no length, means the upstream ignores ranges. The job fails with `range_unsupported` and `resumable` turns false until a retry judges it again.
    - An HTML 200 answer, or a plain one of another length, is an error page and counts as a failed request. Nothing of a 200 body is ever written.
 4. When every link is refused (401, 403, 404 or 410, three times in a row each), the job regenerates links once and continues from the bytes on disk.
-5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. On filesystems without hard links the final name is first reserved by creating an empty file exclusively, and the staging file is renamed over that reservation. The final name is persisted at once, then the part directory is removed.
+5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order, through the provider's `Decoder` when it has one. A decoder that fails its integrity check fails the job with `integrity_failed` and drops the part files and staging file, so a retry downloads again. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. On filesystems without hard links the final name is first reserved by creating an empty file exclusively, and the staging file is renamed over that reservation. The final name is persisted at once, then the part directory is removed.
 6. `verifying`: for video extensions, when `ffmpeg` is on PATH, the result is recorded in `verified` as `ok` or `corrupt`.
 
 Pause, cancel and delete set the job's cancel event with an intent. Workers stop at the next block, and the worker applies the intent as it ends, under the manager lock: `pause` keeps the parts and marks the job `paused`; `cancel` deletes the parts and staging file and marks it `canceled`; `delete` removes the record and partial data, and with `delete_file` a finished file that is a regular file inside the root. Intents only escalate, pause < cancel < delete, so a later weaker request never undoes a pending stronger one. A job that completes before it sees a cancel stays completed. All three are refused during `assembling` and `verifying`. A job with no worker is handled by the caller directly.
@@ -179,6 +184,14 @@ The backend sends translation keys, and the frontend translates them.
 3. The key is exchanged for links with parallel `getUrl` calls, up to three rounds per IP.
 4. Chunks are downloaded over the direct connection. Each link allows one connection, is rate limited, and binds to the first IP that fetches it, so speed comes from the number of links.
 
+## MEGA flow
+
+1. A link is `https://mega.nz/file/<handle>#<key>` or the older `https://mega.nz/#!<handle>!<key>`, also on `mega.co.nz`. The handle is the file id. The 256-bit key stays in the fragment, which MEGA never sees: its halves XORed give the AES key, bytes 16 to 24 the CTR nonce, bytes 24 to 32 the expected MAC.
+2. `get_info` posts `{"a": "g", "p": <handle>, "ssl": 2}` to `https://g.api.mega.co.nz/cs`. The size is `s`. The name is `n` in the attributes `at`, which are decrypted with AES-CBC and a zero IV. Attributes that do not decrypt to `MEGA{...}` mean a wrong key: `invalid_url` with `errors.invalid_url_key`. A negative number in the reply is a MEGA error: `-2`, `-9`, `-11` and `-16` are `not_found`, `-17` is `quota_exceeded`, others are `upstream_error`.
+3. `generate_links` asks for the same node with `"g": 1` and hands its download URL to the engine once per connection. That URL answers Range requests on many connections at once and sends no ETag or Last-Modified.
+4. Part files hold the ciphertext. While assembling, `MegaDecoder` decrypts with AES-128-CTR from counter `nonce + 0` and computes MEGA's MAC: a CBC-MAC per chunk (128 KiB, 256 KiB and so on up to 1 MiB, then 1 MiB each) chained into one file MAC, condensed to 8 bytes and compared with the key's.
+5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which the engine counts as a failed request, so the job ends with `stalled`.
+
 ## Adding a provider
 
 1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label`, `icon` and `patterns`, and implement `get_info` and `generate_links`. Raise `ProviderError` with one of the error codes in [refactor-spec.md](refactor-spec.md). Override `headers` and `link_ttl` when needed.
@@ -186,7 +199,7 @@ The backend sends translation keys, and the frontend translates them.
 3. Add an instance to `default_registry()`, and add URLs to `shared/provider-test-cases.json`.
 4. Add tests in the style of `tests/test_k2s.py`.
 
-The engine, jobs and API need no changes. A captcha is solved through `ctx.solve_captcha(image, CaptchaSpec(...))`, which runs OCR.
+The engine, jobs and API need no changes. A captcha is solved through `ctx.solve_captcha(image, CaptchaSpec(...))`, which runs OCR. A platform that serves encoded content overrides `decoder` to return a fresh `Decoder`. Assembly feeds it the file in order from offset 0, and part files keep the bytes as downloaded.
 
 ## Invariants
 
