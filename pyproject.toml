@@ -5,13 +5,13 @@ description = "Web app for multi-connection downloads from file hosting platform
 readme = "Readme.md"
 requires-python = ">=3.10"
 dependencies = [
+    "cryptography",
     "ddddocr",
     "fastapi",
     "pillow",
     "requests[socks]",
     "requests-futures",
     "uvicorn[standard]",
-    "cryptography>=50.0.2",
 ]
 
 [dependency-groups]

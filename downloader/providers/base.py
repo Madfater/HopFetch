@@ -100,8 +100,9 @@ class Decoder(ABC):
     """Turns the downloaded bytes of a file into the bytes to save, fed in order from offset 0.
 
     - `update` takes the next block and returns its decoded bytes, of any length.
-    - `finish` runs after the last block; it raises `ProviderError("integrity_failed")` when
-      the content does not match what the platform promised.
+    - `finish` runs after the last block and writes nothing, so `update` must return every
+      decoded byte by then, as a stream cipher does; it raises `ProviderError("integrity_failed")`
+      when the content does not match what the platform promised.
     """
 
     @abstractmethod

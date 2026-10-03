@@ -495,7 +495,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "cryptography", specifier = ">=50.0.2" },
+    { name = "cryptography" },
     { name = "ddddocr" },
     { name = "fastapi" },
     { name = "pillow" },
