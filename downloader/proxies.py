@@ -2,7 +2,8 @@
 
 - User proxies come from the `PROXIES` setting and `proxies.user.txt`, as full URLs with any of
   the http, https, socks5 and socks5h schemes and optional credentials.
-- Public HTTP proxies are fetched from PROXY_SOURCES, tested and cached in `proxies.txt`.
+- Public HTTP and SOCKS5 proxies are fetched from PROXY_SOURCES, tested and cached in
+  `proxies.txt`; HTTP ones are stored as `host:port`, SOCKS5 ones as `socks5h://host:port`.
 """
 
 from __future__ import annotations
@@ -11,6 +12,7 @@ import logging
 import re
 import threading
 from concurrent.futures import as_completed
+from itertools import zip_longest
 from pathlib import Path
 from typing import Callable
 from urllib.parse import urlsplit
@@ -23,10 +25,22 @@ from .util import file_lock
 log = logging.getLogger(__name__)
 
 PROXY_SOURCES = [
-    "https://api.proxyscrape.com/?request=getproxies&proxytype=https&timeout=10000&country=all&ssl=all&anonymity=all",
-    "https://api.proxyscrape.com/?request=getproxies&proxytype=http&timeout=10000&country=all&ssl=all&anonymity=all",
+    ("https://api.proxyscrape.com/v4/free-proxy-list/get?request=displayproxies&protocol=http"
+     "&timeout=10000&country=all&ssl=all&anonymity=all&skip=0&limit=2000", "http"),
+    ("https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt", "http"),
+    ("https://raw.githubusercontent.com/jetkai/proxy-list/main/online-proxies/txt/proxies-http.txt",
+     "http"),
+    ("https://raw.githubusercontent.com/vakhov/fresh-proxy-list/master/http.txt", "http"),
+    ("https://raw.githubusercontent.com/clarketm/proxy-list/master/proxy-list-raw.txt", "http"),
+    ("https://raw.githubusercontent.com/roosterkid/openproxylist/main/HTTPS_RAW.txt", "http"),
+    ("https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/http.txt", "http"),
+    ("https://raw.githubusercontent.com/monosans/proxy-list/main/proxies/socks5.txt", "socks5h"),
+    ("https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt", "socks5h"),
 ]
+MAX_CANDIDATES = 4000
 TEST_URL = "https://api.myip.com"
+
+_SOURCE_LINE = re.compile(r"^\s*(?:[a-z0-9]+://)?(\d{1,3}(?:\.\d{1,3}){3}):(\d{1,5})(?!\d)", re.I)
 
 
 _CREDENTIALS = re.compile(r"://[^/@\s]+@")
@@ -82,6 +96,49 @@ def parse_proxy_lines(text: str) -> list[str]:
         line = line.split("#", 1)[0]
         proxies += line.replace(",", " ").split()
     return proxies
+
+
+def parse_source(text: str, scheme: str) -> list[str]:
+    """Return the `ip:port` proxies of a public list, one per line.
+
+    - A leading `scheme://` and anything after the port, such as a country, are ignored.
+    - Lines without an IPv4 address and a port from 1 to 65535 are skipped.
+    - HTTP proxies come back as `ip:port`, others as `scheme://ip:port`.
+    """
+    proxies = []
+    for line in text.splitlines():
+        match = _SOURCE_LINE.match(line)
+        if not match or not 0 < int(match[2]) < 65536:
+            continue
+        address = f"{match[1]}:{int(match[2])}"
+        proxies.append(address if scheme == "http" else f"{scheme}://{address}")
+    return proxies
+
+
+def fetch_candidates() -> list[str]:
+    """Fetch every list in PROXY_SOURCES in parallel and return up to MAX_CANDIDATES proxies.
+
+    - A source that fails or times out is logged and skipped.
+    - Sources are interleaved one proxy at a time, so the cap keeps a share of every source.
+    - Duplicates are dropped, keeping the first occurrence.
+    """
+    session = FuturesSession(max_workers=len(PROXY_SOURCES))
+    futures = [(session.get(url, timeout=15), scheme) for url, scheme in PROXY_SOURCES]
+    lists = []
+    for future, scheme in futures:
+        try:
+            lists.append(parse_source(future.result().text, scheme))
+        except requests.RequestException as exc:
+            log.warning("proxy source failed: %s", exc)
+    session.close()
+    candidates: dict[str, None] = {}
+    for row in zip_longest(*lists):
+        for proxy in row:
+            if proxy is not None:
+                candidates.setdefault(proxy)
+        if len(candidates) >= MAX_CANDIDATES:
+            break
+    return list(candidates)[:MAX_CANDIDATES]
 
 
 class ProxyPool:
@@ -155,12 +212,7 @@ class ProxyPool:
         with file_lock(self.cache_path.with_name(self.cache_path.name + ".lock")):
             if self.cache_path.exists() and not refresh:
                 return [p for p in self.cache_path.read_text().splitlines() if p.strip()]
-            candidates: list[str] = []
-            for source in PROXY_SOURCES:
-                try:
-                    candidates += requests.get(source, timeout=15).text.split()
-                except requests.RequestException as exc:
-                    log.warning("proxy source failed: %s", exc)
+            candidates = fetch_candidates()
             if on_status:
                 on_status(f"Testing {len(candidates)} public proxies")
             working = self._test(candidates)
@@ -173,7 +225,7 @@ class ProxyPool:
         """Return the candidates that can reach TEST_URL within 5 seconds."""
         if not candidates:
             return []
-        session = FuturesSession(max_workers=100)
+        session = FuturesSession(max_workers=200)
         futures = {}
         for proxy in candidates:
             futures[session.get(TEST_URL, proxies=proxy_dict(proxy), timeout=5)] = proxy

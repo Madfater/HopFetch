@@ -2,9 +2,14 @@
 
 from __future__ import annotations
 
+import requests
+
+from downloader import proxies
 from downloader.config import Settings
 from downloader.proxies import (
     ProxyPool,
+    fetch_candidates,
+    parse_source,
     parse_proxy_lines,
     proxy_dict,
     proxy_label,
@@ -78,3 +83,60 @@ def test_public_proxies_follow_the_runtime_switch(tmp_path):
     assert pool.status() == {"loaded": True, "public_enabled": True, "user": 1, "public": 1}
     pool.enabled = False
     assert pool.all() == [None, "http://u.example:1"]
+
+
+class FakeSources:
+    """Stands in for `FuturesSession`, answering each source URL with scripted text or an error."""
+
+    def __init__(self, answers: dict):
+        self.answers = answers
+
+    def __call__(self, max_workers=None):
+        return self
+
+    def get(self, url, timeout=None):
+        answer = self.answers[url]
+
+        class Future:
+            def result(self):
+                if isinstance(answer, Exception):
+                    raise answer
+                return type("Response", (), {"text": answer})()
+
+        return Future()
+
+    def close(self):
+        pass
+
+
+def test_parse_source_handles_list_formats():
+    text = ("1.2.3.4:80\nhttp://5.6.7.8:3128\n9.9.9.9:8080:Indonesia\n  10.0.0.1:1080 US\n"
+            "# comment\n\nnot a proxy\n1.1.1.1:0\n1.1.1.1:70000\n1.1.1.1\n")
+    assert parse_source(text, "http") == ["1.2.3.4:80", "5.6.7.8:3128", "9.9.9.9:8080",
+                                          "10.0.0.1:1080"]
+    assert parse_source("socks5://2.2.2.2:1080\n3.3.3.3:9050\n", "socks5h") == [
+        "socks5h://2.2.2.2:1080", "socks5h://3.3.3.3:9050"]
+
+
+def test_fetch_candidates_interleaves_dedupes_and_skips_failures(monkeypatch):
+    monkeypatch.setattr(proxies, "PROXY_SOURCES", [("a", "http"), ("b", "http"), ("c", "socks5h"),
+                                                   ("d", "http")])
+    monkeypatch.setattr(proxies, "FuturesSession", FakeSources({
+        "a": "1.1.1.1:80\n2.2.2.2:80\n3.3.3.3:80",
+        "b": "2.2.2.2:80\n4.4.4.4:80",
+        "c": "5.5.5.5:1080",
+        "d": requests.ConnectionError("down"),
+    }))
+    assert fetch_candidates() == ["1.1.1.1:80", "2.2.2.2:80", "socks5h://5.5.5.5:1080",
+                                  "4.4.4.4:80", "3.3.3.3:80"]
+
+
+def test_fetch_candidates_cap_keeps_every_source(monkeypatch):
+    monkeypatch.setattr(proxies, "MAX_CANDIDATES", 4)
+    monkeypatch.setattr(proxies, "PROXY_SOURCES", [("a", "http"), ("b", "socks5h")])
+    monkeypatch.setattr(proxies, "FuturesSession", FakeSources({
+        "a": "\n".join(f"1.1.1.{i}:80" for i in range(10)),
+        "b": "\n".join(f"2.2.2.{i}:1080" for i in range(10)),
+    }))
+    assert fetch_candidates() == ["1.1.1.0:80", "socks5h://2.2.2.0:1080", "1.1.1.1:80",
+                                  "socks5h://2.2.2.1:1080"]
