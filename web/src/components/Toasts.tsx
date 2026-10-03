@@ -9,6 +9,8 @@ import styles from './Toasts.module.css'
 // - Errors are announced assertively, others politely.
 // - Closing, by hand or by timer, first marks the notice as leaving, which plays its slide-out,
 //   and removes it LEAVE_MS later. LEAVE_MS covers the slide-out's `--motion-fast` duration.
+// - At most LIVE notices show at once. A new one drops the oldest live notices beyond that;
+//   notices already leaving finish their slide-out and do not count.
 
 interface Toast {
   id: number
@@ -20,6 +22,7 @@ interface Toast {
 const INFO_MS = 5000
 const ERROR_MS = 10000
 const LEAVE_MS = 150
+const LIVE = 4
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
@@ -34,7 +37,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const push = useCallback(
     (text: string, kind: ToastKind = 'info') => {
       const id = next.current++
-      setToasts((all) => [...all.slice(-3), { id, text, kind, leaving: false }])
+      setToasts((all) => {
+        const live = all.filter((toast) => !toast.leaving)
+        const dropped = new Set(live.slice(0, Math.max(0, live.length - (LIVE - 1))).map((toast) => toast.id))
+        return [...all.filter((toast) => !dropped.has(toast.id)), { id, text, kind, leaving: false }]
+      })
       window.setTimeout(() => close(id), kind === 'error' ? ERROR_MS : INFO_MS)
     },
     [close],
