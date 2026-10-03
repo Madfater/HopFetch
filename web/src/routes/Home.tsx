@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
-import { useTranslation } from 'react-i18next'
+import { Trans, useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router'
 import { APP_NAME } from '../app-name'
 import { ApiError, api } from '../api/client'
@@ -8,10 +8,12 @@ import type { Provider, Resolved, Task } from '../api/types'
 import { Lamp, StatusLamp, type LampColor } from '../components/Lamp'
 import { ProviderMark } from '../components/icons'
 import { useToast } from '../components/toast-context'
+import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
 import { useProviders, useTasks } from '../hooks/useTasks'
-import { formatBytes, formatStorage } from '../lib/format'
+import { formatBytes, formatPercent, formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
+import { withViewTransition } from '../lib/motion'
 import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
 import { extractSingleUrl } from '../lib/url'
 import controls from '../styles/controls.module.css'
@@ -21,6 +23,11 @@ import styles from './Home.module.css'
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Exactly one URL in pasted text is taken; more than one is reported.
 // - Enter runs the preview's main action, Esc clears the input.
+// - A link dragged over the slot lights it up. While the input is empty, a hint under the slot
+//   says where links can go.
+// - Starting a download and clearing with Esc run in a view transition: the preview fades out
+//   and the recent list slides up into its place. A task that arrives while the page is open
+//   flashes in the recent list.
 
 const RECENT_COUNT = 5
 const UNFINISHED = new Set(['queued', 'downloading', 'paused'])
@@ -60,15 +67,24 @@ export function Home() {
   const [immediate, setImmediate] = useState(0)
   const [many, setMany] = useState(false)
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
+  const [dragging, setDragging] = useState(false)
+  const dragDepth = useRef(0)
 
   const providers = useProviders()
   const tasks = useTasks()
+  const isNew = useNewIds(tasks.data?.map((task) => task.id))
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
   const state = useResolve(input, providers.data, immediate)
 
   const free = storage?.free_bytes ?? state.data?.free_bytes ?? 0
   const planned = state.data ? planFor(state.data, free) : null
   const plan = planned?.plan ?? null
+
+  const clear = () => {
+    setInput('')
+    setMany(false)
+    setSubmitError(null)
+  }
 
   const setFromPaste = useCallback((text: string) => {
     const found = extractSingleUrl(text)
@@ -100,12 +116,12 @@ export function Home() {
   const create = useMutation({
     mutationFn: ({ url, force }: { url: string; force: boolean }) => api.create(url, force),
     onSuccess: (task) => {
-      client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
-      client.removeQueries({ queryKey: RESOLVE_KEY })
+      withViewTransition(() => {
+        client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+        client.removeQueries({ queryKey: RESOLVE_KEY })
+        clear()
+      })
       toast(t('toast.started', { name: task.file_name ?? t('tasks.unnamed') }), 'success')
-      setInput('')
-      setMany(false)
-      setSubmitError(null)
       inputRef.current?.focus()
     },
     onError: (err) => setSubmitError(err instanceof ApiError ? err : null),
@@ -135,13 +151,27 @@ export function Home() {
       event.preventDefault()
       start()
     } else if (event.key === 'Escape') {
-      setInput('')
-      setMany(false)
-      setSubmitError(null)
+      withViewTransition(clear)
     }
   }
 
+  // - Counts nested enter and leave events, so moving across the input inside the slot does
+  //   not switch the highlight off. Only a drag that carries text or a link lights it.
+  const onDragEnter = (event: DragEvent<HTMLElement>) => {
+    const types = Array.from(event.dataTransfer.types)
+    if (!types.includes('text/uri-list') && !types.includes('text/plain')) return
+    dragDepth.current += 1
+    setDragging(true)
+  }
+
+  const onDragLeave = () => {
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragging(false)
+  }
+
   const onDrop = (event: DragEvent<HTMLElement>) => {
+    dragDepth.current = 0
+    setDragging(false)
     const uris = event.dataTransfer.getData('text/uri-list')
     const text = uris
       ? uris.split(/\r?\n/).filter((line) => line && !line.startsWith('#')).join('\n')
@@ -151,7 +181,7 @@ export function Home() {
     setFromPaste(text)
   }
 
-  const lamp = lampFor(state, plan, many, providers.isError)
+  const lamp = dragging ? 'amber' : lampFor(state, plan, many, providers.isError)
   const status = statusLine(t, state, many, providers.isError)
   const recent = (tasks.data ?? []).slice(0, RECENT_COUNT)
 
@@ -162,7 +192,8 @@ export function Home() {
       <label htmlFor="link" className="visually-hidden">
         {t('home.inputLabel')}
       </label>
-      <div className={styles.slot} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
+      <div className={`${styles.slot} ${dragging ? styles.dragging : ''}`} onDragEnter={onDragEnter}
+        onDragLeave={onDragLeave} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
         <input
           ref={inputRef}
           id="link"
@@ -172,9 +203,9 @@ export function Home() {
           autoComplete="off"
           spellCheck={false}
           autoFocus
-          placeholder={t('home.placeholder')}
+          placeholder={dragging ? t('home.drop') : t('home.placeholder')}
           value={input}
-          aria-describedby="link-status"
+          aria-describedby="link-status link-hint"
           aria-invalid={lamp === 'red' ? true : undefined}
           onChange={(event) => {
             setInput(event.target.value)
@@ -190,12 +221,19 @@ export function Home() {
           }}
           onKeyDown={onKeyDown}
         />
-        <Lamp color={lamp} />
+        <Lamp color={lamp} pulse={lamp === 'amber'} />
         <span className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
       </div>
-      <p id="link-status" className={`${styles.status} ${status.error ? styles.statusError : ''}`} aria-live="polite">
-        {status.text}
-      </p>
+      <div className={styles.below}>
+        <p id="link-status" className={`${styles.status} ${status.error ? styles.statusError : ''}`} aria-live="polite">
+          {status.text && <span key={status.text} className={styles.statusText}>{status.text}</span>}
+        </p>
+        {!input && !status.text && (
+          <p id="link-hint" className={styles.hint}>
+            {t('home.hint')}
+          </p>
+        )}
+      </div>
 
       {!many && state.data && state.local.kind === 'matched' && planned && (
         <Preview
@@ -223,9 +261,17 @@ export function Home() {
           <ul>
             {recent.map((task) => (
               <li key={task.id}>
-                <button type="button" className={styles.recentItem} onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
+                <button type="button" className={`${styles.recentItem} ${isNew(task.id) ? styles.arrived : ''}`}
+                  onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
                   <span className={styles.recentName}>{task.file_name ?? t('tasks.unnamed')}</span>
-                  <StatusLamp status={task.status} text={t(`status.${task.status}`)} />
+                  <span className={styles.recentStatus}>
+                    {task.status === 'downloading' && task.size ? (
+                      <span className={`${styles.percent} num`}>
+                        {formatPercent(i18n.language, Math.min(1, task.bytes_done / task.size))}
+                      </span>
+                    ) : null}
+                    <StatusLamp status={task.status} text={t(`status.${task.status}`)} />
+                  </span>
                 </button>
               </li>
             ))}
@@ -280,6 +326,8 @@ interface PreviewProps {
   onRetry: (id: string) => void
 }
 
+// - While a download is being started, its button keeps its place and shows a spinner; `start`
+//   ignores presses until the request ends.
 function Preview({ data, provider, free, short, plan, locale, busy, submitError, onDownload, onRetry }: PreviewProps) {
   const { t } = useTranslation()
   const duplicate = data.duplicate
@@ -320,7 +368,9 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
       ))}
       <div className={styles.actions}>
         {plan.kind === 'download' && (
-          <button type="button" className={`${controls.button} ${controls.primary}`} onClick={onDownload} disabled={busy}>
+          <button type="button" className={`${controls.button} ${controls.primary}`} onClick={onDownload}
+            aria-busy={busy || undefined}>
+            {busy && <span className={controls.spinner} aria-hidden="true" />}
             {plan.force ? t('preview.downloadAnyway') : t('preview.download')}
           </button>
         )}
@@ -334,7 +384,11 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
             {t('preview.view')}
           </Link>
         )}
-        {plan.kind === 'download' && <span className={styles.keys}>{t('preview.keys')}</span>}
+        {plan.kind === 'download' && (
+          <span className={styles.keys}>
+            <Trans i18nKey="preview.keys" components={{ key: <kbd /> }} />
+          </span>
+        )}
       </div>
     </section>
   )

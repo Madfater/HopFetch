@@ -11,6 +11,8 @@
   "home": {
     "inputLabel": "Share link",
     "placeholder": "https://k2s.cc/file/8d028cc29f08b/sample.rar",
+    "hint": "Paste a link anywhere on this page, or drop one here.",
+    "drop": "Drop to check this link",
     "lamp": {
       "idle": "Waiting for a link",
       "checking": "Checking",
@@ -35,7 +37,7 @@
     "duplicateActive": "This file is already in the download list.",
     "duplicateFailed": "This file failed or was canceled before.",
     "duplicateCompleted": "This file was downloaded before.",
-    "keys": "Enter to download, Esc to clear"
+    "keys": "<key>Enter</key> to download, <key>Esc</key> to clear"
   },
   "status": {
     "queued": "Queued",
