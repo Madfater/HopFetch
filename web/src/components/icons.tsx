@@ -33,6 +33,15 @@ export function ProviderMark({ icon }: { icon: string }) {
       </svg>
     )
   }
+  if (icon === 'mega') {
+    return (
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+        <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M5 12.5v-7l4 4.5 4-4.5v7" fill="none" stroke="currentColor" strokeWidth="1.5"
+          strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
       <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
