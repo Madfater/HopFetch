@@ -1,16 +1,45 @@
+/*
+ * - The header sticks to the top and has its own view-transition name, so page changes never
+ *   move it.
+ * - The mark is a small recessed slot holding the activity lamp, like the favicon.
+ * - The active tab's underline is its own element, named `nav-indicator` for view
+ *   transitions.
+ */
+.header {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  view-transition-name: app-header;
+}
+
 .bar {
   background: var(--color-panel);
   border-bottom: 1px solid var(--color-divider);
+  box-shadow: var(--shadow-plate);
 }
 
 .inner {
   display: flex;
   align-items: stretch;
-  justify-content: space-between;
-  gap: var(--space-4);
+  gap: var(--space-5);
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 var(--space-4);
+}
+
+.mark {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  align-self: center;
+  width: 36px;
+  height: 18px;
+  padding: 0 3px;
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-radius: var(--radius-round);
+  background: var(--color-slot);
+  box-shadow: var(--shadow-recess);
 }
 
 .tabs {
@@ -19,40 +48,98 @@
 }
 
 .tab {
+  position: relative;
   display: flex;
   align-items: center;
-  min-height: 48px;
-  border-bottom: 2px solid transparent;
+  gap: var(--space-2);
+  min-height: 52px;
   color: var(--color-steel);
   text-decoration: none;
+  transition: color var(--motion-fast) var(--ease-out);
 }
 
-.tab:hover {
+.tab:hover,
+.current {
   color: var(--color-ink);
 }
 
-.active {
+.indicator {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  border-radius: 2px 2px 0 0;
+  background: var(--color-ink);
+  view-transition-name: nav-indicator;
+}
+
+.count {
+  min-width: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-round);
+  background: var(--color-raised);
   color: var(--color-ink);
-  border-bottom-color: var(--color-ink);
+  font-size: 0.8rem;
+  line-height: 20px;
+  text-align: center;
+}
+
+.pop {
+  animation: pop var(--motion-slow) var(--ease-spring);
+}
+
+@keyframes pop {
+  from {
+    transform: scale(0.4);
+    opacity: 0;
+  }
+
+  to {
+    transform: none;
+    opacity: 1;
+  }
 }
 
 .storage {
   display: flex;
   align-items: center;
+  margin-left: auto;
   color: var(--color-steel);
   white-space: nowrap;
 }
 
 .offline {
+  border-bottom: 1px solid var(--color-divider);
+  background: var(--color-chassis);
+  animation: drop-in var(--motion-base) var(--ease-out);
+}
+
+.offlineText {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-2) var(--space-4);
-  color: var(--color-red);
+  color: var(--color-red-text);
+}
+
+@keyframes drop-in {
+  from {
+    transform: translateY(-8px);
+    opacity: 0;
+  }
 }
 
 @media (max-width: 480px) {
+  .inner,
   .tabs {
     gap: var(--space-4);
+  }
+
+  .mark {
+    display: none;
   }
 
   .storage {

@@ -1,7 +1,13 @@
 /*
  * - The home column, centered and at most 560px wide.
- * - The input slot is the one element with depth: a recessed field drawn with a darker top
- *   edge and a lighter bottom edge, no shadow.
+ * - The input slot is the page's one deep element: a recessed field with a dark top and left
+ *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge, and a
+ *   link dragged over it turns the edge to dashed amber.
+ * - The status line and the hint share one line under the slot; the hint shows only while the
+ *   input is empty.
+ * - The preview slides out from under the slot. It and the recent list carry view-transition
+ *   names, so clearing the input fades the preview and slides the list into its place.
+ * - A recent task that arrived while the page is open flashes once.
  */
 .home {
   max-width: 560px;
@@ -23,23 +29,38 @@
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  padding: 0 var(--space-4);
+  padding: 0 var(--space-4) 0 var(--space-5);
   border: 1px solid var(--color-slot-edge-bottom);
   border-top-color: var(--color-slot-edge-top);
   border-left-color: var(--color-slot-edge-top);
-  border-radius: var(--radius);
+  border-bottom-color: var(--color-field-edge);
+  border-radius: var(--radius-l);
   background: var(--color-slot);
+  box-shadow: var(--shadow-recess);
+  outline: 2px solid transparent;
+  outline-offset: 0;
+  transition:
+    outline-color var(--motion-fast) var(--ease-out),
+    outline-offset var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    background-color var(--motion-base) var(--ease-out);
 }
 
 .slot:focus-within {
-  outline: 2px solid var(--color-amber);
-  outline-offset: 2px;
+  outline-color: var(--color-amber);
+  outline-offset: 3px;
+}
+
+.dragging {
+  border-style: dashed;
+  border-color: var(--color-amber);
+  background: color-mix(in srgb, var(--color-amber) 8%, var(--color-slot));
 }
 
 .input {
   flex: 1;
   min-width: 0;
-  height: 52px;
+  height: 56px;
   border: 0;
   background: transparent;
   font-size: 1rem;
@@ -53,22 +74,43 @@
   color: var(--color-steel);
 }
 
-.status {
+.below {
+  display: grid;
   min-height: 1.5em;
   margin-top: var(--space-2);
+}
+
+.below > * {
+  grid-area: 1 / 1;
+}
+
+.status {
   color: var(--color-steel);
 }
 
 .statusError {
-  color: var(--color-red);
+  color: var(--color-red-text);
+}
+
+.statusText {
+  display: block;
+  animation: fade-in var(--motion-base) var(--ease-out);
+}
+
+.hint {
+  color: var(--color-steel);
+  font-size: 0.9rem;
 }
 
 .preview {
   margin-top: var(--space-3);
-  padding: var(--space-4);
-  border-radius: var(--radius);
+  padding: var(--space-4) var(--space-5);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-l);
   background: var(--color-panel);
-  animation: slide-out 200ms ease-out;
+  box-shadow: var(--shadow-plate);
+  view-transition-name: preview;
+  animation: slide-out var(--motion-slow) var(--ease-out);
 }
 
 @keyframes slide-out {
@@ -76,16 +118,11 @@
     transform: translateY(-8px);
     opacity: 0;
   }
-
-  to {
-    transform: none;
-    opacity: 1;
-  }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .preview {
-    animation: none;
+@keyframes fade-in {
+  from {
+    opacity: 0;
   }
 }
 
@@ -125,7 +162,7 @@
 }
 
 .noteError {
-  color: var(--color-red-on-panel);
+  color: var(--color-red-text);
 }
 
 .actions {
@@ -143,6 +180,7 @@
 
 .recent {
   margin-top: var(--space-6);
+  view-transition-name: recent-list;
 }
 
 .recentHead {
@@ -161,18 +199,45 @@
 .recentItem {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-3);
-  width: 100%;
-  padding: var(--space-2) 0;
+  width: calc(100% + 2 * var(--space-3));
+  margin: 0 calc(-1 * var(--space-3));
+  padding: var(--space-2) var(--space-3);
   border: 0;
-  border-bottom: 1px solid var(--color-divider);
-  background: none;
+  border-radius: var(--radius-m);
+  background: transparent;
   text-align: left;
   cursor: pointer;
+  transition: background-color var(--motion-fast) var(--ease-out);
+}
+
+.recentItem:hover {
+  background: var(--color-panel);
+}
+
+.arrived {
+  animation: arrive 1.6s var(--ease-out);
+}
+
+@keyframes arrive {
+  from {
+    background: var(--color-raised);
+  }
 }
 
 .recentName {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.recentStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.percent {
+  color: var(--color-steel);
 }

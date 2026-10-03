@@ -1,58 +1,192 @@
+/*
+ * - A 720px column of plates, centered on the same axis as the download page.
+ * - A setting is a row: its name and what it does on the left, its control on the right; below
+ *   560px the control moves under the text. Rows are parted by a groove in the chassis color.
+ * - While there are unsaved changes or a failed save, the footer of the download settings
+ *   sticks to the bottom of the window when the plate runs past it. Its status line and the
+ *   Discard button ease in when they change.
+ */
 .settings {
-  max-width: 560px;
+  max-width: 720px;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-5);
+  color: var(--color-steel);
+}
+
+.plate {
+  margin-top: var(--space-5);
+  border: 1px solid var(--color-divider);
+  border-radius: var(--radius-l);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-plate);
+}
+
+.head {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-4) var(--space-5);
 }
 
 .title {
-  font-size: 1.25rem;
-  margin-bottom: var(--space-5);
+  font-size: 1.05rem;
+  font-weight: 600;
 }
 
-.section {
+.hint {
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
+.row {
   display: grid;
-  gap: var(--space-4);
-  margin-bottom: var(--space-6);
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-chassis);
 }
 
-.sectionTitle {
-  font-size: 1rem;
+.text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
 }
 
-.number {
-  width: 8rem;
+.label {
+  justify-self: start;
+  font-weight: 600;
 }
 
-.check {
+.error {
+  color: var(--color-red-text);
+  font-size: 0.9rem;
+  animation: appear var(--motion-base) var(--ease-out);
+}
+
+.control {
   display: flex;
-  align-items: flex-start;
-  gap: var(--space-2);
-  cursor: pointer;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
-.box {
-  display: grid;
-  place-items: center;
-  flex: none;
-  width: 18px;
-  height: 18px;
-  margin-top: 3px;
-  padding: 0;
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-top-color: var(--color-slot-edge-top);
-  border-radius: 3px;
+.path {
+  max-width: 22rem;
+  overflow-wrap: anywhere;
+  text-align: right;
+}
+
+.meterRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-5) var(--space-4);
+}
+
+.meter {
+  flex: 1;
+  height: 8px;
+  overflow: hidden;
+  border-top: 1px solid var(--color-slot-edge-top);
+  border-radius: var(--radius-round);
   background: var(--color-slot);
+}
+
+.meterFill {
+  height: 100%;
+  background: var(--color-steel);
+  transform-origin: left;
+  transition: transform var(--motion-slow) var(--ease-out);
+}
+
+.free {
+  color: var(--color-steel);
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-top: 1px solid var(--color-chassis);
+  border-radius: 0 0 var(--radius-l) var(--radius-l);
+  background: var(--color-panel);
+}
+
+.pinned {
+  position: sticky;
+  bottom: 0;
+}
+
+.status {
+  display: flex;
+  flex: 1 1 14rem;
+  align-items: center;
+  min-width: 0;
+  color: var(--color-steel);
+}
+
+.statusText {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  animation: appear var(--motion-base) var(--ease-out);
+}
+
+.dirty {
   color: var(--color-ink);
 }
 
-.root {
-  overflow-wrap: anywhere;
+.failed {
+  color: var(--color-red-text);
 }
 
 .actions {
   display: flex;
-  align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
+  margin-left: auto;
 }
 
-.select {
-  width: 12rem;
+.discard {
+  animation: appear var(--motion-base) var(--ease-out);
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@media (max-width: 560px) {
+  .head,
+  .row,
+  .footer {
+    padding-right: var(--space-4);
+    padding-left: var(--space-4);
+  }
+
+  .meterRow {
+    padding: 0 var(--space-4) var(--space-4);
+  }
+
+  .row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .control {
+    justify-content: flex-start;
+  }
+
+  .path {
+    text-align: left;
+  }
 }

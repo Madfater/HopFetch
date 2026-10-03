@@ -1,5 +1,12 @@
 /*
- * - A dense, left-aligned table up to 1200px wide.
+ * - A dense, left-aligned table up to 1200px wide; the name column takes the room the fixed
+ *   columns leave.
+ * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
+ *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
+ *   where its red notes still keep 4.5:1.
+ * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
+ *   progress events.
+ * - The empty page shows an empty drive bay: a recessed slot with its lamp off.
  * - Below 768px each row becomes two lines: name and actions, then status and the numbers.
  */
 .head {
@@ -11,41 +18,16 @@
   margin-bottom: var(--space-4);
 }
 
-.title {
-  font-size: 1.25rem;
-}
-
 .toolbar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  max-width: 100%;
 }
 
-.filters {
-  display: flex;
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-radius: var(--radius);
-}
-
-.filter {
-  min-height: 32px;
-  padding: 0 var(--space-3);
-  border: 0;
-  border-right: 1px solid var(--color-divider);
-  background: transparent;
-  color: var(--color-steel);
-  cursor: pointer;
-}
-
-.filter:last-child {
-  border-right: 0;
-}
-
-.filterOn {
-  background: var(--color-panel);
-  color: var(--color-ink);
-  font-weight: 600;
+.count {
+  font-size: 0.85rem;
 }
 
 .table {
@@ -55,21 +37,43 @@
 
 .table th {
   padding: var(--space-2) var(--space-3);
-  background: var(--color-panel);
+  border-bottom: 1px solid var(--color-slot-edge-bottom);
   color: var(--color-steel);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   text-align: left;
 }
 
 .table td {
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-3);
   border-bottom: 1px solid var(--color-divider);
   vertical-align: middle;
+  transition: background-color 600ms var(--ease-out);
+}
+
+@media (hover: hover) {
+  .table tbody tr:hover td {
+    background: var(--color-panel);
+    transition-duration: var(--motion-fast);
+  }
+}
+
+.focused td {
+  background: var(--color-panel);
+}
+
+.arrived td {
+  animation: arrive 1.6s var(--ease-out);
+}
+
+@keyframes arrive {
+  from {
+    background: var(--color-panel);
+  }
 }
 
 .colStatus {
-  width: 22%;
+  width: 20%;
 }
 
 .colProvider {
@@ -77,7 +81,7 @@
 }
 
 .colSize {
-  width: 9%;
+  width: 8%;
 }
 
 .colProgress {
@@ -85,19 +89,15 @@
 }
 
 .colSpeed {
-  width: 10%;
-}
-
-.colEta {
   width: 9%;
 }
 
-.colActions {
-  width: 132px;
+.colEta {
+  width: 8%;
 }
 
-.focused td {
-  background: var(--color-panel);
+.colActions {
+  width: 120px;
 }
 
 .name {
@@ -114,11 +114,7 @@
 }
 
 .subError {
-  color: var(--color-red);
-}
-
-.focused .subError {
-  color: var(--color-red-on-panel);
+  color: var(--color-red-text);
 }
 
 .table .right {
@@ -140,15 +136,19 @@
 .track {
   flex: 1;
   height: 6px;
-  border-radius: 3px;
-  background: var(--color-slot);
-  border-top: 1px solid var(--color-slot-edge-top);
   overflow: hidden;
+  border-top: 1px solid var(--color-slot-edge-top);
+  border-radius: var(--radius-round);
+  background: var(--color-slot);
 }
 
 .fill {
   height: 100%;
   background: var(--color-steel);
+  transform-origin: left;
+  transition:
+    transform 500ms linear,
+    background-color var(--motion-base) var(--ease-out);
 }
 
 .fillActive {
@@ -165,15 +165,39 @@
   gap: var(--space-1);
 }
 
-.empty {
-  padding: var(--space-6) 0;
-  display: grid;
+.state {
+  display: flex;
+  align-items: center;
   gap: var(--space-2);
-  justify-items: start;
+  color: var(--color-steel);
+}
+
+.empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  padding: 72px var(--space-4);
+  text-align: center;
+}
+
+.bay {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 132px;
+  height: 36px;
+  margin-bottom: var(--space-2);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-radius: var(--radius-l);
+  background: var(--color-slot);
+  box-shadow: var(--shadow-recess);
 }
 
 .emptyTitle {
   font-size: 1.1rem;
+  font-weight: 600;
 }
 
 .statusText {
@@ -196,7 +220,7 @@
   }
 
   .table tr {
-    --mobile-actions: 100px;
+    --mobile-actions: 108px;
 
     display: flex;
     flex-wrap: wrap;
@@ -204,11 +228,29 @@
     gap: var(--space-1) var(--space-4);
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--color-divider);
+    transition: background-color 600ms var(--ease-out);
   }
 
   .table td {
     padding: 0;
     border: 0;
+  }
+
+  .focused {
+    background: var(--color-panel);
+  }
+
+  .focused td,
+  .table tbody tr:hover td {
+    background: transparent;
+  }
+
+  .arrived {
+    animation: arrive 1.6s var(--ease-out);
+  }
+
+  .arrived td {
+    animation: none;
   }
 
   .cellName {

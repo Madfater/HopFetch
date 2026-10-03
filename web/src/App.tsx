@@ -2,7 +2,8 @@ import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/reac
 import { Tooltip } from 'radix-ui'
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { BrowserRouter, Outlet, Route, Routes } from 'react-router'
+import { createBrowserRouter, Outlet } from 'react-router'
+import { RouterProvider } from 'react-router/dom'
 import { APP_NAME } from './app-name'
 import { api } from './api/client'
 import { NavBar } from './components/NavBar'
@@ -16,7 +17,10 @@ import { Home } from './routes/Home'
 import { Settings } from './routes/Settings'
 import { Tasks } from './routes/Tasks'
 
-// - App shell: query cache, router, tooltips and toasts, then one event stream for the whole app.
+// - App shell: query cache, tooltips and toasts around the router, then one event stream for the
+//   whole app.
+// - The router is a data router, the kind that runs a navigation marked `viewTransition` inside
+//   a view transition.
 // - The tab title shows `(n) APP_NAME` while n tasks are queued or downloading.
 // - A task that completes or fails while the page is open raises a toast.
 
@@ -24,23 +28,26 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { refetchOnWindowFocus: false, retry: 1 } },
 })
 
+const router = createBrowserRouter([
+  {
+    element: <Layout />,
+    children: [
+      { index: true, element: <Home /> },
+      { path: 'tasks', element: <Tasks /> },
+      { path: 'settings', element: <Settings /> },
+      { path: '*', element: <Home /> },
+    ],
+  },
+])
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Tooltip.Provider delayDuration={300}>
-          <ToastProvider>
-            <Routes>
-              <Route element={<Layout />}>
-                <Route index element={<Home />} />
-                <Route path="tasks" element={<Tasks />} />
-                <Route path="settings" element={<Settings />} />
-                <Route path="*" element={<Home />} />
-              </Route>
-            </Routes>
-          </ToastProvider>
-        </Tooltip.Provider>
-      </BrowserRouter>
+      <Tooltip.Provider delayDuration={300}>
+        <ToastProvider>
+          <RouterProvider router={router} />
+        </ToastProvider>
+      </Tooltip.Provider>
     </QueryClientProvider>
   )
 }

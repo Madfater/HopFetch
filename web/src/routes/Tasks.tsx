@@ -5,9 +5,11 @@ import { Link, useSearchParams } from 'react-router'
 import { ApiError, api } from '../api/client'
 import type { Provider, Task } from '../api/types'
 import { DeleteDialog } from '../components/DeleteDialog'
+import { useNewIds } from '../hooks/useNewIds'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { IconButton } from '../components/IconButton'
-import { StatusLamp } from '../components/Lamp'
+import { Lamp, StatusLamp } from '../components/Lamp'
+import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { errorText, taskStatusText } from '../lib/messages'
@@ -15,8 +17,11 @@ import { FILTERS, matchesFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask,
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
 
-// - The files page: a status filter, "clear completed", and a table of every task.
-// - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS.
+// - The files page: a status filter that counts its tasks, "clear completed", and a table of
+//   every task.
+// - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS; the mark fades when it
+//   ends. A task that arrives while the page is open flashes once.
+// - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
 //   file exists, delete always. Pause, cancel and delete wait while the file is being joined
@@ -88,25 +93,28 @@ export function Tasks() {
   //   gains the delete-file option.
   const deleting = all?.find((task) => task.id === deletingId) ?? null
   const hasCompleted = (all ?? []).some((task) => task.status === 'completed')
+  const isNew = useNewIds(all?.map((task) => task.id))
 
   return (
     <main className="page">
       <div className={styles.head}>
-        <h1 className={styles.title}>{t('tasks.title')}</h1>
+        <h1 className="page-title">{t('tasks.title')}</h1>
         {all && all.length > 0 && (
           <div className={styles.toolbar}>
-            <div role="group" aria-label={t('tasks.filter.label')} className={styles.filters}>
-              {FILTERS.map((value) => (
-                <button key={value} type="button" aria-pressed={filter === value}
-                  className={`${styles.filter} ${filter === value ? styles.filterOn : ''}`}
-                  onClick={() => {
-                    setFilter(value)
-                    if (focused) setParams({}, { replace: true })
-                  }}>
-                  {t(`tasks.filter.${value}`)}
-                </button>
-              ))}
-            </div>
+            <SegmentedControl label={t('tasks.filter.label')} value={filter}
+              onChange={(value) => {
+                setFilter(value)
+                if (focused) setParams({}, { replace: true })
+              }}
+              options={FILTERS.map((value) => ({
+                value,
+                label: (
+                  <span>
+                    {t(`tasks.filter.${value}`)}{' '}
+                    <span className={`${styles.count} num`}>{all.filter((task) => matchesFilter(task, value)).length}</span>
+                  </span>
+                ),
+              }))} />
             <button type="button" className={controls.button} disabled={!hasCompleted || clear.isPending}
               onClick={() => clear.mutate()}>
               {t('tasks.clearCompleted')}
@@ -116,11 +124,17 @@ export function Tasks() {
       </div>
 
       {!all ? (
-        <p className={controls.hint}>{tasks.isError ? t('errors.network') : t('tasks.loading')}</p>
+        <p className={styles.state}>
+          <Lamp color={tasks.isError ? 'red' : 'amber'} pulse={!tasks.isError} />
+          {tasks.isError ? t('errors.network') : t('tasks.loading')}
+        </p>
       ) : all.length === 0 ? (
         <div className={styles.empty}>
+          <span className={styles.bay} aria-hidden="true">
+            <Lamp color="off" />
+          </span>
           <p className={styles.emptyTitle}>{t('tasks.empty')}</p>
-          <Link to="/">{t('tasks.emptyLink')}</Link>
+          <Link className={controls.button} to="/" viewTransition>{t('tasks.emptyLink')}</Link>
         </div>
       ) : (
         <table className={styles.table}>
@@ -148,6 +162,7 @@ export function Tasks() {
                 task={task}
                 provider={providerById.get(task.provider)}
                 focused={focused === task.id}
+                arrived={isNew(task.id)}
                 onAction={(action) => act.mutate({ id: task.id, action })}
                 onDelete={() => setDeletingId(task.id)}
               />
@@ -174,11 +189,12 @@ interface RowProps {
   task: Task
   provider: Provider | undefined
   focused: boolean
+  arrived: boolean
   onAction: (action: Action) => void
   onDelete: () => void
 }
 
-function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
+function TaskRow({ task, provider, focused, arrived, onAction, onDelete }: RowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const name = task.file_name ?? t('tasks.unnamed')
@@ -190,7 +206,7 @@ function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
   const label = (action: string) => t('action.named', { action: t(`action.${action}`), name })
 
   return (
-    <tr id={`task-${task.id}`} className={focused ? styles.focused : undefined}>
+    <tr id={`task-${task.id}`} className={`${focused ? styles.focused : ''} ${arrived ? styles.arrived : ''}`}>
       <td className={styles.cellStatus}>
         <span className={styles.statusText}>
           <StatusLamp status={task.status} text={statusText} />
@@ -221,7 +237,7 @@ function TaskRow({ task, provider, focused, onAction, onDelete }: RowProps) {
           >
             <div
               className={`${styles.fill} ${task.status === 'downloading' ? styles.fillActive : ''} ${task.status === 'completed' ? styles.fillDone : ''}`}
-              style={{ width: `${ratio * 100}%` }}
+              style={{ transform: `scaleX(${ratio})` }}
             />
           </div>
           <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
