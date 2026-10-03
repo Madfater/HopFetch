@@ -4,7 +4,8 @@
  * - Surfaces, from back to front: chassis (page), panel (plates), raised (hovered and selected
  *   faces), and slot (recessed fields and tracks). Steel text keeps 4.5:1 on all of them.
  * - `--color-red-text` is the red of every error text; it keeps 4.5:1 on the chassis and the
- *   panel, where the lamp red does not.
+ *   panel, where the lamp red does not. `--color-on-lamp` is the dark text on a lit amber or
+ *   red face.
  * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
  *   with 3:1 against the plate around it. `--color-selected` is the face of a chosen segment,
  *   3:1 against its track.
@@ -27,7 +28,7 @@
   --color-steel: #9aa1aa;
   --color-divider: #2f3439;
   --color-amber: #f0a03a;
-  --color-on-amber: #1b1e21;
+  --color-on-lamp: #1b1e21;
   --color-green: #3dba6f;
   --color-red: #ee6a61;
   --color-red-text: #f0716a;

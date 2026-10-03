@@ -38,8 +38,8 @@ export function DeleteDialog({ name, canDeleteFile, open, onOpenChange, onConfir
                 onCheckedChange={(value) => setDeleteFile(value === true)}>
                 <Checkbox.Indicator>
                   <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor"
-                    strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M2.5 6.2 5 8.5l4.5-5" />
+                    strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path className={styles.mark} pathLength={1} d="M2.5 6.2 5 8.5l4.5-5" />
                   </svg>
                 </Checkbox.Indicator>
               </Checkbox.Root>
@@ -54,7 +54,7 @@ export function DeleteDialog({ name, canDeleteFile, open, onOpenChange, onConfir
             </Dialog.Close>
             <button
               type="button"
-              className={`${controls.button} ${styles.danger}`}
+              className={`${controls.button} ${controls.danger}`}
               onClick={() => {
                 onConfirm(deleteFile)
                 setDeleteFile(false)

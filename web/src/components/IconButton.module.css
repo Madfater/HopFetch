@@ -1,8 +1,12 @@
+/*
+ * - An icon-only button: a raised face appears on hover and it sinks slightly when pressed.
+ * - The tooltip floats on the raised surface and slides in from the side it opens on.
+ */
 .button {
   display: inline-grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 32px;
+  height: 32px;
   padding: 0;
   border: 1px solid transparent;
   border-radius: var(--radius-m);
@@ -10,10 +14,19 @@
   color: var(--color-ink);
   cursor: pointer;
   text-decoration: none;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
 }
 
-.button:hover {
+.button:hover:not(:disabled, [aria-disabled='true']) {
   border-color: var(--color-slot-edge-bottom);
+  background: var(--color-raised);
+}
+
+.button:active:not(:disabled, [aria-disabled='true']) {
+  transform: scale(0.92);
 }
 
 .button:disabled,
@@ -24,11 +37,44 @@
 }
 
 .tooltip {
+  --tooltip-from: translateY(4px);
+
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--color-slot-edge-bottom);
-  border-radius: var(--radius-m);
-  background: var(--color-panel);
+  border-radius: var(--radius-s);
+  background: var(--color-raised);
+  box-shadow: var(--shadow-float);
   color: var(--color-ink);
   font-size: 0.85rem;
   z-index: 20;
+  animation: tooltip-in var(--motion-fast) var(--ease-out);
+}
+
+.tooltip[data-side='bottom'] {
+  --tooltip-from: translateY(-4px);
+}
+
+.tooltip[data-side='left'] {
+  --tooltip-from: translateX(4px);
+}
+
+.tooltip[data-side='right'] {
+  --tooltip-from: translateX(-4px);
+}
+
+.tooltip[data-state='closed'] {
+  animation: tooltip-out var(--motion-fast) var(--ease-in) forwards;
+}
+
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: var(--tooltip-from);
+  }
+}
+
+@keyframes tooltip-out {
+  to {
+    opacity: 0;
+  }
 }

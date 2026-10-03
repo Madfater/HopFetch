@@ -1,20 +1,38 @@
 /*
- * - Shared buttons and fields. `primary` is the only amber button style and is used for the
- *   download action alone.
+ * - Shared buttons and fields.
+ * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
+ * - `primary` is amber and marks the one main action of a page. `danger` confirms a
+ *   destructive action and fills red while pointed at.
+ * - `spinner` is a turning ring shown inside a button while its request runs.
  */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 34px;
+  min-height: 36px;
   padding: 0 var(--space-4);
   border: 1px solid var(--color-slot-edge-bottom);
   border-radius: var(--radius-m);
   background: var(--color-panel);
+  box-shadow: var(--shadow-plate);
   color: var(--color-ink);
+  font-weight: 500;
   text-decoration: none;
   cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    border-color var(--motion-fast) var(--ease-out),
+    color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.button:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--color-raised);
+}
+
+.button:active:not(:disabled, [aria-disabled='true']) {
+  transform: translateY(1px);
 }
 
 .button:disabled,
@@ -22,19 +40,53 @@
   cursor: not-allowed;
   color: var(--color-steel);
   border-color: var(--color-divider);
+  box-shadow: none;
 }
 
 .primary {
   background: var(--color-amber);
   border-color: var(--color-amber);
-  color: var(--color-on-amber);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-ink) 45%, transparent);
+  color: var(--color-on-lamp);
   font-weight: 600;
+}
+
+.primary:hover:not(:disabled, [aria-disabled='true']) {
+  background: color-mix(in srgb, var(--color-amber) 88%, var(--color-ink));
 }
 
 .primary:disabled {
   background: var(--color-panel);
   border-color: var(--color-divider);
+  box-shadow: none;
   color: var(--color-steel);
+}
+
+.danger {
+  border-color: var(--color-red-text);
+  color: var(--color-red-text);
+}
+
+.danger:hover:not(:disabled, [aria-disabled='true']) {
+  background: var(--color-red);
+  border-color: var(--color-red);
+  color: var(--color-on-lamp);
+}
+
+.spinner {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: var(--radius-round);
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(1turn);
+  }
 }
 
 .link {
@@ -66,8 +118,10 @@
   padding: 0 var(--space-3);
   border: 1px solid var(--color-slot-edge-bottom);
   border-top-color: var(--color-slot-edge-top);
+  border-bottom-color: var(--color-field-edge);
   border-radius: var(--radius-m);
   background: var(--color-slot);
+  box-shadow: var(--shadow-recess);
 }
 
 .error {

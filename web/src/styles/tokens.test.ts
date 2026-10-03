@@ -37,7 +37,7 @@ const TEXT: [string, string[]][] = [
   ['ink', [...SURFACES, 'selected']],
   ['steel', SURFACES],
   ['red-text', ['chassis', 'panel']],
-  ['on-amber', ['amber']],
+  ['on-lamp', ['amber', 'red']],
 ]
 
 const PARTS: [string, string[]][] = [
