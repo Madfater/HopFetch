@@ -9,8 +9,10 @@
 from __future__ import annotations
 
 import logging
+import os
 import re
 import threading
+import time
 from concurrent.futures import as_completed
 from itertools import zip_longest
 from pathlib import Path
@@ -38,6 +40,7 @@ PROXY_SOURCES = [
     ("https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/socks5.txt", "socks5h"),
 ]
 MAX_CANDIDATES = 4000
+CACHE_MAX_AGE = 6 * 3600
 TEST_URL = "https://api.myip.com"
 
 _SOURCE_LINE = re.compile(r"^\s*(?:[a-z0-9]+://)?(\d{1,3}(?:\.\d{1,3}){3}):(\d{1,5})(?!\d)", re.I)
@@ -148,6 +151,9 @@ class ProxyPool:
       loads; they are neither tested nor written anywhere.
     - `load()` reads the public cache file, or fetches proxy lists and keeps the ones that answer
       TEST_URL.
+    - A cache file older than CACHE_MAX_AGE is still served, while one background thread fetches
+      and tests a new list and swaps it in; a refresh that finds no working proxy keeps the old
+      list and waits another CACHE_MAX_AGE.
     - The cache file is read and written under a cross-process lock.
     - `enabled=False` skips public proxies; user proxies still apply. The flag may change at
       runtime: public proxies are loaded the first time they are needed while it is True.
@@ -164,6 +170,8 @@ class ProxyPool:
         self._public_loaded = False
         self._loaded = threading.Event()
         self._load_lock = threading.Lock()
+        self._refresh_lock = threading.Lock()
+        self._refresh_thread: threading.Thread | None = None
 
     @property
     def loaded(self) -> bool:
@@ -172,18 +180,23 @@ class ProxyPool:
 
     def load(self, refresh: bool = False, on_status: Callable[[str], None] | None = None) -> None:
         """Populate the pool; later calls return at once unless `refresh` is set or public proxies
-        are enabled but not loaded yet."""
+        are enabled but not loaded yet.
+
+        - Every call with public proxies enabled starts a background refresh when the cache is
+          stale.
+        """
         with self._load_lock:
             enabled = self.enabled
-            if self._loaded.is_set() and not refresh and (self._public_loaded or not enabled):
-                return
-            self._user = self._read_user()
-            if enabled:
-                self._public = self._read_or_build(refresh, on_status)
-                self._public_loaded = True
-            self._loaded.set()
-            log.info("proxy pool ready with %d user and %d public proxies",
-                     len(self._user), len(self._public) if enabled else 0)
+            if not (self._loaded.is_set() and not refresh and (self._public_loaded or not enabled)):
+                self._user = self._read_user()
+                if enabled:
+                    self._public = self._read_or_build(refresh, on_status)
+                    self._public_loaded = True
+                self._loaded.set()
+                log.info("proxy pool ready with %d user and %d public proxies",
+                         len(self._user), len(self._public) if enabled else 0)
+        if enabled:
+            self._refresh_if_stale()
 
     def all(self) -> list[str | None]:
         """Return the direct connection, user proxies and, while enabled, public proxies."""
@@ -219,6 +232,42 @@ class ProxyPool:
             self.cache_path.parent.mkdir(parents=True, exist_ok=True)
             self.cache_path.write_text("\n".join(working))
             return working
+
+    def _stale(self) -> bool:
+        """True when the cache file exists and was written more than CACHE_MAX_AGE ago."""
+        try:
+            return time.time() - self.cache_path.stat().st_mtime > CACHE_MAX_AGE
+        except OSError:
+            return False
+
+    def _refresh_if_stale(self) -> None:
+        """Start the background refresh when the cache is stale and no refresh is running."""
+        with self._refresh_lock:
+            if not self._stale() or (self._refresh_thread and self._refresh_thread.is_alive()):
+                return
+            self._refresh_thread = threading.Thread(target=self._refresh, daemon=True,
+                                                    name="proxy-refresh")
+            self._refresh_thread.start()
+
+    def _refresh(self) -> None:
+        """Fetch and test a new public list under the cache lock, then swap it in.
+
+        - A cache refreshed meanwhile by another process is read instead of fetched again.
+        - With no working proxy, the old file is kept and its mtime is reset.
+        """
+        with file_lock(self.cache_path.with_name(self.cache_path.name + ".lock")):
+            if self._stale():
+                working = self._test(fetch_candidates())
+                if not working:
+                    log.warning("proxy refresh found no working proxy, keeping the old list")
+                    os.utime(self.cache_path)
+                    return
+                self.cache_path.write_text("\n".join(working))
+            else:
+                working = [p for p in self.cache_path.read_text().splitlines() if p.strip()]
+        with self._load_lock:
+            self._public = working
+        log.info("proxy pool refreshed with %d public proxies", len(working))
 
     @staticmethod
     def _test(candidates: list[str]) -> list[str]:

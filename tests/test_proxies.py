@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import os
+import threading
+import time
+
 import requests
 
 from downloader import proxies
@@ -140,3 +144,80 @@ def test_fetch_candidates_cap_keeps_every_source(monkeypatch):
     }))
     assert fetch_candidates() == ["1.1.1.0:80", "socks5h://2.2.2.0:1080", "1.1.1.1:80",
                                   "socks5h://2.2.2.1:1080"]
+
+
+def age(path, seconds):
+    """Set the mtime of `path` to `seconds` ago."""
+    then = time.time() - seconds
+    os.utime(path, (then, then))
+
+
+def scripted_refresh(monkeypatch, candidates, working):
+    """Replace fetching and testing; return the list of candidate batches that were tested."""
+    tested = []
+    monkeypatch.setattr(proxies, "fetch_candidates", lambda: list(candidates))
+    monkeypatch.setattr(ProxyPool, "_test", staticmethod(lambda c: tested.append(c) or list(working)))
+    return tested
+
+
+def test_fresh_cache_is_not_refreshed(monkeypatch, tmp_path):
+    cache = tmp_path / "proxies.txt"
+    cache.write_text("1.1.1.1:80")
+    tested = scripted_refresh(monkeypatch, ["2.2.2.2:80"], ["2.2.2.2:80"])
+    pool = ProxyPool(cache)
+    assert pool.all() == [None, "1.1.1.1:80"]
+    assert pool._refresh_thread is None
+    assert tested == []
+
+
+def test_stale_cache_is_served_then_replaced(monkeypatch, tmp_path):
+    cache = tmp_path / "proxies.txt"
+    cache.write_text("1.1.1.1:80")
+    age(cache, proxies.CACHE_MAX_AGE + 60)
+    release = threading.Event()
+    monkeypatch.setattr(proxies, "fetch_candidates", lambda: release.wait(5) and ["2.2.2.2:80"])
+    monkeypatch.setattr(ProxyPool, "_test", staticmethod(list))
+    pool = ProxyPool(cache)
+    assert pool.all() == [None, "1.1.1.1:80"]
+    assert pool._refresh_thread.is_alive()
+    assert pool.all() == [None, "1.1.1.1:80"]
+    release.set()
+    pool._refresh_thread.join(5)
+    assert pool.all() == [None, "2.2.2.2:80"]
+    assert cache.read_text() == "2.2.2.2:80"
+    assert pool._refresh_thread.is_alive() is False
+
+
+def test_failed_refresh_keeps_the_old_list(monkeypatch, tmp_path):
+    cache = tmp_path / "proxies.txt"
+    cache.write_text("1.1.1.1:80\nsocks5h://3.3.3.3:1080")
+    age(cache, proxies.CACHE_MAX_AGE + 60)
+    tested = scripted_refresh(monkeypatch, ["2.2.2.2:80"], [])
+    pool = ProxyPool(cache)
+    pool.all()
+    pool._refresh_thread.join(5)
+    assert tested == [["2.2.2.2:80"]]
+    assert pool.all() == [None, "1.1.1.1:80", "socks5h://3.3.3.3:1080"]
+    assert cache.read_text() == "1.1.1.1:80\nsocks5h://3.3.3.3:1080"
+    assert time.time() - cache.stat().st_mtime < 60
+
+
+def test_disabled_pool_never_refreshes(monkeypatch, tmp_path):
+    cache = tmp_path / "proxies.txt"
+    cache.write_text("1.1.1.1:80")
+    age(cache, proxies.CACHE_MAX_AGE + 60)
+    scripted_refresh(monkeypatch, ["2.2.2.2:80"], ["2.2.2.2:80"])
+    pool = ProxyPool(cache, enabled=False)
+    assert pool.all() == [None]
+    assert pool._refresh_thread is None
+
+
+def test_missing_cache_is_built_from_fetched_candidates(monkeypatch, tmp_path):
+    cache = tmp_path / "data" / "proxies.txt"
+    tested = scripted_refresh(monkeypatch, ["1.1.1.1:80", "socks5h://2.2.2.2:1080"],
+                              ["socks5h://2.2.2.2:1080"])
+    pool = ProxyPool(cache)
+    assert pool.all() == [None, "socks5h://2.2.2.2:1080"]
+    assert tested == [["1.1.1.1:80", "socks5h://2.2.2.2:1080"]]
+    assert cache.read_text() == "socks5h://2.2.2.2:1080"
+    assert pool._refresh_thread is None
