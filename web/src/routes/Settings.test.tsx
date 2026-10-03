@@ -117,6 +117,23 @@ describe('Settings', () => {
     expect(screen.getByRole('switch', { name: 'Use public proxies' })).toHaveAttribute('aria-checked', 'false')
   })
 
+  it('keeps showing a problem found while a save runs', async () => {
+    const { save, user } = setup()
+    let finish = () => {}
+    save.mockImplementationOnce((change) => new Promise((resolve) => {
+      finish = () => resolve({ ...SAVED, ...change })
+    }))
+    await user.click(await screen.findByRole('switch', { name: 'Use public proxies' }))
+    await user.click(saveButton())
+    const connections = screen.getByLabelText('Connections per task')
+    await user.clear(connections)
+    await user.type(connections, '0')
+    await user.tab()
+    await act(async () => finish())
+    expect(screen.getByText('Connections must be between 1 and 64.')).toBeInTheDocument()
+    expect(connections).toHaveAttribute('aria-invalid', 'true')
+  })
+
   it('stops the stepper buttons at the limits', async () => {
     const { user } = setup()
     const decrease = await screen.findByRole('button', { name: 'Decrease: Part size' })
