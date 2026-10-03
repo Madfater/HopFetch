@@ -96,6 +96,23 @@ class LinkContext:
                 raise Cancelled()
 
 
+class Decoder(ABC):
+    """Turns the downloaded bytes of a file into the bytes to save, fed in order from offset 0.
+
+    - `update` takes the next block and returns its decoded bytes, of any length.
+    - `finish` runs after the last block; it raises `ProviderError("integrity_failed")` when
+      the content does not match what the platform promised.
+    """
+
+    @abstractmethod
+    def update(self, data: bytes) -> bytes:
+        """Return the decoded bytes of the next block."""
+
+    @abstractmethod
+    def finish(self) -> None:
+        """Check the whole content once every block was fed."""
+
+
 PHASE_CAPTCHA = "captcha"
 PHASE_WAITING = "waiting"
 PHASE_LINKS = "links"
@@ -138,6 +155,13 @@ class Provider(ABC):
     def headers(self) -> dict[str, str]:
         """Return the HTTP headers to send with every chunk request."""
         return dict(DEFAULT_HEADERS)
+
+    def decoder(self, ref: FileRef) -> Decoder | None:
+        """Return a fresh `Decoder` that assembly runs the file through, or None to save it as is.
+
+        - Part files always hold the bytes as downloaded; decoding happens only while assembling.
+        """
+        return None
 
 
 def normalize_url(url: str) -> str:

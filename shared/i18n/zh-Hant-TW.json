@@ -67,6 +67,8 @@
     "remote_changed": "下載期間遠端檔案又變更了一次。按重試從頭下載。",
     "range_unsupported": "雲端不支援分段下載，無法下載這個檔案。",
     "interrupted": "服務重新啟動，下載中斷。按重試再試一次。",
-    "invalid_state_not_resumable": "這個任務無法暫停，因為雲端不支援續傳。"
+    "invalid_state_not_resumable": "這個任務無法暫停，因為雲端不支援續傳。",
+    "integrity_failed": "下載的檔案未通過完整性檢查。按重試重新下載。",
+    "invalid_url_key": "這個連結的解密金鑰不正確。請重新複製完整連結，包含 # 後面的部分。"
   }
 }

@@ -70,6 +70,8 @@
     "remote_changed": "The remote file changed again during the download. Retry to download it from the start.",
     "range_unsupported": "The host does not support ranged downloads, so this file cannot be downloaded.",
     "interrupted": "The server restarted and the download stopped. Retry to try again.",
-    "invalid_state_not_resumable": "This task cannot be paused because the host does not support resuming."
+    "invalid_state_not_resumable": "This task cannot be paused because the host does not support resuming.",
+    "integrity_failed": "The downloaded file failed its integrity check. Retry to download it again.",
+    "invalid_url_key": "The decryption key in this link is wrong. Copy the full link again, including the part after #."
   }
 }

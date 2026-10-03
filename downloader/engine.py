@@ -13,7 +13,7 @@ from typing import BinaryIO, Callable
 
 import requests
 
-from .providers.base import Cancelled
+from .providers.base import Cancelled, Decoder
 
 log = logging.getLogger(__name__)
 
@@ -126,16 +126,20 @@ def part_path(part_dir: Path, index: int) -> Path:
     return part_dir / f"part{index:05d}"
 
 
-def assemble(part_dir: Path, parts: list[Part], out: BinaryIO) -> None:
+def assemble(part_dir: Path, parts: list[Part], out: BinaryIO, decoder: Decoder | None = None) -> None:
     """Write the part files in order into `out`.
 
     - `out` is the job's staging file; the caller gives it its final name afterwards, so the
       final name never holds a partial file. Part files are left for the caller to remove.
+    - With a `decoder`, every block passes through `decoder.update` before it is written, and
+      `decoder.finish` runs after the last part.
     """
     for part in parts:
         with part_path(part_dir, part.index).open("rb") as src:
             while block := src.read(1024 * 1024):
-                out.write(block)
+                out.write(decoder.update(block) if decoder else block)
+    if decoder:
+        decoder.finish()
 
 
 def _whole_file(headers, size: int, validated: bool) -> bool:

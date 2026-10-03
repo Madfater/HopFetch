@@ -6,6 +6,7 @@ import threading
 import time
 
 import pytest
+from conftest import XorDecoder
 
 from downloader.engine import (
     DownloadStalled,
@@ -320,3 +321,15 @@ def test_on_validator_is_called_once_with_the_first_version(server, tmp_path):
     download = make(server, tmp_path, links=3, on_validator=lambda v: seen.append(v.etag))
     download.run()
     assert seen == ['"v1"']
+
+
+def test_assemble_runs_every_byte_through_the_decoder(server, content, tmp_path):
+    download = make(server, tmp_path)
+    download.run()
+    decoder = XorDecoder(0x5A)
+    out = tmp_path / "out.bin"
+    with out.open("wb") as handle:
+        assemble(download.part_dir, download.parts, handle, decoder)
+    assert out.read_bytes() == bytes(b ^ 0x5A for b in content)
+    assert decoder.seen == len(content) and decoder.finished
+    assert finish(download, tmp_path) == content
