@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, api } from '../api/client'
 import { Lamp } from '../components/Lamp'
@@ -23,6 +23,8 @@ import styles from './Settings.module.css'
 //   there is, the footer stays in view. After a save it reads "Settings saved" for SAVED_MS.
 // - A number field shows its problem once it has lost focus or a save was tried. A save with a
 //   problem sends nothing and focuses the first field in trouble.
+// - One save runs at a time. An edit made while it runs is kept as the new draft; editing only
+//   clears the message of a save that already failed.
 // - The language applies at once and is kept in this browser only.
 
 const SAVED_MS = 2500
@@ -42,6 +44,7 @@ export function Settings() {
   const [edits, setEdits] = useState<Draft | null>(null)
   const [shown, setShown] = useState<ReadonlySet<NumberField>>(() => new Set())
   const [justSaved, setJustSaved] = useState(false)
+  const submitted = useRef<Draft | null>(null)
 
   const draft = edits ?? (settings.data ? toDraft(settings.data) : null)
   const problems = draft ? validate(draft) : {}
@@ -51,7 +54,7 @@ export function Settings() {
     mutationFn: api.saveSettings,
     onSuccess: (saved) => {
       client.setQueryData(['settings'], saved)
-      setEdits(null)
+      setEdits((current) => (current === submitted.current ? null : current))
       setShown(new Set())
       setJustSaved(true)
     },
@@ -67,7 +70,7 @@ export function Settings() {
     if (!draft) return
     setEdits({ ...draft, ...change })
     setJustSaved(false)
-    save.reset()
+    if (save.isError) save.reset()
   }
 
   const discard = () => {
@@ -85,6 +88,7 @@ export function Settings() {
       document.getElementById(rowId(failing[0]))?.focus()
       return
     }
+    submitted.current = edits
     save.mutate(toChange(draft, changed))
   }
 

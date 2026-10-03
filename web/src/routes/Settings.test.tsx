@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, api } from '../api/client'
@@ -95,6 +95,26 @@ describe('Settings', () => {
     expect(save.mock.calls[0][0]).toEqual({ split_size: 21 * MIB, use_proxies: false })
     expect(await screen.findByText('Settings saved')).toBeInTheDocument()
     expect(saveButton()).toBeDisabled()
+  })
+
+  it('keeps an edit made while a save runs, and runs one save at a time', async () => {
+    const { save, user } = setup()
+    let finish = () => {}
+    save.mockImplementationOnce((change) => new Promise((resolve) => {
+      finish = () => resolve({ ...SAVED, ...change })
+    }))
+    const connections = await screen.findByLabelText('Connections per task')
+    await user.click(screen.getByRole('switch', { name: 'Use public proxies' }))
+    await user.click(saveButton())
+    await user.clear(connections)
+    await user.type(connections, '30')
+    await user.click(saveButton())
+    expect(save).toHaveBeenCalledTimes(1)
+
+    await act(async () => finish())
+    expect(connections).toHaveValue(30)
+    expect(screen.getByText('1 unsaved change')).toBeInTheDocument()
+    expect(screen.getByRole('switch', { name: 'Use public proxies' })).toHaveAttribute('aria-checked', 'false')
   })
 
   it('stops the stepper buttons at the limits', async () => {
