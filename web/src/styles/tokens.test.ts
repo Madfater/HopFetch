@@ -42,9 +42,9 @@ const TEXT: [string, string[]][] = [
 
 const PARTS: [string, string[]][] = [
   ['amber', SURFACES],
-  ['green', ['chassis', 'panel', 'slot']],
-  ['red', ['chassis', 'panel', 'slot']],
-  ['steel', ['chassis', 'panel', 'slot']],
+  ['green', SURFACES],
+  ['red', SURFACES],
+  ['steel', SURFACES],
   ['field-edge', ['chassis', 'panel']],
   ['selected', ['slot']],
   ['ink', ['panel']],

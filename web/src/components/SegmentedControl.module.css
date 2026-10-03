@@ -3,6 +3,8 @@
  *   between segments.
  * - A track wider than its container scrolls sideways inside itself instead of widening the
  *   page.
+ * - The focus ring sits just outside the segment, within the track's padding, so it is drawn
+ *   against the slot color rather than the lighter chosen face.
  */
 .track {
   position: relative;
@@ -54,5 +56,5 @@
 }
 
 .segment:focus-visible {
-  outline-offset: -2px;
+  outline-offset: 0;
 }
