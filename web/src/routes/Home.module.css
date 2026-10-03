@@ -5,8 +5,7 @@
  *   link dragged over it turns the edge to dashed amber.
  * - The status line and the hint share one line under the slot; the hint shows only while the
  *   input is empty.
- * - The preview slides out from under the slot. It and the recent list carry view-transition
- *   names, so clearing the input fades the preview and slides the list into its place.
+ * - The preview slides out from under the slot.
  * - A recent task that arrived while the page is open flashes once.
  */
 .home {
@@ -109,7 +108,6 @@
   border-radius: var(--radius-l);
   background: var(--color-panel);
   box-shadow: var(--shadow-plate);
-  view-transition-name: preview;
   animation: slide-out var(--motion-slow) var(--ease-out);
 }
 
@@ -180,7 +178,6 @@
 
 .recent {
   margin-top: var(--space-6);
-  view-transition-name: recent-list;
 }
 
 .recentHead {
