@@ -130,9 +130,6 @@ export function Tasks() {
         </p>
       ) : all.length === 0 ? (
         <div className={styles.empty}>
-          <span className={styles.bay} aria-hidden="true">
-            <Lamp color="off" />
-          </span>
           <p className={styles.emptyTitle}>{t('tasks.empty')}</p>
           <Link className={controls.button} to="/" viewTransition>{t('tasks.emptyLink')}</Link>
         </div>
