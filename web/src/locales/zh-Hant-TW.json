@@ -5,7 +5,8 @@
     "tasks": "檔案狀況",
     "settings": "設定",
     "storage": "NAS 剩餘",
-    "storageUnknown": "NAS 剩餘空間未知"
+    "storageUnknown": "NAS 剩餘空間未知",
+    "active": "{{count}} 個進行中"
   },
   "home": {
     "inputLabel": "分享連結",

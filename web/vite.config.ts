@@ -9,6 +9,8 @@ import { APP_NAME } from './src/app-name.ts'
 //   the logo does not change face after the first paint.
 // - Vitest replaces CSS with empty strings, except `tokens.css`, which the contrast test
 //   reads as text.
+// - The dashboard ships as one script chunk, served over the LAN; the size warning starts above
+//   that chunk, which includes React Router's data router for view transitions.
 
 const FONT_FILE = 'archivo-latin-wdth-normal'
 
@@ -31,6 +33,9 @@ function appShell(): Plugin {
 
 export default defineConfig({
   plugins: [react(), appShell()],
+  build: {
+    chunkSizeWarningLimit: 640,
+  },
   server: {
     proxy: {
       '/api': 'http://127.0.0.1:8000',

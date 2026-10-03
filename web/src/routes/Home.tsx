@@ -116,7 +116,7 @@ export function Home() {
     onSuccess: (task) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
       client.removeQueries({ queryKey: RESOLVE_KEY })
-      navigate(`/tasks?focus=${task.id}`)
+      navigate(`/tasks?focus=${task.id}`, { viewTransition: true })
     },
     onError: (err) => toast(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'), 'error'),
   })
@@ -218,12 +218,12 @@ export function Home() {
             <h2 id="recent-title" className={styles.recentTitle}>
               {t('home.recent')}
             </h2>
-            <Link to="/tasks">{t('home.viewAll')}</Link>
+            <Link to="/tasks" viewTransition>{t('home.viewAll')}</Link>
           </div>
           <ul>
             {recent.map((task) => (
               <li key={task.id}>
-                <button type="button" className={styles.recentItem} onClick={() => navigate(`/tasks?focus=${task.id}`)}>
+                <button type="button" className={styles.recentItem} onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
                   <span className={styles.recentName}>{task.file_name ?? t('tasks.unnamed')}</span>
                   <StatusLamp status={task.status} text={t(`status.${task.status}`)} />
                 </button>
@@ -330,7 +330,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
           </button>
         )}
         {duplicate && (
-          <Link className={controls.button} to={`/tasks?focus=${duplicate.task_id}`}>
+          <Link className={controls.button} to={`/tasks?focus=${duplicate.task_id}`} viewTransition>
             {t('preview.view')}
           </Link>
         )}

@@ -5,7 +5,8 @@
     "tasks": "Files",
     "settings": "Settings",
     "storage": "NAS free",
-    "storageUnknown": "NAS free space unknown"
+    "storageUnknown": "NAS free space unknown",
+    "active": "{{count}} in progress"
   },
   "home": {
     "inputLabel": "Share link",

@@ -5,6 +5,9 @@
  * - Keyboard focus is an amber outline everywhere.
  * - Under `prefers-reduced-motion: reduce`, every animation and transition finishes at once;
  *   end states still apply and animation events still fire.
+ * - View transitions: the old page fades out quickly and the new one fades in while rising a
+ *   few pixels. Elements with their own `view-transition-name` (the header, the toasts, the
+ *   tab underline) move separately; the tab underline slides with the page's timing.
  */
 @layer base {
   :where(*, *::before, *::after) {
@@ -100,6 +103,32 @@
     border: 0;
   }
 
+  ::view-transition-old(root) {
+    animation: var(--motion-fast) var(--ease-in) both view-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation: var(--motion-slow) var(--ease-out) both view-rise-in;
+  }
+
+  ::view-transition-group(nav-indicator) {
+    animation-duration: var(--motion-slow);
+    animation-timing-function: var(--ease-out);
+  }
+
+  @keyframes view-fade-out {
+    to {
+      opacity: 0;
+    }
+  }
+
+  @keyframes view-rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -110,6 +139,12 @@
       transition-duration: 0.01ms !important;
       transition-delay: 0ms !important;
       scroll-behavior: auto !important;
+    }
+
+    ::view-transition-group(*),
+    ::view-transition-old(*),
+    ::view-transition-new(*) {
+      animation: none !important;
     }
   }
 }

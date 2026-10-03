@@ -120,7 +120,7 @@ export function Tasks() {
       ) : all.length === 0 ? (
         <div className={styles.empty}>
           <p className={styles.emptyTitle}>{t('tasks.empty')}</p>
-          <Link to="/">{t('tasks.emptyLink')}</Link>
+          <Link to="/" viewTransition>{t('tasks.emptyLink')}</Link>
         </div>
       ) : (
         <table className={styles.table}>
