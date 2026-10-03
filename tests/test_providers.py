@@ -75,3 +75,11 @@ def test_providers_snapshot_matches_the_endpoint(tmp_path):
         live = client.get("/api/providers").json()
     snapshot = json.loads((Path(__file__).resolve().parent.parent / "shared" / "providers.json").read_text())
     assert snapshot == live, "refresh shared/providers.json from GET /api/providers"
+
+
+def test_only_mega_decodes_while_assembling():
+    registry = default_registry()
+    k2s_ref = registry.resolve(CASES[0]["url"])[1]
+    assert registry.get("k2s").decoder(k2s_ref) is None
+    mega_case = next(c for c in CASES if c["provider"] == "mega")
+    assert registry.get("mega").decoder(registry.resolve(mega_case["url"])[1]) is not None

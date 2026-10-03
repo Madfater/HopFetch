@@ -6,5 +6,14 @@
     "patterns": [
       "^https?://(?:www\\.)?(?:k2s\\.cc|keep2share\\.cc)/file/([A-Za-z0-9]+)(?:[/?#].*)?$"
     ]
+  },
+  {
+    "id": "mega",
+    "name": "MEGA",
+    "icon": "mega",
+    "patterns": [
+      "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/file/([A-Za-z0-9_-]{8})#[A-Za-z0-9_-]{43}$",
+      "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/#!([A-Za-z0-9_-]{8})![A-Za-z0-9_-]{43}$"
+    ]
   }
 ]

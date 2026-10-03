@@ -14,5 +14,15 @@
   {"url": "k2s.cc/file/8d028cc29f08b", "provider": null, "file_id": null},
   {"url": "ftp://k2s.cc/file/8d028cc29f08b", "provider": null, "file_id": null},
   {"url": "http://192.168.1.1/admin", "provider": null, "file_id": null},
-  {"url": "", "provider": null, "file_id": null}
+  {"url": "", "provider": null, "file_id": null},
+  {"url": "https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": "mega", "file_id": "C1ZESCBI"},
+  {"url": "https://mega.nz/#!C1ZESCBI!jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": "mega", "file_id": "C1ZESCBI"},
+  {"url": "HTTPS://MEGA.NZ/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": "mega", "file_id": "C1ZESCBI"},
+  {"url": "https://www.mega.nz/file/a-_9ZzQ0#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": "mega", "file_id": "a-_9ZzQ0"},
+  {"url": "  https://mega.co.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE  ", "provider": "mega", "file_id": "C1ZESCBI"},
+  {"url": "https://mega.nz/folder/C1ZESCBI#jqGukumcAMamH_xx-wixpc", "provider": null, "file_id": null},
+  {"url": "https://mega.nz/file/C1ZESCBI", "provider": null, "file_id": null},
+  {"url": "https://mega.nz/file/C1ZESCBI#short", "provider": null, "file_id": null},
+  {"url": "https://mega.nz.evil.test/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null},
+  {"url": "https://evil.test/?u=https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null}
 ]
