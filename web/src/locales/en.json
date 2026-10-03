@@ -6,7 +6,7 @@
     "settings": "Settings",
     "storage": "NAS free",
     "storageUnknown": "NAS free space unknown",
-    "active": "{{count}} in progress"
+    "active": "{{count}} downloading or queued"
   },
   "home": {
     "inputLabel": "Share link",

@@ -1,5 +1,5 @@
 /*
- * - Shared buttons, and the steel hint text.
+ * - Shared buttons.
  * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
  * - `primary` is amber and marks the one main action of a page. `danger` confirms a
  *   destructive action and fills red while pointed at.
@@ -87,9 +87,4 @@
   to {
     transform: rotate(1turn);
   }
-}
-
-.hint {
-  color: var(--color-steel);
-  font-size: 0.9rem;
 }
