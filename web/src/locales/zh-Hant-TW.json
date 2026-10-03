@@ -116,9 +116,9 @@
     "root": "下載根目錄",
     "rootHint": "由伺服器設定檔決定，無法在這裡修改。",
     "storageFree": "剩餘 {{free}}，共 {{total}}",
-    "browser": "這個瀏覽器",
-    "browserHint": "只影響這個瀏覽器。",
+    "other": "其他設定",
     "language": "語言",
+    "languageHint": "只儲存在這個瀏覽器，其他裝置不受影響。",
     "loading": "載入設定中"
   },
   "language": {

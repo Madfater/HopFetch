@@ -5,9 +5,12 @@
  * - Keyboard focus is an amber outline everywhere.
  * - Under `prefers-reduced-motion: reduce`, every animation and transition finishes at once;
  *   end states still apply and animation events still fire.
- * - View transitions: the old page fades out quickly and the new one fades in while rising a
- *   few pixels. Elements with their own `view-transition-name` (the header, the toasts, the
- *   tab underline) move separately; the tab underline slides with the page's timing.
+ * - The scrollbar gutter is always reserved, so the centered frame stays put whether or not a
+ *   page scrolls.
+ * - View transitions: the old and new page crossfade on opacity alone, and every part of the
+ *   transition runs on the short timing except the tab underline. Elements with their own
+ *   `view-transition-name` (the header, the toasts, the tab underline) are captured
+ *   separately, so the header and the toasts stay solid and the underline slides.
  */
 @layer base {
   :where(*, *::before, *::after) {
@@ -20,6 +23,7 @@
     line-height: 1.5;
     color: var(--color-ink);
     background: var(--color-chassis);
+    scrollbar-gutter: stable;
     -webkit-font-smoothing: antialiased;
   }
 
@@ -103,30 +107,18 @@
     border: 0;
   }
 
-  ::view-transition-old(root) {
-    animation: var(--motion-fast) var(--ease-in) both view-fade-out;
-  }
-
-  ::view-transition-new(root) {
-    animation: var(--motion-slow) var(--ease-out) both view-rise-in;
-  }
-
-  ::view-transition-group(nav-indicator) {
-    animation-duration: var(--motion-slow);
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation-duration: var(--motion-fast);
     animation-timing-function: var(--ease-out);
   }
 
-  @keyframes view-fade-out {
-    to {
-      opacity: 0;
-    }
-  }
-
-  @keyframes view-rise-in {
-    from {
-      opacity: 0;
-      transform: translateY(4px);
-    }
+  ::view-transition-group(nav-indicator),
+  ::view-transition-old(nav-indicator),
+  ::view-transition-new(nav-indicator) {
+    animation-duration: var(--motion-base);
+    animation-timing-function: var(--ease-out);
   }
 
   @media (prefers-reduced-motion: reduce) {

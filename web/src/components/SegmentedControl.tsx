@@ -20,9 +20,10 @@ interface Props<T extends string> {
   onChange: (value: T) => void
   label?: string
   labelledBy?: string
+  describedBy?: string
 }
 
-export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy }: Props<T>) {
+export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy, describedBy }: Props<T>) {
   const track = useRef<HTMLDivElement>(null)
   const [thumb, setThumb] = useState<{ x: number; width: number } | null>(null)
 
@@ -44,7 +45,7 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
 
   return (
     <RadioGroup.Root ref={track} className={styles.track} value={value} orientation="horizontal" loop
-      aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy}
+      aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
       onValueChange={(next) => onChange(next as T)}>
       {thumb && (
         <span className={styles.thumb} aria-hidden="true"

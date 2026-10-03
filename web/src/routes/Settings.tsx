@@ -17,7 +17,7 @@ import controls from '../styles/controls.module.css'
 import styles from './Settings.module.css'
 
 // - Three plates: the download settings, stored on the server and shared by everyone; the
-//   download folder and its free space, read only; and this browser's language.
+//   download folder and its free space, read only; and other settings, which hold the language.
 // - The download settings are a draft until saved. The footer counts unsaved changes and
 //   offers Discard and Save, which turns amber only when there is something to save; while
 //   there is, the footer stays in view. After a save it reads "Settings saved" for SAVED_MS.
@@ -181,10 +181,9 @@ export function Settings() {
         </>
       )}
 
-      <section className={styles.plate} aria-labelledby="browser-title">
+      <section className={styles.plate} aria-labelledby="other-title">
         <header className={styles.head}>
-          <h2 id="browser-title" className={styles.title}>{t('settings.browser')}</h2>
-          <p className={styles.hint}>{t('settings.browserHint')}</p>
+          <h2 id="other-title" className={styles.title}>{t('settings.other')}</h2>
         </header>
         <LanguageRow />
       </section>
@@ -256,9 +255,10 @@ function LanguageRow() {
     <div className={styles.row}>
       <div className={styles.text}>
         <span id="language-label" className={styles.label}>{t('settings.language')}</span>
+        <span id="language-hint" className={styles.hint}>{t('settings.languageHint')}</span>
       </div>
       <div className={styles.control}>
-        <SegmentedControl labelledBy="language-label" value={toSupported(i18n.language)} onChange={chooseLanguage}
+        <SegmentedControl labelledBy="language-label" describedBy="language-hint" value={toSupported(i18n.language)} onChange={chooseLanguage}
           options={LANGUAGES.map((language) => ({ value: language, label: t(`language.${language}`), lang: language }))} />
       </div>
     </div>

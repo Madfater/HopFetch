@@ -40,6 +40,14 @@ afterEach(() => {
 })
 
 describe('Settings', () => {
+  it('puts the language under other settings and says it is kept per browser', async () => {
+    setup()
+    expect(await screen.findByRole('region', { name: 'Other settings' })).toBeInTheDocument()
+    expect(screen.getByRole('radiogroup', { name: 'Language' })).toHaveAccessibleDescription(
+      'Saved in this browser only; other devices keep their own.',
+    )
+  })
+
   it('counts unsaved changes and enables Save only when there are some', async () => {
     const { user } = setup()
     const connections = await screen.findByLabelText('Connections per task')

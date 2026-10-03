@@ -6,7 +6,6 @@
  *   where its red notes still keep 4.5:1.
  * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
  *   progress events.
- * - The empty page shows an empty drive bay: a recessed slot with its lamp off.
  * - Below 768px each row becomes two lines: name and actions, then status and the numbers.
  */
 .head {
@@ -178,21 +177,6 @@
   gap: var(--space-3);
   padding: 72px var(--space-4);
   text-align: center;
-}
-
-.bay {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  width: 132px;
-  height: 36px;
-  margin-bottom: var(--space-2);
-  padding: 0 var(--space-3);
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-top-color: var(--color-slot-edge-top);
-  border-radius: var(--radius-l);
-  background: var(--color-slot);
-  box-shadow: var(--shadow-recess);
 }
 
 .emptyTitle {
