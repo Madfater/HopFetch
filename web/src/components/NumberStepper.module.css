@@ -1,0 +1,85 @@
+/*
+ * - One recessed slot holding the minus button, the value, its unit and the plus button.
+ * - The focus ring and the error edge belong to the slot, not to the input inside it.
+ * - The buttons light a raised face on hover and sink when pressed.
+ */
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  height: 38px;
+  padding: 0 3px;
+  border: 1px solid var(--color-slot-edge-bottom);
+  border-top-color: var(--color-slot-edge-top);
+  border-bottom-color: var(--color-field-edge);
+  border-radius: var(--radius-m);
+  background: var(--color-slot);
+  box-shadow: var(--shadow-recess);
+  transition: border-color var(--motion-fast) var(--ease-out);
+}
+
+.stepper:focus-within {
+  outline: 2px solid var(--color-amber);
+  outline-offset: 2px;
+}
+
+.invalid {
+  border-color: var(--color-red-text);
+}
+
+.input {
+  width: 4.5ch;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 1rem;
+  text-align: center;
+  appearance: textfield;
+}
+
+.input::-webkit-inner-spin-button,
+.input::-webkit-outer-spin-button {
+  margin: 0;
+  appearance: none;
+}
+
+.input:focus-visible {
+  outline: none;
+}
+
+.unit {
+  padding-right: var(--space-1);
+  color: var(--color-steel);
+  font-size: 0.85rem;
+}
+
+.step {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--radius-m) - 2px);
+  background: transparent;
+  color: var(--color-ink);
+  cursor: pointer;
+  transition:
+    background-color var(--motion-fast) var(--ease-out),
+    transform var(--motion-fast) var(--ease-out);
+}
+
+.step:hover:not(:disabled) {
+  background: var(--color-raised);
+}
+
+.step:active:not(:disabled) {
+  transform: scale(0.88);
+}
+
+.step:disabled {
+  color: var(--color-steel);
+  opacity: 0.45;
+  cursor: not-allowed;
+}

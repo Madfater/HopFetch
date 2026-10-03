@@ -1,162 +1,263 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Checkbox } from 'radix-ui'
-import { useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, api } from '../api/client'
-import type { Settings as SettingsData } from '../api/types'
-import { useToast } from '../components/toast-context'
-import { chooseLanguage, LANGUAGES, toSupported, type Language } from '../i18n'
+import { Lamp } from '../components/Lamp'
+import { NumberStepper } from '../components/NumberStepper'
+import { SegmentedControl } from '../components/SegmentedControl'
+import { Switch } from '../components/Switch'
+import { chooseLanguage, LANGUAGES, toSupported } from '../i18n'
+import { formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
+import {
+  changedFields, LIMITS, NUMBER_FIELDS, parseWhole, stepValue, toChange, toDraft, validate, type Draft, type NumberField,
+} from '../lib/settings'
+import { STORAGE_KEY } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Settings.module.css'
 
-// - Server settings shared by every user (connections, part size, public proxies, simultaneous
-//   downloads), the read-only download folder, and this browser's language.
-// - The part size is edited in MiB and sent in bytes.
+// - Three plates: the download settings, stored on the server and shared by everyone; the
+//   download folder and its free space, read only; and this browser's language.
+// - The download settings are a draft until saved. The footer counts unsaved changes and
+//   offers Discard and Save, which turns amber only when there is something to save; while
+//   there is, the footer stays in view. After a save it reads "Settings saved" for SAVED_MS.
+// - A number field shows its problem once it has lost focus or a save was tried. A save with a
+//   problem sends nothing and focuses the first field in trouble.
+// - The language applies at once and is kept in this browser only.
 
-const MIB = 2 ** 20
+const SAVED_MS = 2500
 
-interface Draft {
-  connections: string
-  splitMib: string
-  useProxies: boolean
-  maxActive: string
-}
+const NUMBER_ROWS: { field: NumberField; id: string; label: string; hint: string; unit?: string }[] = [
+  { field: 'connections', id: 'connections', label: 'settings.connections', hint: 'settings.connectionsHint' },
+  { field: 'maxActive', id: 'max-active', label: 'settings.maxActive', hint: 'settings.maxActiveHint' },
+  { field: 'splitMib', id: 'split-size', label: 'settings.splitSize', hint: 'settings.splitSizeHint', unit: 'settings.mib' },
+]
 
-function toDraft(settings: SettingsData): Draft {
-  return {
-    connections: String(settings.connections),
-    splitMib: String(Math.round(settings.split_size / MIB)),
-    useProxies: settings.use_proxies,
-    maxActive: String(settings.max_active_jobs),
-  }
-}
+const rowId = (field: NumberField) => NUMBER_ROWS.find((row) => row.field === field)?.id ?? field
 
 export function Settings() {
-  const { t, i18n } = useTranslation()
-  const toast = useToast()
+  const { t } = useTranslation()
   const client = useQueryClient()
   const settings = useQuery({ queryKey: ['settings'], queryFn: api.settings })
   const [edits, setEdits] = useState<Draft | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const [shown, setShown] = useState<ReadonlySet<NumberField>>(() => new Set())
+  const [justSaved, setJustSaved] = useState(false)
+
   const draft = edits ?? (settings.data ? toDraft(settings.data) : null)
+  const problems = draft ? validate(draft) : {}
+  const changed = draft && settings.data ? changedFields(draft, settings.data) : []
 
   const save = useMutation({
-    mutationFn: (value: Draft) =>
-      api.saveSettings({
-        connections: Number(value.connections),
-        split_size: Math.round(Number(value.splitMib) * MIB),
-        use_proxies: value.useProxies,
-        max_active_jobs: Number(value.maxActive),
-      }),
+    mutationFn: api.saveSettings,
     onSuccess: (saved) => {
       client.setQueryData(['settings'], saved)
       setEdits(null)
-      setError(null)
-      toast(t('settings.saved'), 'success')
+      setShown(new Set())
+      setJustSaved(true)
     },
-    onError: (err) => setError(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown')),
   })
+
+  useEffect(() => {
+    if (!justSaved) return
+    const timer = window.setTimeout(() => setJustSaved(false), SAVED_MS)
+    return () => window.clearTimeout(timer)
+  }, [justSaved])
+
+  const update = (change: Partial<Draft>) => {
+    if (!draft) return
+    setEdits({ ...draft, ...change })
+    setJustSaved(false)
+    save.reset()
+  }
+
+  const discard = () => {
+    setEdits(null)
+    setShown(new Set())
+    save.reset()
+  }
 
   const submit = (event: FormEvent) => {
     event.preventDefault()
-    if (draft) save.mutate(draft)
+    if (!draft || changed.length === 0 || save.isPending) return
+    const failing = NUMBER_FIELDS.filter((field) => problems[field])
+    if (failing.length > 0) {
+      setShown(new Set([...shown, ...failing]))
+      document.getElementById(rowId(failing[0]))?.focus()
+      return
+    }
+    save.mutate(toChange(draft, changed))
   }
 
-  const update = (change: Partial<Draft>) => {
-    if (draft) setEdits({ ...draft, ...change })
-  }
+  const saveError = save.error ? (save.error instanceof ApiError ? errorText(t, save.error.error) : t('errors.unknown')) : null
 
   return (
     <main className={`page ${styles.settings}`}>
-      <h1 className={styles.title}>{t('settings.title')}</h1>
+      <h1 className="page-title">{t('settings.title')}</h1>
 
       {!draft || !settings.data ? (
-        <p className={controls.hint}>{settings.isError ? t('errors.network') : t('settings.loading')}</p>
+        <p className={styles.state}>
+          <Lamp color={settings.isError ? 'red' : 'amber'} pulse={!settings.isError} />
+          {settings.isError ? t('errors.network') : t('settings.loading')}
+        </p>
       ) : (
-        <form className={styles.section} onSubmit={submit} noValidate>
-          <h2 className={styles.sectionTitle}>{t('settings.shared')}</h2>
-          <p className={controls.hint}>{t('settings.sharedHint')}</p>
+        <>
+          <form className={styles.plate} onSubmit={submit} noValidate aria-labelledby="shared-title">
+            <header className={styles.head}>
+              <h2 id="shared-title" className={styles.title}>{t('settings.shared')}</h2>
+              <p className={styles.hint}>{t('settings.sharedHint')}</p>
+            </header>
 
-          <NumberField id="connections" label={t('settings.connections')} hint={t('settings.connectionsHint')}
-            min={1} max={64} value={draft.connections} onChange={(value) => update({ connections: value })} />
-          <NumberField id="split" label={t('settings.splitSize')} hint={t('settings.splitSizeHint')}
-            min={20} value={draft.splitMib} onChange={(value) => update({ splitMib: value })} />
-          <NumberField id="active" label={t('settings.maxActive')} hint={t('settings.maxActiveHint')}
-            min={1} max={10} value={draft.maxActive} onChange={(value) => update({ maxActive: value })} />
+            {NUMBER_ROWS.map((row) => {
+              const problem = shown.has(row.field) ? problems[row.field] : undefined
+              const value = parseWhole(draft[row.field])
+              const { min, max } = LIMITS[row.field]
+              const label = t(row.label)
+              return (
+                <Row key={row.field} id={row.id} label={label} hint={t(row.hint)}
+                  error={problem ? t(problem.key, problem.params) : null}>
+                  <NumberStepper id={row.id} value={draft[row.field]} min={min} max={max} unit={row.unit && t(row.unit)}
+                    atMin={value !== null && value <= min} atMax={max !== undefined && value !== null && value >= max}
+                    invalid={problem !== undefined}
+                    describedBy={problem ? `${row.id}-hint ${row.id}-error` : `${row.id}-hint`}
+                    decreaseLabel={t('action.named', { action: t('settings.decrease'), name: label })}
+                    increaseLabel={t('action.named', { action: t('settings.increase'), name: label })}
+                    onChange={(text) => update({ [row.field]: text } as Partial<Draft>)}
+                    onStep={(delta) => update({ [row.field]: stepValue(row.field, draft[row.field], delta) } as Partial<Draft>)}
+                    onBlur={() => setShown((all) => new Set(all).add(row.field))} />
+                </Row>
+              )
+            })}
 
-          <label className={styles.check}>
-            <Checkbox.Root className={styles.box} checked={draft.useProxies} aria-describedby="proxies-hint"
-              onCheckedChange={(value) => update({ useProxies: value === true })}>
-              <Checkbox.Indicator>
-                <svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor"
-                  strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M2.5 6.2 5 8.5l4.5-5" />
-                </svg>
-              </Checkbox.Indicator>
-            </Checkbox.Root>
-            <span className={controls.field}>
-              <span className={controls.label}>{t('settings.useProxies')}</span>
-              <span id="proxies-hint" className={controls.hint}>{t('settings.useProxiesHint')}</span>
-            </span>
-          </label>
+            <Row id="proxies" label={t('settings.useProxies')} hint={t('settings.useProxiesHint')} error={null}>
+              <Switch id="proxies" checked={draft.useProxies} describedBy="proxies-hint"
+                onCheckedChange={(checked) => update({ useProxies: checked })} />
+            </Row>
 
-          <div className={controls.field}>
-            <span className={controls.label}>{t('settings.root')}</span>
-            <span className={`${styles.root} num`}>{settings.data.download_root}</span>
-            <span className={controls.hint}>{t('settings.rootHint')}</span>
-          </div>
+            <div className={`${styles.footer} ${changed.length > 0 || saveError ? styles.pinned : ''}`}>
+              {saveError ? (
+                <p className={`${styles.status} ${styles.failed}`} role="alert">
+                  <span className={styles.statusText}>
+                    <Lamp color="red" />
+                    {saveError}
+                  </span>
+                </p>
+              ) : (
+                <p className={styles.status} role="status">
+                  {changed.length > 0 ? (
+                    <span key="dirty" className={`${styles.statusText} ${styles.dirty}`}>
+                      <Lamp color="amber" />
+                      {t('settings.unsaved', { count: changed.length })}
+                    </span>
+                  ) : justSaved ? (
+                    <span key="saved" className={`${styles.statusText} ${styles.dirty}`}>
+                      <Lamp color="green" />
+                      {t('settings.saved')}
+                    </span>
+                  ) : (
+                    <span key="clean" className={styles.statusText}>{t('settings.applyHint')}</span>
+                  )}
+                </p>
+              )}
+              <div className={styles.actions}>
+                {changed.length > 0 && (
+                  <button type="button" className={`${controls.button} ${styles.discard}`} onClick={discard}
+                    disabled={save.isPending}>
+                    {t('settings.discard')}
+                  </button>
+                )}
+                <button type="submit" className={`${controls.button} ${changed.length > 0 ? controls.primary : ''}`}
+                  disabled={changed.length === 0} aria-busy={save.isPending || undefined}>
+                  {save.isPending && <span className={controls.spinner} aria-hidden="true" />}
+                  {t('settings.save')}
+                </button>
+              </div>
+            </div>
+          </form>
 
-          <div className={styles.actions}>
-            <button type="submit" className={controls.button} disabled={save.isPending}>
-              {t('settings.save')}
-            </button>
-            {error && (
-              <p className={controls.error} role="alert">
-                {error}
-              </p>
-            )}
-          </div>
-        </form>
+          <StoragePlate root={settings.data.download_root} />
+        </>
       )}
 
-      <section className={styles.section} aria-labelledby="browser-title">
-        <h2 id="browser-title" className={styles.sectionTitle}>{t('settings.browser')}</h2>
-        <div className={controls.field}>
-          <label htmlFor="language" className={controls.label}>{t('settings.language')}</label>
-          <select id="language" className={`${controls.input} ${styles.select}`} aria-describedby="language-hint"
-            value={toSupported(i18n.language)} onChange={(event) => chooseLanguage(event.target.value as Language)}>
-            {LANGUAGES.map((language) => (
-              <option key={language} value={language} lang={language}>
-                {t(`language.${language}`)}
-              </option>
-            ))}
-          </select>
-          <span id="language-hint" className={controls.hint}>{t('settings.languageHint')}</span>
-        </div>
+      <section className={styles.plate} aria-labelledby="browser-title">
+        <header className={styles.head}>
+          <h2 id="browser-title" className={styles.title}>{t('settings.browser')}</h2>
+          <p className={styles.hint}>{t('settings.browserHint')}</p>
+        </header>
+        <LanguageRow />
       </section>
     </main>
   )
 }
 
-interface NumberFieldProps {
+interface RowProps {
   id: string
   label: string
   hint: string
-  min: number
-  max?: number
-  value: string
-  onChange: (value: string) => void
+  error: string | null
+  children: ReactNode
 }
 
-function NumberField({ id, label, hint, min, max, value, onChange }: NumberFieldProps) {
+// - One setting: its name and what it does, any problem with its value, then its control.
+function Row({ id, label, hint, error, children }: RowProps) {
   return (
-    <div className={controls.field}>
-      <label htmlFor={id} className={controls.label}>{label}</label>
-      <input id={id} className={`${controls.input} ${styles.number} num`} type="number" inputMode="numeric"
-        min={min} max={max} step={1} value={value} aria-describedby={`${id}-hint`}
-        onChange={(event) => onChange(event.target.value)} />
-      <span id={`${id}-hint`} className={controls.hint}>{hint}</span>
+    <div className={styles.row}>
+      <div className={styles.text}>
+        <label htmlFor={id} className={styles.label}>{label}</label>
+        <span id={`${id}-hint`} className={styles.hint}>{hint}</span>
+        {error && <span id={`${id}-error`} className={styles.error}>{error}</span>}
+      </div>
+      <div className={styles.control}>{children}</div>
+    </div>
+  )
+}
+
+// - The download folder, and how much of its filesystem is used, from the same storage query
+//   the navigation bar reads.
+function StoragePlate({ root }: { root: string }) {
+  const { t, i18n } = useTranslation()
+  const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
+  const used = storage && storage.total_bytes > 0 ? 1 - storage.free_bytes / storage.total_bytes : null
+
+  return (
+    <section className={styles.plate} aria-labelledby="storage-title">
+      <header className={styles.head}>
+        <h2 id="storage-title" className={styles.title}>{t('settings.storage')}</h2>
+      </header>
+      <div className={styles.row}>
+        <div className={styles.text}>
+          <span className={styles.label}>{t('settings.root')}</span>
+          <span className={styles.hint}>{t('settings.rootHint')}</span>
+        </div>
+        <span className={`${styles.path} num`}>{root}</span>
+      </div>
+      {storage && used !== null && (
+        <div className={styles.meterRow}>
+          <div className={styles.meter} aria-hidden="true">
+            <div className={styles.meterFill} style={{ transform: `scaleX(${used})` }} />
+          </div>
+          <span className={styles.free}>
+            {t('settings.storageFree', {
+              free: formatStorage(i18n.language, storage.free_bytes),
+              total: formatStorage(i18n.language, storage.total_bytes),
+            })}
+          </span>
+        </div>
+      )}
+    </section>
+  )
+}
+
+function LanguageRow() {
+  const { t, i18n } = useTranslation()
+  return (
+    <div className={styles.row}>
+      <div className={styles.text}>
+        <span id="language-label" className={styles.label}>{t('settings.language')}</span>
+      </div>
+      <div className={styles.control}>
+        <SegmentedControl labelledBy="language-label" value={toSupported(i18n.language)} onChange={chooseLanguage}
+          options={LANGUAGES.map((language) => ({ value: language, label: t(`language.${language}`), lang: language }))} />
+      </div>
     </div>
   )
 }
