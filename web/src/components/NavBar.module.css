@@ -1,7 +1,6 @@
 /*
  * - The header sticks to the top and has its own view-transition name, so page changes never
  *   move it.
- * - The mark is a small recessed slot holding the activity lamp, like the favicon.
  * - The active tab's underline is its own element, named `nav-indicator` for view
  *   transitions.
  */
@@ -25,21 +24,6 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 var(--space-4);
-}
-
-.mark {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  align-self: center;
-  width: 36px;
-  height: 18px;
-  padding: 0 3px;
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-top-color: var(--color-slot-edge-top);
-  border-radius: var(--radius-round);
-  background: var(--color-slot);
-  box-shadow: var(--shadow-recess);
 }
 
 .tabs {
@@ -136,10 +120,6 @@
   .inner,
   .tabs {
     gap: var(--space-4);
-  }
-
-  .mark {
-    display: none;
   }
 
   .storage {

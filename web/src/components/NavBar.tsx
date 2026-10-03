@@ -1,18 +1,15 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, NavLink } from 'react-router'
+import { NavLink } from 'react-router'
 import { api } from '../api/client'
 import { useTasks } from '../hooks/useTasks'
 import { formatStorage } from '../lib/format'
 import { isActive, STORAGE_KEY } from '../lib/tasks'
-import { Lamp, type LampColor } from './Lamp'
+import { Lamp } from './Lamp'
 import styles from './NavBar.module.css'
 
-// - Sticky top bar: the brand mark, the three pages, and NAS free space on the right.
-// - The mark is the app's activity light: red while the event stream is down, amber and
-//   breathing while a task is queued or downloading, steel otherwise. It is a pointer shortcut
-//   home; keyboard and screen reader users have the Download tab.
+// - Sticky top bar: the three pages, and NAS free space on the right.
 // - The Files tab counts queued and downloading tasks.
 // - The active tab's underline has a view-transition name, so a page change slides it to the
 //   new tab.
@@ -30,15 +27,11 @@ export function NavBar({ connected }: { connected: boolean }) {
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity })
   const tasks = useTasks().data
   const active = tasks ? tasks.filter(isActive).length : null
-  const lamp: LampColor = !connected ? 'red' : active ? 'amber' : 'steel'
 
   return (
     <header className={styles.header}>
       <div className={styles.bar}>
         <div className={styles.inner}>
-          <Link to="/" viewTransition className={styles.mark} tabIndex={-1} aria-hidden="true">
-            <Lamp color={lamp} pulse={lamp === 'amber'} />
-          </Link>
           <nav aria-label={t('nav.label')} className={styles.tabs}>
             {TABS.map((tab) => (
               <NavLink key={tab.to} to={tab.to} end={tab.end} viewTransition
