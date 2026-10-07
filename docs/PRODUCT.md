@@ -25,7 +25,7 @@ Free Keep2Share links normally give one rate-limited connection, sit behind an i
 - Self-hosted in Docker on a NAS and deployed through Arcane. The app is reached at port 8000 on the LAN or over VPN. It is never exposed to the internet.
 - Finished files land in `DOWNLOAD_DIR`, and the user often browses that folder over SMB. While a file is being assembled it is named `<name>.part`, so SMB never shows a partial file under its real name.
 - Jobs survive server restarts as paused tasks and resume where they stopped.
-- The dashboard has three routes: Home (paste and resolve a link), Files (tasks and their progress) and Settings. Updates are pushed live over server-sent events.
+- The dashboard has three routes: Download (paste and check a link), Downloads (tasks and their progress; 下載清單 in Chinese) and Settings. Updates are pushed live over server-sent events.
 
 ## Capabilities and Constraints
 
