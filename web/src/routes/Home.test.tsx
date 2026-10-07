@@ -13,7 +13,7 @@ import { Home } from './Home'
 //   below, and a resolve that answers with the given file.
 // - A link is pasted into the input, which resolves it at once.
 
-const URL = 'https://k2s.cc/file/aaa111/a.rar'
+const LINK = 'https://k2s.cc/file/aaa111/a.rar'
 const FREE = 100 * 2 ** 30
 
 function resolved(change: Partial<Resolved> = {}): Resolved {
@@ -50,7 +50,7 @@ async function setup(answer: Resolved) {
   const user = userEvent.setup()
   await vi.waitFor(() => expect(api.providers).toHaveBeenCalled())
   await user.click(screen.getByRole('textbox'))
-  await user.paste(URL)
+  await user.paste(LINK)
   await screen.findByRole('region', { name: 'a.rar' })
   return { create, retry, user }
 }
@@ -70,7 +70,7 @@ describe('Home preview keys', () => {
     const { create, user } = await setup(resolved())
     expect(keyHint()).toBe('Enter to download, Esc to clear')
     await user.keyboard('{Enter}')
-    expect(create).toHaveBeenCalledWith(URL, false)
+    expect(create).toHaveBeenCalledWith(LINK, false)
   })
 
   it('needs a click to download a completed file again', async () => {
@@ -79,7 +79,7 @@ describe('Home preview keys', () => {
     await user.keyboard('{Enter}')
     expect(create).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Download again' }))
-    expect(create).toHaveBeenCalledWith(URL, true)
+    expect(create).toHaveBeenCalledWith(LINK, true)
   })
 
   it('needs a click to retry a failed earlier task', async () => {
@@ -89,6 +89,12 @@ describe('Home preview keys', () => {
     expect(retry).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(retry).toHaveBeenCalledWith('old1')
+  })
+
+  it('names Esc alone in Traditional Chinese when Enter does not download', async () => {
+    await i18n.changeLanguage('zh-Hant-TW')
+    await setup(resolved({ duplicate: { task_id: 'old1', status: 'completed' } }))
+    expect(keyHint()).toBe('按 Esc 清除')
   })
 
   it('offers no retry while the file does not fit', async () => {

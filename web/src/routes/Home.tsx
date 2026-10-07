@@ -326,7 +326,7 @@ interface PreviewProps {
 
 // - While a download is being started, its button keeps its place and shows a spinner;
 //   `download` ignores presses until the request ends.
-// - Retry is offered only while the file fits, since a retry without the space fails again.
+// - Retry is offered only while the file fits in the free space.
 // - The key hint names Enter only when Enter downloads; otherwise it names Esc alone.
 function Preview({ data, provider, free, short, plan, locale, busy, submitError, onDownload, onRetry }: PreviewProps) {
   const { t } = useTranslation()
