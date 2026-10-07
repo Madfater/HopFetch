@@ -50,7 +50,7 @@
     "outcome": "已開始 {{started}} 個，{{failed}} 個無法開始。",
     "ignored_other": "另有 {{count}} 個連結不是支援的網站，已略過。",
     "dropped_other": "一次最多 {{limit}} 個連結，其餘 {{count}} 個已略過。",
-    "total": "總大小",
+    "needed": "所需空間",
     "short": "空間不足以放下全部檔案，還差 {{size}}。清出空間後再試一次。",
     "download_other": "下載 {{count}} 個檔案",
     "row": {

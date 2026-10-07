@@ -80,6 +80,8 @@ export function Home() {
   const [batchText, setBatchText] = useState<string | null>(null)
   const [outcomes, setOutcomes] = useState<Map<string, Outcome>>(new Map())
   const [starting, setStarting] = useState(false)
+  // - Mirrors `starting` for the page-wide paste listener, which outlives a render.
+  const startingRef = useRef(false)
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -122,6 +124,7 @@ export function Home() {
   }
 
   const setFromPaste = useCallback((text: string) => {
+    if (startingRef.current) return
     const found = extractSingleUrl(text)
     setSubmitError(null)
     setNoneSupported(false)
@@ -183,7 +186,8 @@ export function Home() {
 
   // - Creates the batch's ready files one at a time in paste order and records each outcome.
   const startBatch = async (current: BatchView) => {
-    if (!current.canStart || starting) return
+    if (!current.canStart || startingRef.current) return
+    startingRef.current = true
     setStarting(true)
     const done = new Map<string, Outcome>()
     for (const item of current.ready) {
@@ -196,6 +200,7 @@ export function Home() {
       }
       setOutcomes(new Map(done))
     }
+    startingRef.current = false
     setStarting(false)
     const failed = [...done.values()].filter((outcome) => outcome.kind === 'failed').length
     const started = done.size - failed

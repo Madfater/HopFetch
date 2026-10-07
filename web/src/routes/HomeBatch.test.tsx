@@ -119,9 +119,13 @@ describe('Home batch paste', () => {
       act: file('act', { duplicate: { task_id: 'old1', status: 'queued' } }),
       done: file('done', { duplicate: { task_id: 'old2', status: 'completed' } }),
       bad: file('bad', { duplicate: { task_id: 'old3', status: 'failed' } }),
+      stop: file('stop', { duplicate: { task_id: 'old4', status: 'canceled' } }),
+      nosize: file('nosize', { size: null, required_bytes: null }),
     })
-    await paste(user, ['ok1', 'act', 'done', 'bad', 'gone'].map(link).join(' '))
+    await paste(user, ['ok1', 'act', 'done', 'bad', 'stop', 'nosize', 'gone'].map(link).join(' '))
     await screen.findByText('1 file can be downloaded')
+    expect(rowText('stop')).toContain('This file failed or was canceled before.')
+    expect(rowText('nosize')).toContain('The host did not report the file size, which a split download needs.')
     expect(rowText('act')).toContain('This file is already in the download list.')
     expect(rowText('done')).toContain('This file was downloaded before.')
     expect(rowText('bad')).toContain('This file failed or was canceled before.')
@@ -153,6 +157,28 @@ describe('Home batch paste', () => {
     expect(within(card()).queryByRole('button', { name: /^Download/ })).toBeNull()
     expect(screen.getByText('Started 2, 1 could not start.')).toBeTruthy()
     expect(screen.queryByText('Paste a link anywhere on this page, or drop one here.')).toBeNull()
+  })
+
+  it('ignores a paste elsewhere on the page while the batch is starting', async () => {
+    const { create, user } = setup({ g1: file('g1'), g2: file('g2'), h1: file('h1'), h2: file('h2') })
+    const pending: (() => void)[] = []
+    create.mockImplementation((url) => new Promise<Task>((resolve) => pending.push(() => resolve(task(fileId(url))))))
+    await paste(user, `${link('g1')} ${link('g2')}`)
+    await screen.findByText('2 files can be downloaded')
+    await user.click(within(card()).getByRole('button', { name: 'Download 2 files' }))
+    await vi.waitFor(() => expect(pending).toHaveLength(1))
+
+    expect(document.activeElement?.tagName).toBe('BUTTON')
+    await user.paste(`${link('h1')} ${link('h2')}`)
+    expect(screen.getByRole('region', { name: 'Batch of 2 links' })).toBeTruthy()
+    expect(rowText('g1')).toBeTruthy()
+    expect(rowText('h1')).toBeUndefined()
+
+    pending.shift()?.()
+    await vi.waitFor(() => expect(pending).toHaveLength(1))
+    pending.shift()?.()
+    await vi.waitFor(() => expect(screen.queryByRole('region', { name: /^Batch of/ })).toBeNull())
+    expect(create.mock.calls.map((call) => call[0])).toEqual([link('g1'), link('g2')])
   })
 
   it('clears the batch once every file started', async () => {

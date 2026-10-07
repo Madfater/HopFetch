@@ -6,8 +6,8 @@ import { BATCH_LIMIT, type Batch } from '../lib/url'
 import controls from '../styles/controls.module.css'
 import styles from './Home.module.css'
 
-// - The preview of a pasted batch: one row per supported link, in paste order, then the total
-//   size of the files that can start against the NAS free space, and one button for all of them.
+// - The preview of a pasted batch: one row per supported link, in paste order, then the space
+//   the files that can start need against the NAS free space, and one button for all of them.
 // - Each row is a lamp, the file name, the host and the row's state, and the file size. A
 //   skipped row says why. While the batch starts, rows switch to their outcome one by one.
 // - Notes say how many other links were left out: unsupported ones and those past the limit.
@@ -74,8 +74,8 @@ export function BatchPreview({ batch, view, free, locale, starting, onStart }: P
       {view.ready.length > 0 && !view.started && (
         <dl className={styles.facts}>
           <div className={styles.fact}>
-            <dt>{t('batch.total')}</dt>
-            <dd className="num">{formatBytes(locale, view.total)}</dd>
+            <dt>{t('batch.needed')}</dt>
+            <dd className="num">{formatBytes(locale, view.needed)}</dd>
           </div>
           <div className={styles.fact}>
             <dt>{t('nav.storage')}</dt>

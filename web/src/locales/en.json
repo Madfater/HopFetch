@@ -54,7 +54,7 @@
     "ignored_other": "{{count}} other links are not from a supported site and were left out.",
     "dropped_one": "Up to {{limit}} links at a time; {{count}} more was left out.",
     "dropped_other": "Up to {{limit}} links at a time; {{count}} more were left out.",
-    "total": "Total",
+    "needed": "Space needed",
     "short": "Not enough space for all of them: {{size}} short. Free some space, then try again.",
     "download_one": "Download {{count}} file",
     "download_other": "Download {{count}} files",

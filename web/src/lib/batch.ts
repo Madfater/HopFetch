@@ -3,8 +3,9 @@ import { ApiError } from '../api/client'
 import type { BatchItem } from '../hooks/useBatch'
 import { errorText } from './messages'
 
-// - What a pasted batch can do: each row's state, the files that can start, their total size,
-//   and whether the whole set fits in the free space.
+// - What a pasted batch can do: each row's state, the files that can start, the space they need
+//   together (the backend's `required_bytes`, which counts part files too), and whether that
+//   fits in the free space.
 // - A row is skipped when its file cannot start as a plain download: it is already in the list,
 //   was downloaded, failed or was canceled before, has no size, or its lookup failed. Skipping
 //   an earlier task is calm; a failed lookup is an error.
@@ -27,7 +28,7 @@ export interface BatchView {
   rows: BatchRow[]
   ready: BatchItem[]
   checking: number
-  total: number
+  needed: number
   short: number
   started: boolean
   canStart: boolean
@@ -54,16 +55,15 @@ export function batchView(t: TFunction, items: BatchItem[], outcomes: Map<string
   const looked = items.map((item) => ({ item, state: lookupState(t, item) }))
   const ready = looked.filter((row) => row.state.kind === 'ready').map((row) => row.item)
   const checking = looked.filter((row) => row.state.kind === 'checking').length
-  const total = ready.reduce((sum, item) => sum + (item.data?.size ?? 0), 0)
-  const required = ready.reduce((sum, item) => sum + (item.data?.required_bytes ?? 0), 0)
-  const short = Math.max(0, required - free)
+  const needed = ready.reduce((sum, item) => sum + (item.data?.required_bytes ?? 0), 0)
+  const short = Math.max(0, needed - free)
   const started = outcomes.size > 0
   const canStart = !started && checking === 0 && ready.length > 0 && short === 0
   return {
     rows: looked.map((row) => ({ item: row.item, state: outcomes.get(row.item.link.key) ?? row.state })),
     ready,
     checking,
-    total,
+    needed,
     short,
     started,
     canStart,
