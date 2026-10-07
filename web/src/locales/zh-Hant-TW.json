@@ -19,7 +19,6 @@
       "ready": "可以下載",
       "blocked": "無法下載"
     },
-    "manyUrls": "一次只能貼一個連結。",
     "checking": "解析連結中",
     "recent": "最近的任務",
     "viewAll": "查看全部"
@@ -39,6 +38,26 @@
     "duplicateCompleted": "這個檔案已經下載過。",
     "keys": "按 <key>Enter</key> 下載，按 <key>Esc</key> 清除",
     "keysClear": "按 <key>Esc</key> 清除"
+  },
+  "batch": {
+    "label": "{{count}} 個連結的批次",
+    "summary": "已貼上 {{count}} 個連結",
+    "checking": "正在檢查連結：{{done}} / {{count}}",
+    "ready_other": "{{count}} 個檔案可以下載",
+    "noneReady": "這些檔案都無法下載。",
+    "noneSupported": "這些連結都不是支援的網站：{{sites}}。",
+    "noRoom_other": "空間不足，放不下這 {{count}} 個檔案。",
+    "outcome": "已開始 {{started}} 個，{{failed}} 個無法開始。",
+    "ignored_other": "另有 {{count}} 個連結不是支援的網站，已略過。",
+    "dropped_other": "一次最多 {{limit}} 個連結，其餘 {{count}} 個已略過。",
+    "needed": "所需空間",
+    "short": "空間不足以放下全部檔案，還差 {{size}}。清出空間後再試一次。",
+    "download_other": "下載 {{count}} 個檔案",
+    "row": {
+      "checking": "檢查中",
+      "ready": "可以下載",
+      "started": "已開始"
+    }
   },
   "status": {
     "queued": "排隊中",
@@ -133,7 +152,9 @@
     "removed": "已刪除任務",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
-    "close": "關閉通知"
+    "close": "關閉通知",
+    "batchStarted_other": "已開始下載 {{count}} 個檔案",
+    "batchPartial": "已開始 {{started}} 個，{{failed}} 個無法開始"
   },
   "errors": {
     "network": "連不上伺服器。確認服務正在執行後再試一次。",

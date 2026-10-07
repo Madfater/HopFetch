@@ -158,7 +158,9 @@ Stopping the server pauses running jobs the same way. A server start marks any j
 | `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, cancels any task-list fetch in flight, refetches the task list, storage and providers, and replays events that arrived during the refetch. A status change or removal invalidates cached resolve answers |
 | `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |
 | `hooks/useResolve.ts` | Local URL check against the provider patterns, then `/api/resolve`: 400 ms after typing stops, at once after a paste. Results are keyed by normalized URL, and outdated requests are aborted |
-| `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, `Intl` formatting, translation of backend keys, and pure task-list helpers |
+| `hooks/useBatch.ts` | `/api/resolve` for every link of a pasted batch, at most 3 at a time, under the same query keys as a single link |
+| `lib/batch.ts` | A pasted batch's row states, the files that can start, the space they need, and whether the batch can start or Enter may start it |
+| `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, including a batch of supported links from pasted text, `Intl` formatting, translation of backend keys, and pure task-list helpers |
 | `routes/` | The download, files and settings pages |
 | `components/` | Navigation bar, lamps, icon buttons with tooltips, delete dialog, toasts |
 | `i18n.ts`, `locales/` | i18next setup. Interface text in `locales/<lang>.json`, merged one section deep with `shared/i18n/<lang>.json`. The language is chosen per browser in `localStorage`, then from `navigator.language` |

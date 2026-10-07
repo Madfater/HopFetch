@@ -19,7 +19,6 @@
       "ready": "Ready to download",
       "blocked": "Cannot download"
     },
-    "manyUrls": "Paste one link at a time.",
     "checking": "Checking the link",
     "recent": "Recent tasks",
     "viewAll": "View all"
@@ -39,6 +38,31 @@
     "duplicateCompleted": "This file was downloaded before.",
     "keys": "<key>Enter</key> to download, <key>Esc</key> to clear",
     "keysClear": "<key>Esc</key> to clear"
+  },
+  "batch": {
+    "label": "Batch of {{count}} links",
+    "summary": "{{count}} links pasted",
+    "checking": "Checking links: {{done}} of {{count}}",
+    "ready_one": "{{count}} file can be downloaded",
+    "ready_other": "{{count}} files can be downloaded",
+    "noneReady": "None of these files can be downloaded.",
+    "noneSupported": "None of these links are from a supported site: {{sites}}.",
+    "noRoom_one": "Not enough space for this {{count}} file.",
+    "noRoom_other": "Not enough space for these {{count}} files.",
+    "outcome": "Started {{started}}, {{failed}} could not start.",
+    "ignored_one": "{{count}} other link is not from a supported site and was left out.",
+    "ignored_other": "{{count}} other links are not from a supported site and were left out.",
+    "dropped_one": "Up to {{limit}} links at a time; {{count}} more was left out.",
+    "dropped_other": "Up to {{limit}} links at a time; {{count}} more were left out.",
+    "needed": "Space needed",
+    "short": "Not enough space for all of them: {{size}} short. Free some space, then try again.",
+    "download_one": "Download {{count}} file",
+    "download_other": "Download {{count}} files",
+    "row": {
+      "checking": "Checking",
+      "ready": "Ready",
+      "started": "Started"
+    }
   },
   "status": {
     "queued": "Queued",
@@ -135,7 +159,10 @@
     "cleared_one": "Cleared {{count}} completed task",
     "cleared_other": "Cleared {{count}} completed tasks",
     "offline": "Cannot reach the server. Reconnecting.",
-    "close": "Close notification"
+    "close": "Close notification",
+    "batchStarted_one": "Started {{count}} download",
+    "batchStarted_other": "Started {{count}} downloads",
+    "batchPartial": "Started {{started}}, {{failed}} could not start"
   },
   "errors": {
     "network": "Cannot reach the server. Check that the service is running, then try again.",

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import cases from '../../../shared/provider-test-cases.json'
 import providers from '../../../shared/providers.json'
-import { extractSingleUrl, extractUrls, isHttpUrl, matchProvider, normalizeUrl } from './url'
+import { BATCH_LIMIT, extractBatch, extractSingleUrl, extractUrls, isHttpUrl, matchProvider, normalizeUrl } from './url'
 
 // - The URL cases in shared/ are the same ones pytest runs against the backend.
 
@@ -41,5 +41,40 @@ describe('extracting a URL from pasted text', () => {
 
   it('reports none in plain text', () => {
     expect(extractSingleUrl('just words')).toEqual({ kind: 'none' })
+  })
+})
+
+describe('extracting a batch from pasted text', () => {
+  const MEGA = 'https://mega.nz/file/AbCd1234#' + 'k'.repeat(43)
+
+  it('keeps supported links in order and counts the others', () => {
+    const text = [
+      'Part 1 https://k2s.cc/file/aaa111/x.part1.rar',
+      'cover https://img.example.com/cover.jpg',
+      'Part 2：https://keep2share.cc/file/bbb222/x.part2.rar，',
+      `mirror ${MEGA}`,
+      'thread https://forum.example.com/t/42',
+    ].join('\n')
+    const batch = extractBatch(text, providers)
+    expect(batch.links.map((link) => [link.key, link.url])).toEqual([
+      ['k2s:aaa111', 'https://k2s.cc/file/aaa111/x.part1.rar'],
+      ['k2s:bbb222', 'https://keep2share.cc/file/bbb222/x.part2.rar'],
+      ['mega:AbCd1234', MEGA],
+    ])
+    expect(batch.ignored).toBe(2)
+    expect(batch.dropped).toBe(0)
+  })
+
+  it('counts one file once across host aliases', () => {
+    const batch = extractBatch('https://k2s.cc/file/aaa111/x.rar https://KEEP2SHARE.CC/file/aaa111', providers)
+    expect(batch.links.map((link) => link.key)).toEqual(['k2s:aaa111'])
+  })
+
+  it('keeps the first BATCH_LIMIT links', () => {
+    const text = Array.from({ length: BATCH_LIMIT + 3 }, (_, i) => `https://k2s.cc/file/f${i}`).join(' ')
+    const batch = extractBatch(text, providers)
+    expect(batch.links).toHaveLength(BATCH_LIMIT)
+    expect(batch.links[0].key).toBe('k2s:f0')
+    expect(batch.dropped).toBe(3)
   })
 })

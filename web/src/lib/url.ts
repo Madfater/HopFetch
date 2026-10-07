@@ -22,13 +22,48 @@ export function extractUrls(text: string): string[] {
 
 export type Extracted = { kind: 'none' } | { kind: 'one'; url: string } | { kind: 'many' }
 
-// - Exactly one URL in pasted text is taken as the input; more than one is reported, so the
-//   user knows only one link fits.
+// - Exactly one URL in pasted text is taken as the input; more than one is reported as `many`,
+//   which the page reads as a batch.
 export function extractSingleUrl(text: string): Extracted {
   const urls = [...new Set(extractUrls(text))]
   if (urls.length === 0) return { kind: 'none' }
   if (urls.length === 1) return { kind: 'one', url: urls[0] }
   return { kind: 'many' }
+}
+
+export const BATCH_LIMIT = 20
+
+export interface BatchLink {
+  key: string
+  url: string
+  provider: Provider
+}
+
+export interface Batch {
+  links: BatchLink[]
+  ignored: number
+  dropped: number
+}
+
+// - The supported links in pasted text, in the order they appear, for a batch download.
+// - Links to the same file on the same provider count once, whatever host alias they use.
+// - Links no provider matches are counted in `ignored`; links past BATCH_LIMIT in `dropped`.
+export function extractBatch(text: string, providers: Provider[]): Batch {
+  const links: BatchLink[] = []
+  const seen = new Set<string>()
+  let ignored = 0
+  for (const found of new Set(extractUrls(text))) {
+    const match = isHttpUrl(found) ? matchProvider(found, providers) : null
+    if (!match) {
+      ignored += 1
+      continue
+    }
+    const key = `${match.provider.id}:${match.fileId}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    links.push({ key, url: normalizeUrl(found), provider: match.provider })
+  }
+  return { links: links.slice(0, BATCH_LIMIT), ignored, dropped: Math.max(0, links.length - BATCH_LIMIT) }
 }
 
 export function isHttpUrl(url: string): boolean {

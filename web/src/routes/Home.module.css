@@ -6,6 +6,10 @@
  * - The status line and the hint share one line under the slot; the hint shows only while the
  *   input is empty.
  * - The preview slides out from under the slot.
+ * - While a batch is pasted, the slot's placeholder shows the link count in ink. The batch
+ *   preview lists one row per link: lamp, name and size on the first line, host and state
+ *   below. Rows scroll inside the card past about eight; under 480px the size moves under the
+ *   name.
  * - A recent task that arrived while the page is open flashes once.
  */
 .home {
@@ -174,6 +178,79 @@
 .keys {
   color: var(--color-steel);
   font-size: 0.85rem;
+}
+
+.inputBatch::placeholder {
+  color: var(--color-ink);
+}
+
+.batchList {
+  max-height: 30rem;
+  margin: calc(-1 * var(--space-2)) 0 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.batchRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas:
+    'lamp name size'
+    '. detail detail';
+  column-gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+
+.batchRow + .batchRow {
+  border-top: 1px solid var(--color-divider);
+}
+
+.batchLamp {
+  grid-area: lamp;
+  display: flex;
+  align-items: center;
+}
+
+.batchName {
+  grid-area: name;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.batchDetail {
+  grid-area: detail;
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
+.batchSize {
+  grid-area: size;
+  color: var(--color-steel);
+  text-align: right;
+}
+
+.batchNote {
+  margin-top: var(--space-3);
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 480px) {
+  .batchRow {
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas:
+      'lamp name'
+      '. size'
+      '. detail';
+  }
+
+  .batchSize {
+    text-align: left;
+  }
 }
 
 .recent {
