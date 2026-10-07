@@ -12,7 +12,7 @@ import { useBatch } from '../hooks/useBatch'
 import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
 import { useProviders, useTasks } from '../hooks/useTasks'
-import { formatBytes, formatPercent, formatStorage } from '../lib/format'
+import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/format'
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
 import { errorText } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
@@ -257,8 +257,8 @@ export function Home() {
   }
 
   const names = (providers.data ?? []).map((provider) => provider.name)
-  const sites = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names)
-  const anySite = new Intl.ListFormat(i18n.language, { type: 'disjunction' }).format(names)
+  const sites = formatList(i18n.language, names, 'conjunction')
+  const anySite = formatList(i18n.language, names, 'disjunction')
   const placeholder = names.length > 0 ? t('home.placeholder', { sites: anySite }) : t('home.placeholderPlain')
   const lamp = dragging ? 'amber' : inBatch ? batchLamp(view) : lampFor(state, plan, noneSupported, providers.isError)
   const status = inBatch

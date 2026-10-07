@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, formatDuration, formatStorage } from './format'
+import { formatBytes, formatDuration, formatList, formatStorage } from './format'
+
+describe('formatList', () => {
+  it('joins names the way the locale does', () => {
+    expect(formatList('en', ['Keep2Share', 'MEGA'], 'disjunction')).toBe('Keep2Share or MEGA')
+    expect(formatList('en', ['Keep2Share', 'MEGA'], 'conjunction')).toBe('Keep2Share and MEGA')
+  })
+
+  it('spaces Latin names from Chinese connectives', () => {
+    expect(formatList('zh-Hant-TW', ['Keep2Share', 'MEGA'], 'disjunction')).toBe('Keep2Share 或 MEGA')
+    expect(formatList('zh-Hant-TW', ['Keep2Share', 'MEGA'], 'conjunction')).toBe('Keep2Share 和 MEGA')
+  })
+})
 
 describe('format', () => {
   it('formats durations like the backend formatter', () => {
