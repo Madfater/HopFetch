@@ -13,7 +13,7 @@ import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { formatBytes, formatPercent, formatStorage } from '../lib/format'
-import { batchView, type BatchView, type Outcome } from '../lib/batch'
+import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
 import { errorText } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
 import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
@@ -41,7 +41,6 @@ import styles from './Home.module.css'
 //   flashes in the recent list.
 
 const RECENT_COUNT = 5
-const UNFINISHED = new Set(['queued', 'downloading', 'paused'])
 
 type Plan =
   | { kind: 'download'; force: boolean }

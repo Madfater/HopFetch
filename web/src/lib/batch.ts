@@ -35,7 +35,7 @@ export interface BatchView {
   enterStarts: boolean
 }
 
-const UNFINISHED = new Set(['queued', 'downloading', 'paused'])
+export const UNFINISHED = new Set(['queued', 'downloading', 'paused'])
 
 function lookupState(t: TFunction, item: BatchItem): RowState {
   if (item.pending) return { kind: 'checking' }
