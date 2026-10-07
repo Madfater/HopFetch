@@ -308,7 +308,7 @@ export function Home() {
         <p id="link-status" className={`${styles.status} ${status.error ? styles.statusError : ''}`} aria-live="polite">
           {status.text && <span key={status.text} className={styles.statusText}>{status.text}</span>}
         </p>
-        {!input && !status.text && (
+        {!input && !inBatch && !status.text && (
           <p id="link-hint" className={styles.hint}>
             {t('home.hint')}
           </p>
@@ -406,7 +406,8 @@ function batchLamp(view: BatchView | null): LampColor {
 }
 
 // - Until the provider list is loaded the batch cannot be read; then the line counts the links
-//   checked so far, and once every link is checked it says how many files can start.
+//   checked so far, and once every link is checked it says how many files can start, or that
+//   they do not fit. After a start with failures it counts the started and failed files.
 function batchStatus(
   t: ReturnType<typeof useTranslation>['t'],
   view: BatchView | null,
@@ -416,9 +417,14 @@ function batchStatus(
   if (view.checking > 0) {
     return { text: t('batch.checking', { done: view.rows.length - view.checking, count: view.rows.length }), error: false }
   }
-  if (view.started) return { text: '', error: false }
+  if (view.started) {
+    const failed = view.rows.filter((row) => row.state.kind === 'failed').length
+    const started = view.rows.filter((row) => row.state.kind === 'started').length
+    return failed > 0 ? { text: t('batch.outcome', { started, failed }), error: true } : { text: '', error: false }
+  }
   if (view.ready.length === 0) return { text: t('batch.noneReady'), error: true }
-  return { text: t('batch.ready', { count: view.ready.length }), error: view.short > 0 }
+  if (view.short > 0) return { text: t('batch.noRoom', { count: view.ready.length }), error: true }
+  return { text: t('batch.ready', { count: view.ready.length }), error: false }
 }
 
 interface PreviewProps {

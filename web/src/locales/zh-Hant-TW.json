@@ -46,6 +46,8 @@
     "ready_other": "{{count}} 個檔案可以下載",
     "noneReady": "這些檔案都無法下載。",
     "noneSupported": "這些連結都不是支援的網站：{{sites}}。",
+    "noRoom_other": "空間不足，放不下這 {{count}} 個檔案。",
+    "outcome": "已開始 {{started}} 個，{{failed}} 個無法開始。",
     "ignored_other": "另有 {{count}} 個連結不是支援的網站，已略過。",
     "dropped_other": "一次最多 {{limit}} 個連結，其餘 {{count}} 個已略過。",
     "total": "總大小",

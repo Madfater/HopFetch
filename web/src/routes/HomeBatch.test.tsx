@@ -134,6 +134,7 @@ describe('Home batch paste', () => {
     const { create, user } = setup({ p1: file('p1', big), p2: file('p2', big) })
     await paste(user, `${link('p1')} ${link('p2')}`)
     await screen.findByText(/^Not enough space for all of them: /)
+    expect(screen.getByText('Not enough space for these 2 files.')).toBeTruthy()
     const button = within(card()).getByRole('button', { name: 'Download 2 files' })
     expect(button).toBeDisabled()
     await user.keyboard('{Enter}')
@@ -150,6 +151,8 @@ describe('Home batch paste', () => {
     expect(rowText('c1')).toContain('Started')
     expect(rowText('c2')).toContain('This file was not found. It may have been deleted.')
     expect(within(card()).queryByRole('button', { name: /^Download/ })).toBeNull()
+    expect(screen.getByText('Started 2, 1 could not start.')).toBeTruthy()
+    expect(screen.queryByText('Paste a link anywhere on this page, or drop one here.')).toBeNull()
   })
 
   it('clears the batch once every file started', async () => {
