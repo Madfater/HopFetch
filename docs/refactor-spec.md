@@ -98,7 +98,7 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
   - 狀態：`status`、`phase`、`message_key`、`message_params`、`message`、`resumable`、`file_exists`、`error`（`{ code, key, params, message }` 或 null）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
   - 時間：`created_at`、`completed_at`
 - `POST /api/tasks`，body `{ url, force }`：建立任務。
-  - 同一檔案已有 `queued`、`downloading`、`paused`、`failed` 或 `canceled` 的任務時，一律以 409 `duplicate_active` 拒絕，並附上既有任務 ID（前端提供前往查看或重試）。
+  - 同一檔案已有 `queued`、`downloading`、`paused`、`failed` 或 `canceled` 的任務時，一律以 409 `duplicate_active` 拒絕，並附上既有任務 ID（前端提供「查看任務」或「重試」）。
   - 已完成過的檔案，需要 `force: true` 才建立，否則回 409 `duplicate_completed`。
   - 已知大小時，建立前再檢查一次剩餘空間，不足就以 `insufficient_space` 拒絕。`DATA_DIR` 與 `DOWNLOAD_DIR` 在同一個檔案系統時，組合期間需要兩倍空間，以 `2 x size` 檢查；不同檔案系統時分別檢查。
 - `POST /api/tasks/{id}/pause`：停止下載，保留分段檔與已下載位元組數。
@@ -262,7 +262,7 @@ pytest 覆蓋：
 插槽：底色用插槽色。1px 邊框上緣較深（`#0E1012`）、下緣較淺（`#3A4046`），做出凹陷感，不使用 box-shadow。
 
 動態：全頁只有一個過場動畫。
-- 解析成功時，預覽區從插槽下方滑出，約 200ms，ease-out。
+- 連結檢查完成時，預覽區從插槽下方滑出，約 200ms，ease-out。
 - `prefers-reduced-motion` 時直接顯示。
 - 其他地方不加入場動畫或 hover 動畫。
 
