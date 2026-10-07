@@ -50,7 +50,7 @@ describe('Home copy', () => {
   it('names the supported sites in the empty input', async () => {
     setup()
     await vi.waitFor(() =>
-      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Paste a Keep2Share or MEGA share link'),
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Paste a Keep2Share or MEGA link'),
     )
   })
 

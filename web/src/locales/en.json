@@ -10,7 +10,7 @@
   },
   "home": {
     "inputLabel": "Share link",
-    "placeholder": "Paste a {{sites}} share link",
+    "placeholder": "Paste a {{sites}} link",
     "hint": "Paste a link anywhere on this page, or drop one here.",
     "drop": "Drop to check this link",
     "lamp": {
