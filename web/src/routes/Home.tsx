@@ -22,7 +22,8 @@ import styles from './Home.module.css'
 // - The download page: logo, the input slot, a preview of the resolved file, recent tasks.
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Exactly one URL in pasted text is taken; more than one is reported.
-// - Enter runs the preview's main action, Esc clears the input.
+// - Enter starts only a plain download that is not blocked; downloading again and retrying an
+//   earlier task need a click. Esc clears the input.
 // - A link dragged over the slot lights it up. While the input is empty, a hint under the slot
 //   says where links can go.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
@@ -137,19 +138,16 @@ export function Home() {
     onError: (err) => toast(err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'), 'error'),
   })
 
-  // - Enter runs the preview's main action: download, download again, or retry a failed or
-  //   canceled earlier task of the same file.
-  const start = () => {
+  // - Starts the preview's download, plain or again, unless a request is still running.
+  const download = () => {
     if (many || state.local.kind !== 'matched' || state.pending || create.isPending || retry.isPending) return
-    const duplicate = state.data?.duplicate
     if (plan?.kind === 'download') create.mutate({ url: state.local.url, force: plan.force })
-    else if (duplicate && (duplicate.status === 'failed' || duplicate.status === 'canceled')) retry.mutate(duplicate.task_id)
   }
 
   const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
     if (event.key === 'Enter') {
       event.preventDefault()
-      start()
+      if (plan?.kind === 'download' && !plan.force) download()
     } else if (event.key === 'Escape' && (input || many || submitError)) {
       withViewTransition(clear)
     }
@@ -245,7 +243,7 @@ export function Home() {
           locale={i18n.language}
           busy={create.isPending || retry.isPending}
           submitError={submitError}
-          onDownload={start}
+          onDownload={download}
           onRetry={(id) => retry.mutate(id)}
         />
       )}
@@ -326,11 +324,15 @@ interface PreviewProps {
   onRetry: (id: string) => void
 }
 
-// - While a download is being started, its button keeps its place and shows a spinner; `start`
-//   ignores presses until the request ends.
+// - While a download is being started, its button keeps its place and shows a spinner;
+//   `download` ignores presses until the request ends.
+// - Retry is offered only while the file fits in the free space.
+// - The key hint names Enter only when Enter downloads; otherwise it names Esc alone.
 function Preview({ data, provider, free, short, plan, locale, busy, submitError, onDownload, onRetry }: PreviewProps) {
   const { t } = useTranslation()
   const duplicate = data.duplicate
+  const retryable = duplicate != null && (duplicate.status === 'failed' || duplicate.status === 'canceled') && short === 0
+  const enterDownloads = plan.kind === 'download' && !plan.force
   const notes: { text: string; error: boolean }[] = []
   if (data.size == null) notes.push({ text: t('preview.sizeUnknownHint'), error: true })
   if (short > 0) notes.push({ text: t('preview.short', { size: formatBytes(locale, short) }), error: true })
@@ -374,7 +376,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
             {plan.force ? t('preview.downloadAnyway') : t('preview.download')}
           </button>
         )}
-        {duplicate && (duplicate.status === 'failed' || duplicate.status === 'canceled') && (
+        {retryable && (
           <button type="button" className={controls.button} onClick={() => onRetry(duplicate.task_id)} disabled={busy}>
             {t('preview.retry')}
           </button>
@@ -384,11 +386,9 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
             {t('preview.view')}
           </Link>
         )}
-        {plan.kind === 'download' && (
-          <span className={styles.keys}>
-            <Trans i18nKey="preview.keys" components={{ key: <kbd /> }} />
-          </span>
-        )}
+        <span className={styles.keys}>
+          <Trans i18nKey={enterDownloads ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
+        </span>
       </div>
     </section>
   )

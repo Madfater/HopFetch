@@ -37,7 +37,8 @@
     "duplicateActive": "This file is already in the download list.",
     "duplicateFailed": "This file failed or was canceled before.",
     "duplicateCompleted": "This file was downloaded before.",
-    "keys": "<key>Enter</key> to download, <key>Esc</key> to clear"
+    "keys": "<key>Enter</key> to download, <key>Esc</key> to clear",
+    "keysClear": "<key>Esc</key> to clear"
   },
   "status": {
     "queued": "Queued",
