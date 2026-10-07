@@ -34,8 +34,10 @@ import styles from './Home.module.css'
 // - Enter starts only a plain download that is not blocked, or a batch whose every link can
 //   start; downloading again and retrying an earlier task need a click. Esc clears the input
 //   and the batch, except while a batch is starting.
-// - A link dragged over the slot lights it up. While the input is empty, a hint under the slot
-//   says where links can go.
+// - A link dragged over the slot lights it up. While the input is empty, the placeholder names
+//   the supported sites and a hint under the slot says where links can go.
+// - A preview that can download says where the file goes and that the page can be closed; the
+//   toast after a start repeats that the page can be closed.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
 //   and the recent list slides up into its place. A task that arrives while the page is open
 //   flashes in the recent list.
@@ -254,9 +256,10 @@ export function Home() {
     setFromPaste(text)
   }
 
-  const sites = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(
-    (providers.data ?? []).map((provider) => provider.name),
-  )
+  const names = (providers.data ?? []).map((provider) => provider.name)
+  const sites = new Intl.ListFormat(i18n.language, { type: 'conjunction' }).format(names)
+  const anySite = new Intl.ListFormat(i18n.language, { type: 'disjunction' }).format(names)
+  const placeholder = names.length > 0 ? t('home.placeholder', { sites: anySite }) : t('home.placeholderPlain')
   const lamp = dragging ? 'amber' : inBatch ? batchLamp(view) : lampFor(state, plan, noneSupported, providers.isError)
   const status = inBatch
     ? batchStatus(t, view, providers.isError)
@@ -283,7 +286,7 @@ export function Home() {
           autoFocus
           placeholder={dragging
             ? t('home.drop')
-            : listed ? t('batch.summary', { count: listed.links.length }) : t('home.placeholder')}
+            : listed ? t('batch.summary', { count: listed.links.length }) : placeholder}
           value={input}
           aria-describedby="link-status link-hint"
           aria-invalid={lamp === 'red' ? true : undefined}
@@ -391,7 +394,7 @@ function statusLine(
     case 'invalid':
       return { text: t('errors.invalid_url'), error: true }
     case 'unsupported':
-      return { text: t('errors.unsupported'), error: true }
+      return { text: t('home.unsupported', { sites }), error: true }
     case 'waiting':
       return providersFailed ? { text: t('errors.network'), error: true } : { text: t('home.checking'), error: false }
   }
@@ -488,6 +491,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
           {note.text}
         </p>
       ))}
+      {plan.kind === 'download' && <p className={styles.promise}>{t('home.promise')}</p>}
       <div className={styles.actions}>
         {plan.kind === 'download' && (
           <button type="button" className={`${controls.button} ${controls.primary}`} onClick={onDownload}

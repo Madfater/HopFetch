@@ -2,7 +2,7 @@
   "nav": {
     "label": "Main navigation",
     "home": "Download",
-    "tasks": "Files",
+    "tasks": "Downloads",
     "settings": "Settings",
     "storage": "NAS free",
     "storageUnknown": "NAS free space unknown",
@@ -10,7 +10,7 @@
   },
   "home": {
     "inputLabel": "Share link",
-    "placeholder": "https://k2s.cc/file/8d028cc29f08b/sample.rar",
+    "placeholder": "Paste a {{sites}} share link",
     "hint": "Paste a link anywhere on this page, or drop one here.",
     "drop": "Drop to check this link",
     "lamp": {
@@ -21,7 +21,10 @@
     },
     "checking": "Checking the link",
     "recent": "Recent tasks",
-    "viewAll": "View all"
+    "viewAll": "View all",
+    "promise": "Saves to the NAS download folder. You can close this page; the download continues on the server.",
+    "unsupported": "Only {{sites}} links are supported.",
+    "placeholderPlain": "Paste a share link"
   },
   "preview": {
     "size": "Size",
@@ -73,7 +76,7 @@
     "canceled": "Canceled"
   },
   "tasks": {
-    "title": "Files",
+    "title": "Downloads",
     "filter": {
       "label": "Filter by status",
       "all": "All",
@@ -152,7 +155,7 @@
     "en": "English"
   },
   "toast": {
-    "started": "Download started: {{name}}",
+    "started": "Download started: {{name}}. You can close this page.",
     "completed": "Download finished: {{name}}",
     "failed": "{{name}} failed: {{reason}}",
     "removed": "Task deleted",
@@ -160,8 +163,8 @@
     "cleared_other": "Cleared {{count}} completed tasks",
     "offline": "Cannot reach the server. Reconnecting.",
     "close": "Close notification",
-    "batchStarted_one": "Started {{count}} download",
-    "batchStarted_other": "Started {{count}} downloads",
+    "batchStarted_one": "Started {{count}} download. You can close this page.",
+    "batchStarted_other": "Started {{count}} downloads. You can close this page.",
     "batchPartial": "Started {{started}}, {{failed}} could not start"
   },
   "errors": {
