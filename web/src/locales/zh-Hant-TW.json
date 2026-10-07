@@ -37,7 +37,8 @@
     "duplicateActive": "這個檔案已經在下載清單中。",
     "duplicateFailed": "這個檔案先前下載失敗或已取消。",
     "duplicateCompleted": "這個檔案已經下載過。",
-    "keys": "按 <key>Enter</key> 下載，按 <key>Esc</key> 清除"
+    "keys": "按 <key>Enter</key> 下載，按 <key>Esc</key> 清除",
+    "keysClear": "按 <key>Esc</key> 清除"
   },
   "status": {
     "queued": "排隊中",
