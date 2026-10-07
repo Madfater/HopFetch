@@ -394,7 +394,7 @@ function statusLine(
     case 'invalid':
       return { text: t('errors.invalid_url'), error: true }
     case 'unsupported':
-      return { text: t('home.unsupported', { sites }), error: true }
+      return { text: sites ? t('home.unsupported', { sites }) : t('errors.unsupported'), error: true }
     case 'waiting':
       return providersFailed ? { text: t('errors.network'), error: true } : { text: t('home.checking'), error: false }
   }

@@ -10,7 +10,7 @@ import { Lamp } from './Lamp'
 import styles from './NavBar.module.css'
 
 // - Sticky top bar: the three pages, and NAS free space on the right.
-// - The Files tab counts queued and downloading tasks.
+// - The Downloads tab counts queued and downloading tasks.
 // - The active tab's underline has a view-transition name, so a page change slides it to the
 //   new tab.
 // - Free space is read once and then kept current by `storage` events.
