@@ -140,6 +140,15 @@ describe('Home copy in Traditional Chinese', () => {
     await screen.findByText('已開始下載「c1.rar」，可以關閉這頁。')
   })
 
+  it('names the supported sites in the empty input and for a link from another site', async () => {
+    const user = setup()
+    await vi.waitFor(() =>
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', '貼上 Keep2Share 或 MEGA 的分享連結'),
+    )
+    await paste(user, 'https://example.com/file/abc')
+    await screen.findByText('目前只支援 Keep2Share 和 MEGA 的連結。')
+  })
+
   it('says 檢查 while a link is being checked', async () => {
     const user = setup({ c2: 'pending' })
     await paste(user, link('c2'))
