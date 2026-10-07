@@ -22,8 +22,8 @@ export function extractUrls(text: string): string[] {
 
 export type Extracted = { kind: 'none' } | { kind: 'one'; url: string } | { kind: 'many' }
 
-// - Exactly one URL in pasted text is taken as the input; more than one is reported, so the
-//   user knows only one link fits.
+// - Exactly one URL in pasted text is taken as the input; more than one is reported as `many`,
+//   which the page reads as a batch.
 export function extractSingleUrl(text: string): Extracted {
   const urls = [...new Set(extractUrls(text))]
   if (urls.length === 0) return { kind: 'none' }
