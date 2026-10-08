@@ -119,8 +119,8 @@ class Job:
     - `resumable` turns false once the upstream ignored a range request.
     - `notice_key` is a lasting `messages.*` note shown beside the status, such as a restart
       after the remote file changed, or `messages.resumed_restart` until the job completes.
-    - `resume_on_start` marks a job the server paused while shutting down; the next start
-      queues it again.
+    - `resume_on_start` marks a job the server paused while shutting down, or one a crash left
+      active; it stays set until the job is queued again on start.
     """
 
     id: str
