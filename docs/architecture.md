@@ -163,7 +163,7 @@ Stopping the server pauses running jobs the same way. A server start marks any j
 | `lib/batch.ts` | A pasted batch's row states, the files that can start, the space they need, and whether the batch can start or Enter may start it |
 | `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, including a batch of supported links from pasted text, `Intl` formatting, translation of backend keys, and pure task-list helpers |
 | `routes/` | The download, files and settings pages |
-| `components/` | Navigation bar, lamps, icon buttons with tooltips, delete dialog, toasts |
+| `components/` | Navigation bar, lamps, icon buttons with tooltips, the confirm dialog for cancel and delete, toasts |
 | `i18n.ts`, `locales/` | i18next setup. Interface text in `locales/<lang>.json`, merged one section deep with `shared/i18n/<lang>.json`. The language is chosen per browser in `localStorage`, then from `navigator.language` |
 
 Vitest runs `src/**/*.test.ts(x)` in jsdom: URL matching against `shared/provider-test-cases.json`, resolve timing and stale answers, cache updates from events, formatting, and catalog parity.
