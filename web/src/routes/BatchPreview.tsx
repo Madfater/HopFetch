@@ -34,6 +34,7 @@ function lampOf(state: RowState): LampColor {
 
 export function BatchPreview({ batch, view, free, locale, starting, onStart }: Props) {
   const { t } = useTranslation()
+  const touch = useTouchScreen()
 
   const detail = (state: RowState) => {
     switch (state.kind) {
