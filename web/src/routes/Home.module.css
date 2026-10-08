@@ -290,7 +290,7 @@
   margin-top: var(--space-6);
 }
 
-.attention a {
+.attentionLink {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);

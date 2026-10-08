@@ -363,7 +363,7 @@ export function Home() {
 
       {failed > 0 && (
         <p className={styles.attention}>
-          <Link to="/tasks?filter=failed" viewTransition>
+          <Link className={styles.attentionLink} to="/tasks?filter=failed" viewTransition>
             <Lamp color="red" />
             {t('home.attention', { count: failed })}
           </Link>
