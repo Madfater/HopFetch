@@ -2,6 +2,7 @@
  * - The scrim fades, and the dialog grows in from 96% while fading; both leave faster than
  *   they arrive. Radix keeps them mounted until the closing animation ends.
  * - The dialog is centered with `translate`, so its animations are free to use `transform`.
+ * - The cost line sits under the body in error red, one step apart from it.
  * - The checkbox is a recessed box that fills with ink when checked, and its check mark is
  *   drawn in.
  */
@@ -75,6 +76,11 @@
 
 .body {
   overflow-wrap: anywhere;
+}
+
+.cost {
+  margin-top: var(--space-2);
+  color: var(--color-red-text);
 }
 
 .check {

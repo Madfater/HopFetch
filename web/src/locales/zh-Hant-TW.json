@@ -109,12 +109,20 @@
     "delete": "刪除",
     "named": "{{action}}：{{name}}"
   },
-  "deleteDialog": {
-    "title": "刪除任務",
-    "body": "從清單移除「{{name}}」。",
+  "confirmDialog": {
+    "cancel": {
+      "title": "取消下載",
+      "body": "停止「{{name}}」。任務會以「已取消」留在清單中，重試時會從頭下載。",
+      "confirm": "取消下載"
+    },
+    "delete": {
+      "title": "刪除任務",
+      "body": "從清單移除「{{name}}」。",
+      "confirm": "刪除"
+    },
+    "discards": "已下載的 {{size}} 會被捨棄。",
     "deleteFile": "同時刪除 NAS 上的檔案",
-    "confirm": "刪除",
-    "cancel": "保留"
+    "keep": "保留"
   },
   "settings": {
     "title": "設定",
