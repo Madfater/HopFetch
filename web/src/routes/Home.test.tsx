@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -105,5 +105,17 @@ describe('Home preview keys', () => {
     expect(screen.getByRole('link', { name: 'View task' })).toBeTruthy()
     await user.keyboard('{Enter}')
     expect(retry).not.toHaveBeenCalled()
+  })
+})
+
+describe('Home slot lamp', () => {
+  it('keeps showing the link state while a link is dragged over the slot', async () => {
+    await setup(resolved())
+    expect(screen.getByText('Ready to download')).toBeTruthy()
+    const slot = screen.getByRole('textbox').parentElement as HTMLElement
+    fireEvent.dragEnter(slot, { dataTransfer: { types: ['text/uri-list'] } })
+    expect(screen.getByRole('textbox').getAttribute('placeholder')).toBe('Drop to check this link')
+    expect(screen.getByText('Ready to download')).toBeTruthy()
+    expect(screen.queryByText('Checking')).toBeNull()
   })
 })

@@ -1,8 +1,8 @@
 /*
  * - Shared buttons.
  * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
- * - `primary` is amber and marks the one main action of a page. `danger` confirms a
- *   destructive action and fills red while pointed at.
+ * - `primary` is a lit ink face with dark text and marks the one main action of a page.
+ *   `danger` confirms a destructive action and fills red while pointed at.
  * - `spinner` is a turning ring shown inside a button while its request runs.
  */
 .button {
@@ -44,15 +44,15 @@
 }
 
 .primary {
-  background: var(--color-amber);
-  border-color: var(--color-amber);
-  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--color-ink) 45%, transparent);
+  background: var(--color-ink);
+  border-color: var(--color-ink);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
   color: var(--color-on-lamp);
   font-weight: 600;
 }
 
 .primary:hover:not(:disabled, [aria-disabled='true']) {
-  background: color-mix(in srgb, var(--color-amber) 88%, var(--color-ink));
+  background: color-mix(in srgb, var(--color-ink) 70%, white);
 }
 
 .primary:disabled {

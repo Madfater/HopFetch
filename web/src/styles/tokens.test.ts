@@ -3,7 +3,8 @@ import tokens from './tokens.css?raw'
 
 // - WCAG contrast of the color tokens as they are used: text needs 4.5:1, and the parts that
 //   identify a control or its state (lamps, the focus ring, field edges, switch and segment
-//   faces) need 3:1 against what surrounds them.
+//   faces, the red error edge of a field) need 3:1 against what surrounds them. The primary
+//   button's dark text sits on an ink face.
 
 function hexColors(css: string): Map<string, string> {
   const found = new Map<string, string>()
@@ -37,7 +38,7 @@ const TEXT: [string, string[]][] = [
   ['ink', [...SURFACES, 'selected']],
   ['steel', SURFACES],
   ['red-text', ['chassis', 'panel']],
-  ['on-lamp', ['amber', 'red']],
+  ['on-lamp', ['amber', 'red', 'ink']],
 ]
 
 const PARTS: [string, string[]][] = [
@@ -46,6 +47,8 @@ const PARTS: [string, string[]][] = [
   ['red', SURFACES],
   ['steel', SURFACES],
   ['field-edge', ['chassis', 'panel']],
+  ['focus', SURFACES],
+  ['red-text', ['chassis', 'slot']],
   ['selected', ['slot']],
   ['ink', ['panel']],
   ['chassis', ['ink']],
