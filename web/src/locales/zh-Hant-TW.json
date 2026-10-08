@@ -24,7 +24,8 @@
     "viewAll": "查看全部",
     "promise": "完成後會存到 NAS 的下載資料夾。可以關閉這頁，下載會在伺服器上繼續。",
     "unsupported": "目前只支援 {{sites}} 的連結。",
-    "placeholderPlain": "貼上分享連結"
+    "placeholderPlain": "貼上分享連結",
+    "sites": "支援的網站"
   },
   "preview": {
     "size": "大小",

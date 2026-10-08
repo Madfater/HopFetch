@@ -24,7 +24,8 @@
     "viewAll": "View all",
     "promise": "Saves to the NAS download folder. You can close this page; the download continues on the server.",
     "unsupported": "Only {{sites}} links are supported.",
-    "placeholderPlain": "Paste a share link"
+    "placeholderPlain": "Paste a share link",
+    "sites": "Supported sites"
   },
   "preview": {
     "size": "Size",

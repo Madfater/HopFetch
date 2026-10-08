@@ -1,11 +1,12 @@
 /*
- * - The home column, centered and at most 560px wide.
+ * - The home column, centered and at most 560px wide. The product name is small, so the slot
+ *   leads the page.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
  *   dashed focus gray, over the red edge.
  * - The status line and the hint share one line under the slot; the hint shows only while the
- *   input is empty.
+ *   input is empty. Under them, the supported sites sit in one quiet row of marks and names.
  * - The preview slides out from under the slot.
  * - While a batch is pasted, the slot's placeholder shows the link count in ink. The batch
  *   preview lists one row per link: lamp, name and size on the first line, host and state
@@ -16,16 +17,17 @@
 .home {
   max-width: 560px;
   margin: 0 auto;
-  padding: 12vh var(--space-4) var(--space-6);
+  padding: 10vh var(--space-4) var(--space-6);
 }
 
 .logo {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
+  color: var(--color-steel);
   font-family: var(--font-numeric);
   font-stretch: 125%;
   font-weight: 500;
-  font-size: 2.4rem;
-  line-height: 1.1;
+  font-size: 1.25rem;
+  line-height: 1.2;
   text-align: center;
 }
 
@@ -108,6 +110,22 @@
 .hint {
   color: var(--color-steel);
   font-size: 0.9rem;
+}
+
+.sites {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
+  margin-top: var(--space-3);
+  color: var(--color-steel);
+  font-size: 0.9rem;
+  animation: fade-in var(--motion-base) var(--ease-out);
+}
+
+.site {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .preview {
