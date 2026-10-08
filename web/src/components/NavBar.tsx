@@ -13,7 +13,8 @@ import styles from './NavBar.module.css'
 // - The Downloads tab counts queued and downloading tasks.
 // - The active tab's underline has a view-transition name, so a page change slides it to the
 //   new tab.
-// - Free space is read once and then kept current by `storage` events.
+// - Free space is read once and then kept current by `storage` events. On a narrow screen its
+//   label is left to screen readers, so the tabs and the amount fit on one line.
 // - While the event stream is down, a line under the bar says the app is reconnecting.
 
 const TABS = [
@@ -49,7 +50,7 @@ export function NavBar({ connected }: { connected: boolean }) {
           <p className={styles.storage}>
             {storage.data ? (
               <span>
-                {t('nav.storage')}{' '}
+                <span className={styles.storageLabel}>{t('nav.storage')}</span>{' '}
                 <span className="num">{formatStorage(i18n.language, storage.data.free_bytes)}</span>
               </span>
             ) : (

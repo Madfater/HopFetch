@@ -70,7 +70,7 @@
 }
 
 .pop {
-  animation: pop var(--motion-slow) var(--ease-spring);
+  animation: pop var(--motion-slow) var(--ease-out);
 }
 
 @keyframes pop {
@@ -124,5 +124,16 @@
 
   .storage {
     font-size: 0.85rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .storageLabel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 }

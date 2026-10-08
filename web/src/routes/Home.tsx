@@ -33,8 +33,9 @@ import styles from './Home.module.css'
 //   all started, the batch clears; otherwise each row keeps its outcome until the input is
 //   cleared.
 // - Enter starts only a plain download that is not blocked, or a batch whose every link can
-//   start; downloading again and retrying an earlier task need a click. Esc clears the input
-//   and the batch, except while a batch is starting.
+//   start; downloading again and retrying an earlier task need a click. Retry is the primary
+//   button when it shows, so it outranks View task. Esc clears the input and the batch, except
+//   while a batch is starting.
 // - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
 //   While the input is empty, the placeholder names the supported sites, a hint under the
 //   slot says where links can go, and a row under it shows each supported site's mark and
@@ -517,7 +518,8 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
           </button>
         )}
         {retryable && (
-          <button type="button" className={controls.button} onClick={() => onRetry(duplicate.task_id)} disabled={busy}>
+          <button type="button" className={`${controls.button} ${controls.primary}`} onClick={() => onRetry(duplicate.task_id)}
+            disabled={busy}>
             {t('preview.retry')}
           </button>
         )}
