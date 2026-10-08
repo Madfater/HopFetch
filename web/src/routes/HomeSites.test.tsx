@@ -10,7 +10,8 @@ import i18n from '../i18n'
 import { Home } from './Home'
 
 // - Renders the download page over a faked API and checks what an empty page shows: the row of
-//   supported sites, and the hints that only make sense with a mouse and keyboard.
+//   supported sites, and the hints that only make sense with a mouse and keyboard, in the
+//   single and the batch preview.
 // - `touch` installs a matchMedia whose touch-screen query matches; jsdom has none of its own.
 
 const FREE = 100 * 2 ** 30
@@ -47,6 +48,16 @@ async function setup() {
     </QueryClientProvider>,
   )
   return { user: userEvent.setup() }
+}
+
+async function pasteBatch(user: ReturnType<typeof userEvent.setup>) {
+  vi.mocked(api.resolve).mockImplementation(async (url) => {
+    const id = url.split('/')[4]
+    return { ...resolved, file_id: id, file_name: `${id}.rar` }
+  })
+  await screen.findByRole('list', { name: 'Supported sites' })
+  await user.click(screen.getByRole('textbox'))
+  await user.paste('https://k2s.cc/file/bbb111/b.rar https://k2s.cc/file/ccc222/c.rar')
 }
 
 beforeEach(async () => {
@@ -101,5 +112,22 @@ describe('Home hints by input device', () => {
     const preview = await screen.findByRole('region', { name: 'a.rar' })
     expect(preview.querySelector('kbd')).toBeNull()
     expect(within(preview).getByRole('button', { name: 'Download' })).toBeTruthy()
+  })
+
+  it('shows the key hint on a batch with a mouse and keyboard', async () => {
+    const { user } = await setup()
+    await pasteBatch(user)
+    const card = await screen.findByRole('region', { name: 'Batch of 2 links' })
+    await within(card).findByRole('button', { name: 'Download 2 files' })
+    expect(card.querySelector('kbd')).not.toBeNull()
+  })
+
+  it('leaves out the key hint on a batch on a touch screen', async () => {
+    touch()
+    const { user } = await setup()
+    await pasteBatch(user)
+    const card = await screen.findByRole('region', { name: 'Batch of 2 links' })
+    await within(card).findByRole('button', { name: 'Download 2 files' })
+    expect(card.querySelector('kbd')).toBeNull()
   })
 })
