@@ -70,7 +70,7 @@
 }
 
 .pop {
-  animation: pop var(--motion-slow) var(--ease-spring);
+  animation: pop var(--motion-slow) var(--ease-out);
 }
 
 @keyframes pop {

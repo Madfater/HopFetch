@@ -16,8 +16,8 @@
  * - Depth encodes elevation only: recessed fields get `--shadow-recess`, flush plates the
  *   `--shadow-plate` highlight, and floating layers `--shadow-float`.
  * - Motion: `fast` for hover, press and tooltips, `base` for toggles and small entrances,
- *   `slow` for page changes and the preview. `--ease-spring` overshoots slightly and is kept
- *   for things that snap into place.
+ *   `slow` for page changes and the preview. Everything that enters or moves decelerates on
+ *   `--ease-out`, with no overshoot.
  */
 :root {
   --color-chassis: #202428;
@@ -58,7 +58,6 @@
   --motion-slow: 320ms;
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
-  --ease-spring: cubic-bezier(0.3, 1.4, 0.6, 1);
 
   --space-1: 4px;
   --space-2: 8px;

@@ -1,7 +1,7 @@
 /*
  * - Notices float at the bottom right, above the page, and keep their own view-transition
  *   name so page changes never move them.
- * - A notice springs in from the right and slides back out when it leaves.
+ * - A notice slides in from the right and slides back out when it leaves.
  */
 .region {
   view-transition-name: toasts;
@@ -28,7 +28,7 @@
   border-radius: var(--radius-l);
   background: var(--color-panel);
   box-shadow: var(--shadow-float);
-  animation: toast-in var(--motion-base) var(--ease-spring);
+  animation: toast-in var(--motion-base) var(--ease-out);
 }
 
 .leaving {

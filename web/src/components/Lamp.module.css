@@ -37,7 +37,7 @@
 }
 
 .blink {
-  animation: blink var(--motion-slow) var(--ease-spring);
+  animation: blink var(--motion-slow) var(--ease-out);
 }
 
 @keyframes breathe {
