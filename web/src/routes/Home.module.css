@@ -286,6 +286,21 @@
   margin-top: var(--space-6);
 }
 
+.attention {
+  margin-top: var(--space-6);
+}
+
+.attentionLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-red-text);
+}
+
+.recentAfterAttention {
+  margin-top: var(--space-4);
+}
+
 .recentHead {
   display: flex;
   align-items: baseline;

@@ -6,7 +6,8 @@
     "settings": "設定",
     "storage": "NAS 剩餘",
     "storageUnknown": "NAS 剩餘空間未知",
-    "active": "{{count}} 個下載中或排隊中"
+    "active": "{{count}} 個下載中或排隊中",
+    "attention_other": "{{count}} 個任務失敗"
   },
   "home": {
     "inputLabel": "分享連結",
@@ -20,6 +21,7 @@
       "blocked": "無法下載"
     },
     "checking": "正在檢查連結",
+    "attention_other": "{{count}} 個任務需要處理",
     "recent": "最近的任務",
     "viewAll": "查看全部",
     "promise": "完成後會存到 NAS 的下載資料夾。可以關閉這頁，下載會在伺服器上繼續。",
@@ -76,7 +78,7 @@
     "filter": {
       "label": "篩選狀態",
       "all": "全部",
-      "active": "進行中",
+      "active": "未完成",
       "completed": "已完成",
       "failed": "失敗"
     },

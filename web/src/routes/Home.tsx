@@ -17,7 +17,7 @@ import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/fo
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
 import { errorText } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
-import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
+import { needsAttention, RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
 import { extractBatch, extractSingleUrl } from '../lib/url'
 import controls from '../styles/controls.module.css'
 import { BatchPreview } from './BatchPreview'
@@ -25,6 +25,8 @@ import styles from './Home.module.css'
 
 // - The download page: logo, the input slot, a preview of the resolved file or of a batch,
 //   recent tasks.
+// - While any task has failed, a red line above the recent tasks counts them and links to the
+//   failed filter of the files page.
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Text with one URL fills the input. Text with several becomes a batch of its supported
 //   links: with two or more the slot shows their count and the batch preview lists them, with
@@ -269,6 +271,7 @@ export function Home() {
     ? batchStatus(t, view, providers.isError)
     : statusLine(t, state, noneSupported, sites, providers.isError)
   const recent = (tasks.data ?? []).slice(0, RECENT_COUNT)
+  const failed = (tasks.data ?? []).filter(needsAttention).length
   const touch = useTouchScreen()
 
   return (
@@ -358,8 +361,18 @@ export function Home() {
           onStart={() => void startBatch(view)} />
       )}
 
+      {failed > 0 && (
+        <p className={styles.attention}>
+          <Link className={styles.attentionLink} to="/tasks?filter=failed" viewTransition>
+            <Lamp color="red" />
+            {t('home.attention', { count: failed })}
+          </Link>
+        </p>
+      )}
+
       {recent.length > 0 && (
-        <section className={styles.recent} aria-labelledby="recent-title">
+        <section className={`${styles.recent} ${failed > 0 ? styles.recentAfterAttention : ''}`}
+          aria-labelledby="recent-title">
           <div className={styles.recentHead}>
             <h2 id="recent-title" className={styles.recentTitle}>
               {t('home.recent')}

@@ -6,7 +6,9 @@
     "settings": "Settings",
     "storage": "NAS free",
     "storageUnknown": "NAS free space unknown",
-    "active": "{{count}} downloading or queued"
+    "active": "{{count}} downloading or queued",
+    "attention_one": "{{count}} failed task",
+    "attention_other": "{{count}} failed tasks"
   },
   "home": {
     "inputLabel": "Share link",
@@ -20,6 +22,8 @@
       "blocked": "Cannot download"
     },
     "checking": "Checking the link",
+    "attention_one": "{{count}} task needs attention",
+    "attention_other": "{{count}} tasks need attention",
     "recent": "Recent tasks",
     "viewAll": "View all",
     "promise": "Saves to the NAS download folder. You can close this page; the download continues on the server.",
@@ -81,7 +85,7 @@
     "filter": {
       "label": "Filter by status",
       "all": "All",
-      "active": "In progress",
+      "active": "Unfinished",
       "completed": "Completed",
       "failed": "Failed"
     },
