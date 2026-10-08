@@ -131,6 +131,20 @@ def test_restart_resumes_jobs_the_shutdown_paused(tmp_path, provider, server, co
     assert again.notice_key is None
 
 
+def test_shutdown_does_not_resume_a_job_being_canceled(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("leaving"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    with manager._lock:
+        manager._runs[job.id].stop("cancel")
+    manager.shutdown()
+    assert job.status == Status.CANCELED and not job.resume_on_start
+
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status == Status.CANCELED and again.notice_key is None
+
+
 def test_cancel_deletes_partial_data_and_retry_restarts(tmp_path, provider, server, content):
     server.delay = 0.05
     manager = build_manager(tmp_path, provider)

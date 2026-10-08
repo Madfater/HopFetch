@@ -291,7 +291,8 @@ class JobManager:
     - `jobs.json` is rewritten on every status or phase change and at most every
       PERSIST_INTERVAL seconds during progress, under a cross-process lock.
     - Every change is published on `bus`: status and phase changes at once, progress throttled.
-    - On start, jobs that were active when the server stopped become `paused`.
+    - On start, jobs the last run left active or paused while shutting down are queued again
+      with a note; jobs the user paused stay paused.
     """
 
     def __init__(self, settings: Settings, registry: ProviderRegistry,
@@ -329,6 +330,8 @@ class JobManager:
           whose upstream cannot serve ranges fails with `interrupted` and can be retried.
         - Jobs paused that way, and jobs the last shutdown paused, are queued again with the
           `messages.resumed_restart` note; jobs paused by the user stay paused.
+        - `resume_on_start` stays set in `jobs.json` until the job is queued, so a crash in
+          between still resumes it on the next start.
         """
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.download_dir.mkdir(parents=True, exist_ok=True)
@@ -346,6 +349,7 @@ class JobManager:
                                 name=Path(job.output_path).name)
                 elif job.status in ACTIVE and job.resumable:
                     self._apply(job, Status.PAUSED, None, "messages.paused_restart")
+                    job.resume_on_start = True
                     resume.append(job.id)
                 elif job.status == Status.PAUSED and job.resume_on_start:
                     resume.append(job.id)
@@ -353,7 +357,7 @@ class JobManager:
                     error = CodedError("interrupted")
                     job.error = error.as_error()
                     self._apply(job, Status.FAILED, None, error.key)
-                job.resume_on_start = False
+                job.resume_on_start = job.id in resume
                 job.active_connections = 0
                 job.speed = 0.0
                 self.jobs[job.id] = job
@@ -519,6 +523,7 @@ class JobManager:
                 raise InvalidState(refusal)
             job.error = None
             job.notice_key = notice_key
+            job.resume_on_start = False
             job.resumable = True
             run = self._register(job)
             run.refresh = True
