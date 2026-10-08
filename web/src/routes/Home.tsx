@@ -34,8 +34,8 @@ import styles from './Home.module.css'
 //   cleared.
 // - Enter starts only a plain download that is not blocked, or a batch whose every link can
 //   start; downloading again and retrying an earlier task need a click. Retry is the primary
-//   button when it shows, so it outranks View task. Esc clears the input
-//   and the batch, except while a batch is starting.
+//   button when it shows, so it outranks View task. Esc clears the input and the batch, except
+//   while a batch is starting.
 // - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
 //   While the input is empty, the placeholder names the supported sites, a hint under the
 //   slot says where links can go, and a row under it shows each supported site's mark and

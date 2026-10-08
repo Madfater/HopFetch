@@ -7,6 +7,7 @@ import providers from '../../../shared/providers.json'
 import { api } from '../api/client'
 import type { Resolved, Task } from '../api/types'
 import i18n from '../i18n'
+import controls from '../styles/controls.module.css'
 import { Home } from './Home'
 
 // - Renders the download page over a faked API: the shared provider list, no tasks, the storage
@@ -89,6 +90,12 @@ describe('Home preview keys', () => {
     expect(retry).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Retry' }))
     expect(retry).toHaveBeenCalledWith('old1')
+  })
+
+  it('makes retry the primary action over view task', async () => {
+    await setup(resolved({ duplicate: { task_id: 'old1', status: 'failed' } }))
+    expect(screen.getByRole('button', { name: 'Retry' }).className).toContain(controls.primary)
+    expect(screen.getByRole('link', { name: 'View task' }).className).not.toContain(controls.primary)
   })
 
   it('names Esc alone in Traditional Chinese when Enter does not download', async () => {
