@@ -19,6 +19,7 @@
     "paused": "已暫停",
     "paused_restart": "服務重新啟動，下載已暫停。按繼續從中斷處下載。",
     "paused_legacy": "已暫停。按繼續從中斷處下載。",
+    "resumed_restart": "服務重新啟動後已自動繼續",
     "canceled": "已取消",
     "remote_changed": "遠端檔案已變更，已重新下載",
     "remote_changed_restarting": "遠端檔案已變更，從頭重新下載"

@@ -118,7 +118,9 @@ class Job:
       are sent as If-Range so a changed file is never mixed into existing parts.
     - `resumable` turns false once the upstream ignored a range request.
     - `notice_key` is a lasting `messages.*` note shown beside the status, such as a restart
-      after the remote file changed.
+      after the remote file changed, or `messages.resumed_restart` until the job completes.
+    - `resume_on_start` marks a job the server paused while shutting down, or one a crash left
+      active; it stays set until the job is queued again on start.
     """
 
     id: str
@@ -151,6 +153,7 @@ class Job:
     etag: str | None = None
     last_modified: str | None = None
     notice_key: str | None = None
+    resume_on_start: bool = False
 
     def public(self, root: Path) -> dict:
         """Return the task object the API exposes; links and paths stay private.
@@ -288,7 +291,8 @@ class JobManager:
     - `jobs.json` is rewritten on every status or phase change and at most every
       PERSIST_INTERVAL seconds during progress, under a cross-process lock.
     - Every change is published on `bus`: status and phase changes at once, progress throttled.
-    - On start, jobs that were active when the server stopped become `paused`.
+    - On start, jobs the last run left active or paused while shutting down are queued again
+      with a note; jobs the user paused stay paused.
     """
 
     def __init__(self, settings: Settings, registry: ProviderRegistry,
@@ -324,11 +328,16 @@ class JobManager:
           marked completed, and a leftover staging file is removed.
         - Any other active job becomes paused, keeping its part files, when it can resume; one
           whose upstream cannot serve ranges fails with `interrupted` and can be retried.
+        - Jobs paused that way, and jobs the last shutdown paused, are queued again with the
+          `messages.resumed_restart` note; jobs paused by the user stay paused.
+        - `resume_on_start` stays set in `jobs.json` until the job is queued, so a crash in
+          between still resumes it on the next start.
         """
         self.settings.data_dir.mkdir(parents=True, exist_ok=True)
         self.settings.download_dir.mkdir(parents=True, exist_ok=True)
         with file_lock(self._lock_path()):
             stored = json.loads(self.jobs_file.read_text()) if self.jobs_file.exists() else []
+        resume: list[str] = []
         with self._lock:
             for data in stored:
                 job = Job.load(data)
@@ -340,24 +349,36 @@ class JobManager:
                                 name=Path(job.output_path).name)
                 elif job.status in ACTIVE and job.resumable:
                     self._apply(job, Status.PAUSED, None, "messages.paused_restart")
+                    job.resume_on_start = True
+                    resume.append(job.id)
+                elif job.status == Status.PAUSED and job.resume_on_start:
+                    resume.append(job.id)
                 elif job.status in ACTIVE:
                     error = CodedError("interrupted")
                     job.error = error.as_error()
                     self._apply(job, Status.FAILED, None, error.key)
+                job.resume_on_start = job.id in resume
                 job.active_connections = 0
                 job.speed = 0.0
                 self.jobs[job.id] = job
         self._persist(force=True)
+        for job_id in resume:
+            self._requeue(job_id, {Status.PAUSED}, "errors.invalid_state_resume",
+                          notice_key="messages.resumed_restart")
 
     def shutdown(self, timeout: float = 30) -> None:
         """Pause every running job and wait for the workers to stop.
 
         - Intents are raised under the manager lock, the same lock control actions hold, so a
           concurrent delete or cancel is never lowered to a pause.
+        - A job with no pending intent is marked `resume_on_start`, so the next start continues
+          it; one the user is pausing, canceling or deleting is not.
         """
         with self._lock:
             runs = list(self._runs.values())
-            for run in runs:
+            for job_id, run in self._runs.items():
+                if run.intent is None and job_id in self.jobs:
+                    self.jobs[job_id].resume_on_start = True
                 run.stop("pause")
         for run in runs:
             if run.thread:
@@ -488,18 +509,21 @@ class JobManager:
         """Queue a failed or canceled job again."""
         return self._requeue(job_id, {Status.FAILED, Status.CANCELED}, "errors.invalid_state_retry")
 
-    def _requeue(self, job_id: str, allowed: set[Status], refusal: str) -> Job:
+    def _requeue(self, job_id: str, allowed: set[Status], refusal: str,
+                 notice_key: str | None = None) -> Job:
         """Start a new worker for a resting job whose status is in `allowed`.
 
         - The check, the new run and the `queued` status happen under one lock hold, so a
           concurrent cancel or delete sees either the old state or the new run.
+        - `notice_key` replaces the job's note; none clears it.
         """
         with self._lock:
             job = self.get(job_id)
             if job.status not in allowed or job_id in self._runs:
                 raise InvalidState(refusal)
             job.error = None
-            job.notice_key = None
+            job.notice_key = notice_key
+            job.resume_on_start = False
             job.resumable = True
             run = self._register(job)
             run.refresh = True
@@ -777,6 +801,8 @@ class JobManager:
         if output.suffix.lower() in VIDEO_SUFFIXES and shutil.which("ffmpeg"):
             self._set(job, Status.DOWNLOADING, Phase.VERIFYING, "messages.verifying")
             job.verified = "ok" if _ffmpeg_ok(output) else "corrupt"
+        if job.notice_key == "messages.resumed_restart":
+            job.notice_key = None
         self._set(job, Status.COMPLETED, None, "messages.saved_as", name=output.name)
 
     def _reread_size(self, job: Job, provider: Provider, ref: FileRef) -> None:

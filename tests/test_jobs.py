@@ -96,16 +96,53 @@ def test_pause_resume_and_restart(tmp_path, provider, server, content):
     assert (tmp_path / "downloads" / "four.bin").read_bytes() == content
 
 
-def test_restart_marks_active_jobs_paused(tmp_path, provider, server):
-    server.delay = 0.2
+def test_restart_resumes_jobs_a_crash_left_active(tmp_path, provider, server, content):
+    server.delay = 0.05
     manager = build_manager(tmp_path, provider)
     job = manager.create(URL.format("five"))
-    wait_for(lambda: job.status == Status.DOWNLOADING)
-    restarted = build_manager(tmp_path, provider)
-    stored = restarted.get(job.id)
-    assert stored.status == Status.PAUSED and stored.phase is None
-    assert stored.message_key == "messages.paused_restart" and stored.message
-    manager.delete(job.id)
+    pause_midway(manager, job)
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
+    stored[0].update(status="downloading", phase="downloading")
+    (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
+
+    server.delay = 0
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.notice_key == "messages.resumed_restart"
+    wait_for(lambda: again.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "five.bin").read_bytes() == content
+    assert again.notice_key is None
+
+
+def test_restart_resumes_jobs_the_shutdown_paused(tmp_path, provider, server, content):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("shutdown"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    manager.shutdown()
+    stored = json.loads((tmp_path / "data" / "jobs.json").read_text())[0]
+    assert stored["status"] == "paused" and stored["resume_on_start"] is True
+
+    server.delay = 0
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status in (Status.QUEUED, Status.DOWNLOADING) and not again.resume_on_start
+    assert again.notice_key == "messages.resumed_restart"
+    wait_for(lambda: again.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "shutdown.bin").read_bytes() == content
+    assert again.notice_key is None
+
+
+def test_shutdown_does_not_resume_a_job_being_canceled(tmp_path, provider, server):
+    server.delay = 0.05
+    manager = build_manager(tmp_path, provider)
+    job = manager.create(URL.format("leaving"))
+    wait_for(lambda: job.phase == Phase.DOWNLOADING and job.bytes_done > 0)
+    with manager._lock:
+        manager._runs[job.id].stop("cancel")
+    manager.shutdown()
+    assert job.status == Status.CANCELED and not job.resume_on_start
+
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.status == Status.CANCELED and again.notice_key is None
 
 
 def test_cancel_deletes_partial_data_and_retry_restarts(tmp_path, provider, server, content):
@@ -423,7 +460,11 @@ def test_restart_does_not_adopt_a_foreign_file(tmp_path, provider):
     stored = json.loads((tmp_path / "data" / "jobs.json").read_text())
     stored[0].update(status="downloading", phase="assembling", completed_at=None)
     (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
-    assert build_manager(tmp_path, provider).get(job.id).status == Status.PAUSED
+    again = build_manager(tmp_path, provider).get(job.id)
+    assert again.notice_key == "messages.resumed_restart"
+    wait_for(lambda: again.status == Status.COMPLETED)
+    assert (tmp_path / "downloads" / "foreign.bin").read_bytes() == b"not ours"
+    assert again.output_path != str(tmp_path / "downloads" / "foreign.bin")
 
 
 def test_captcha_attempts_env_must_be_positive(monkeypatch):
@@ -515,6 +556,7 @@ def test_restart_while_paused_keeps_the_pause(tmp_path, provider, server, conten
 
     again = build_manager(tmp_path, provider).get(job.id)
     assert (again.status, again.etag, again.bytes_done) == (Status.PAUSED, '"v1"', saved)
+    assert again.notice_key is None and not again.resume_on_start
 
 
 def test_restart_fails_active_jobs_that_cannot_resume(tmp_path, provider):

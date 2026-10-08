@@ -9,11 +9,11 @@ export function errorText(t: TFunction, error: CodedError | null | undefined): s
   return t(error.key, { ...error.params, defaultValue: error.message || t('errors.unknown') })
 }
 
-// - The status cell's text: the step detail while downloading, the plain status otherwise.
-//   A failed task's reason is shown separately with `errorText`.
+// - The status cell's text: the step detail while downloading, the reason a task is paused,
+//   the plain status otherwise. A failed task's reason is shown separately with `errorText`.
 export function taskStatusText(t: TFunction, task: Task): string {
-  if (task.status === 'downloading' && task.message_key) {
-    return t(task.message_key, { ...task.message_params, defaultValue: task.message || t('status.downloading') })
+  if ((task.status === 'downloading' || task.status === 'paused') && task.message_key) {
+    return t(task.message_key, { ...task.message_params, defaultValue: task.message || t(`status.${task.status}`) })
   }
   return t(`status.${task.status}`)
 }

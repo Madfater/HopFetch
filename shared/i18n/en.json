@@ -17,6 +17,7 @@
     "paused": "Paused",
     "paused_restart": "The server restarted, so the download paused. Resume continues where it stopped.",
     "paused_legacy": "Paused. Resume continues where it stopped.",
+    "resumed_restart": "Resumed after a server restart",
     "canceled": "Canceled",
     "downloading_one": "Downloading over {{count}} connection",
     "downloading_other": "Downloading over {{count}} connections",
