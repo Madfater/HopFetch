@@ -78,6 +78,16 @@ describe('Tasks', () => {
     await waitFor(() => expect(remove).toHaveBeenCalledWith('job1', false))
   })
 
+  it('shows why a task is paused', async () => {
+    setup([task({ message_key: 'messages.paused_legacy' })])
+    expect(await screen.findByText('Paused. Resume continues where it stopped.')).toBeInTheDocument()
+  })
+
+  it('notes a task the server resumed after a restart', async () => {
+    setup([task({ status: 'queued', message_key: 'messages.waiting_slot', notice_key: 'messages.resumed_restart' })])
+    expect(await screen.findByText('Resumed after a server restart')).toBeInTheDocument()
+  })
+
   it('leaves the cost out when deleting a completed task', async () => {
     const { user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: true })])
     await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))
