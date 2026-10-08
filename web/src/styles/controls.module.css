@@ -1,8 +1,8 @@
 /*
  * - Shared buttons.
  * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
- * - `primary` is a lit ink face with dark text and marks the one main action of a page. `danger` confirms a
- *   destructive action and fills red while pointed at.
+ * - `primary` is a lit ink face with dark text and marks the one main action of a page.
+ *   `danger` confirms a destructive action and fills red while pointed at.
  * - `spinner` is a turning ring shown inside a button while its request runs.
  */
 .button {

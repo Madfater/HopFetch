@@ -34,8 +34,9 @@ import styles from './Home.module.css'
 // - Enter starts only a plain download that is not blocked, or a batch whose every link can
 //   start; downloading again and retrying an earlier task need a click. Esc clears the input
 //   and the batch, except while a batch is starting.
-// - A link dragged over the slot lights its edge; the lamp keeps showing the link's state. While the input is empty, the placeholder names
-//   the supported sites and a hint under the slot says where links can go.
+// - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
+//   While the input is empty, the placeholder names the supported sites and a hint under the
+//   slot says where links can go.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out

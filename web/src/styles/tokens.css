@@ -6,7 +6,8 @@
  * - `--color-red-text` is the red of every error text; it keeps 4.5:1 on the chassis and the
  *   panel, where the lamp red does not. `--color-on-lamp` is the dark text on a lit amber or
  *   red face, and on the ink face of a primary button.
- * - Amber is the lamp color: it marks only work that is checking, queued or in progress.
+ * - Amber is the lamp color: it marks only work that is checking, queued, in progress or
+ *   not yet saved.
  *   Keyboard focus and drop targets use `--color-focus`, a cool light gray, and the primary
  *   button is an ink face, so neither reads as a lamp.
  * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
