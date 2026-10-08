@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useSearchParams } from 'react-router'
 import { ApiError, api } from '../api/client'
 import type { Provider, Task } from '../api/types'
-import { DeleteDialog } from '../components/DeleteDialog'
+import { ConfirmDialog, type ConfirmKind } from '../components/ConfirmDialog'
 import { useNewIds } from '../hooks/useNewIds'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { IconButton } from '../components/IconButton'
@@ -26,11 +26,18 @@ import styles from './Tasks.module.css'
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
 //   file exists, delete always. Pause, cancel and delete wait while the file is being joined
 //   or checked, which the backend refuses.
+// - Cancel and delete open a confirm dialog first; it states the downloaded bytes the action
+//   throws away, which is every byte of a task that is not completed.
 
 const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
 
 type Action = 'pause' | 'resume' | 'cancel' | 'retry'
+
+interface Confirming {
+  id: string
+  kind: ConfirmKind
+}
 
 export function Tasks() {
   const { t } = useTranslation()
@@ -38,7 +45,8 @@ export function Tasks() {
   const client = useQueryClient()
   const [params, setParams] = useSearchParams()
   const [chosenFilter, setFilter] = useState<Filter>('all')
-  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [confirming, setConfirming] = useState<Confirming | null>(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const tasks = useTasks()
   const providers = useProviders()
@@ -90,8 +98,9 @@ export function Tasks() {
 
   const visible = (all ?? []).filter((task) => matchesFilter(task, filter))
   // - The dialog reads the task from the live list, so a task that completes while it is open
-  //   gains the delete-file option.
-  const deleting = all?.find((task) => task.id === deletingId) ?? null
+  //   gains the delete-file option and loses the cost line, and the cost line follows progress.
+  // - `confirming` outlives the open state, so the closing dialog keeps its words.
+  const target = all?.find((task) => task.id === confirming?.id) ?? null
   const hasCompleted = (all ?? []).some((task) => task.status === 'completed')
   const isNew = useNewIds(all?.map((task) => task.id))
 
@@ -161,21 +170,27 @@ export function Tasks() {
                 focused={focused === task.id}
                 arrived={isNew(task.id)}
                 onAction={(action) => act.mutate({ id: task.id, action })}
-                onDelete={() => setDeletingId(task.id)}
+                onConfirm={(kind) => {
+                  setConfirming({ id: task.id, kind })
+                  setConfirmOpen(true)
+                }}
               />
             ))}
           </tbody>
         </table>
       )}
 
-      <DeleteDialog
-        name={deleting?.file_name ?? t('tasks.unnamed')}
-        canDeleteFile={deleting?.status === 'completed' && deleting.file_exists}
-        open={deletingId !== null}
-        onOpenChange={(open) => !open && setDeletingId(null)}
+      <ConfirmDialog
+        kind={confirming?.kind ?? 'delete'}
+        name={target?.file_name ?? t('tasks.unnamed')}
+        discards={target && target.status !== 'completed' ? target.bytes_done : 0}
+        canDeleteFile={target?.status === 'completed' && target.file_exists}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
         onConfirm={(deleteFile) => {
-          if (deletingId) remove.mutate({ id: deletingId, deleteFile })
-          setDeletingId(null)
+          if (confirming?.kind === 'cancel') act.mutate({ id: confirming.id, action: 'cancel' })
+          else if (confirming) remove.mutate({ id: confirming.id, deleteFile })
+          setConfirmOpen(false)
         }}
       />
     </main>
@@ -188,10 +203,10 @@ interface RowProps {
   focused: boolean
   arrived: boolean
   onAction: (action: Action) => void
-  onDelete: () => void
+  onConfirm: (kind: ConfirmKind) => void
 }
 
-function TaskRow({ task, provider, focused, arrived, onAction, onDelete }: RowProps) {
+function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const name = task.file_name ?? t('tasks.unnamed')
@@ -251,7 +266,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onDelete }: RowPr
             <IconButton icon="resume" label={label('resume')} tooltip={t('action.resume')} onClick={() => onAction('resume')} />
           )}
           {unfinished && !finishing && (
-            <IconButton icon="cancel" label={label('cancel')} tooltip={t('action.cancel')} onClick={() => onAction('cancel')} />
+            <IconButton icon="cancel" label={label('cancel')} tooltip={t('action.cancel')} onClick={() => onConfirm('cancel')} />
           )}
           {(task.status === 'failed' || task.status === 'canceled') && (
             <IconButton icon="retry" label={label('retry')} tooltip={t('action.retry')} onClick={() => onAction('retry')} />
@@ -260,7 +275,8 @@ function TaskRow({ task, provider, focused, arrived, onAction, onDelete }: RowPr
             <IconButton icon="save" label={label('save')} tooltip={task.file_exists ? t('action.save') : t('tasks.fileMissing')}
               href={api.fileUrl(task.id)} disabled={!task.file_exists} />
           )}
-          <IconButton icon="delete" label={label('delete')} tooltip={t('action.delete')} onClick={onDelete} disabled={finishing} />
+          <IconButton icon="delete" label={label('delete')} tooltip={t('action.delete')} onClick={() => onConfirm('delete')}
+            disabled={finishing} />
         </div>
       </td>
     </tr>

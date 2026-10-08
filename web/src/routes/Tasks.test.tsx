@@ -1,0 +1,88 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { Tooltip } from 'radix-ui'
+import { MemoryRouter } from 'react-router'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import providers from '../../../shared/providers.json'
+import { api } from '../api/client'
+import type { Task } from '../api/types'
+import i18n from '../i18n'
+import { Tasks } from './Tasks'
+
+// - Renders the files page over a faked API with the tasks given, and fakes cancel and delete.
+
+const GIB = 2 ** 30
+
+function task(change: Partial<Task> = {}): Task {
+  return {
+    id: 'job1', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 * GIB, bytes_done: 1.31 * GIB,
+    speed: 0, eta: null, status: 'paused', phase: null, message_key: null, message_params: {}, message: '',
+    resumable: true, notice_key: null, file_exists: false, error: null, verified: null, created_at: 1, updated_at: 1,
+    completed_at: null, ...change,
+  }
+}
+
+function setup(tasks: Task[]) {
+  vi.spyOn(api, 'providers').mockResolvedValue(providers)
+  vi.spyOn(api, 'tasks').mockResolvedValue(tasks)
+  const cancel = vi.spyOn(api, 'cancel').mockResolvedValue(task({ status: 'canceled', bytes_done: 0 }))
+  const remove = vi.spyOn(api, 'remove').mockResolvedValue(undefined)
+  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  render(
+    <QueryClientProvider client={client}>
+      <Tooltip.Provider>
+        <MemoryRouter>
+          <Tasks />
+        </MemoryRouter>
+      </Tooltip.Provider>
+    </QueryClientProvider>,
+  )
+  return { cancel, remove, user: userEvent.setup() }
+}
+
+beforeEach(async () => {
+  await i18n.changeLanguage('en')
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe('Tasks', () => {
+  it('asks before canceling and states the bytes it discards', async () => {
+    const { cancel, user } = setup([task()])
+    await user.click(await screen.findByRole('button', { name: 'Cancel: a.rar' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Cancel download' })
+    expect(dialog).toHaveTextContent('This discards the 1.31 GB downloaded so far.')
+    expect(cancel).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Cancel download' }))
+    await waitFor(() => expect(cancel).toHaveBeenCalledWith('job1'))
+  })
+
+  it('keeps the task when the cancel dialog is dismissed', async () => {
+    const { cancel, user } = setup([task()])
+    await user.click(await screen.findByRole('button', { name: 'Cancel: a.rar' }))
+    await user.click(await screen.findByRole('button', { name: 'Keep' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(cancel).not.toHaveBeenCalled()
+  })
+
+  it('states the cost when deleting an unfinished task', async () => {
+    const { remove, user } = setup([task()])
+    await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete task' })
+    expect(dialog).toHaveTextContent('This discards the 1.31 GB downloaded so far.')
+    await user.click(screen.getByRole('button', { name: 'Delete' }))
+    await waitFor(() => expect(remove).toHaveBeenCalledWith('job1', false))
+  })
+
+  it('leaves the cost out when deleting a completed task', async () => {
+    const { user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: true })])
+    await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Delete task' })
+    expect(dialog).not.toHaveTextContent('This discards')
+    expect(screen.getByRole('checkbox', { name: 'Also delete the file on the NAS' })).toBeInTheDocument()
+  })
+})

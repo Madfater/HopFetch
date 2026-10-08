@@ -114,12 +114,20 @@
     "delete": "Delete",
     "named": "{{action}}: {{name}}"
   },
-  "deleteDialog": {
-    "title": "Delete task",
-    "body": "Remove \"{{name}}\" from the list.",
+  "confirmDialog": {
+    "cancel": {
+      "title": "Cancel download",
+      "body": "Stop \"{{name}}\". It stays in the list as canceled, and Retry starts it again from the beginning.",
+      "confirm": "Cancel download"
+    },
+    "delete": {
+      "title": "Delete task",
+      "body": "Remove \"{{name}}\" from the list.",
+      "confirm": "Delete"
+    },
+    "discards": "This discards the {{size}} downloaded so far.",
     "deleteFile": "Also delete the file on the NAS",
-    "confirm": "Delete",
-    "cancel": "Keep"
+    "keep": "Keep"
   },
   "settings": {
     "title": "Settings",

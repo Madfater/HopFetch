@@ -1,25 +1,34 @@
 import { Checkbox, Dialog } from 'radix-ui'
 import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { formatBytes } from '../lib/format'
 import controls from '../styles/controls.module.css'
-import styles from './DeleteDialog.module.css'
+import styles from './ConfirmDialog.module.css'
 
-// - Confirms deleting a task. "Also delete the file on the NAS" starts unchecked and is only
-//   offered for completed tasks, the only ones with a file on the NAS.
+// - Confirms canceling or deleting a task. Both are offered from the files page and both are
+//   asked first, because both throw away the part files of an unfinished task.
+// - `discards` is the number of downloaded bytes the action deletes; when it is above zero the
+//   dialog states it in red, so the cost is read before the red button.
+// - "Also delete the file on the NAS" starts unchecked and is only offered for deleting a
+//   completed task, the only kind with a file on the NAS.
 // - The dialog is opened by state rather than by a Radix trigger, so it remembers the element
 //   that had focus when it opened and gives focus back to it on close, while that element is
 //   still on the page.
 
+export type ConfirmKind = 'cancel' | 'delete'
+
 interface Props {
+  kind: ConfirmKind
   name: string
+  discards: number
   canDeleteFile: boolean
   open: boolean
   onOpenChange: (open: boolean) => void
   onConfirm: (deleteFile: boolean) => void
 }
 
-export function DeleteDialog({ name, canDeleteFile, open, onOpenChange, onConfirm }: Props) {
-  const { t } = useTranslation()
+export function ConfirmDialog({ kind, name, discards, canDeleteFile, open, onOpenChange, onConfirm }: Props) {
+  const { t, i18n } = useTranslation()
   const [deleteFile, setDeleteFile] = useState(false)
   const returnFocus = useRef<HTMLElement | null>(null)
 
@@ -44,9 +53,16 @@ export function DeleteDialog({ name, canDeleteFile, open, onOpenChange, onConfir
             returnFocus.current.focus()
           }}
         >
-          <Dialog.Title className={styles.title}>{t('deleteDialog.title')}</Dialog.Title>
-          <Dialog.Description className={styles.body}>{t('deleteDialog.body', { name })}</Dialog.Description>
-          {canDeleteFile && (
+          <Dialog.Title className={styles.title}>{t(`confirmDialog.${kind}.title`)}</Dialog.Title>
+          <Dialog.Description asChild>
+            <div className={styles.body}>
+              <p>{t(`confirmDialog.${kind}.body`, { name })}</p>
+              {discards > 0 && (
+                <p className={styles.cost}>{t('confirmDialog.discards', { size: formatBytes(i18n.language, discards) })}</p>
+              )}
+            </div>
+          </Dialog.Description>
+          {kind === 'delete' && canDeleteFile && (
             <label className={styles.check}>
               <Checkbox.Root className={styles.box} checked={deleteFile}
                 onCheckedChange={(value) => setDeleteFile(value === true)}>
@@ -57,24 +73,24 @@ export function DeleteDialog({ name, canDeleteFile, open, onOpenChange, onConfir
                   </svg>
                 </Checkbox.Indicator>
               </Checkbox.Root>
-              {t('deleteDialog.deleteFile')}
+              {t('confirmDialog.deleteFile')}
             </label>
           )}
           <div className={styles.actions}>
             <Dialog.Close asChild>
               <button type="button" className={controls.button}>
-                {t('deleteDialog.cancel')}
+                {t('confirmDialog.keep')}
               </button>
             </Dialog.Close>
             <button
               type="button"
               className={`${controls.button} ${controls.danger}`}
               onClick={() => {
-                onConfirm(deleteFile)
+                onConfirm(kind === 'delete' && canDeleteFile && deleteFile)
                 setDeleteFile(false)
               }}
             >
-              {t('deleteDialog.confirm')}
+              {t(`confirmDialog.${kind}.confirm`)}
             </button>
           </div>
         </Dialog.Content>
