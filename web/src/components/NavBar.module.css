@@ -69,6 +69,14 @@
   text-align: center;
 }
 
+.attention {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-red-text);
+  font-size: 0.8rem;
+}
+
 .pop {
   animation: pop var(--motion-slow) var(--ease-out);
 }

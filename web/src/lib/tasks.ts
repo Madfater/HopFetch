@@ -17,6 +17,11 @@ export function isActive(task: Task): boolean {
   return ACTIVE.includes(task.status)
 }
 
+// - A failed task is the one state that waits on the user; canceled tasks were their choice.
+export function needsAttention(task: Task): boolean {
+  return task.status === 'failed'
+}
+
 // - Replaces the task with the same id, or puts a new one first.
 // - A copy older than the one held, by `updated_at`, is ignored: an action's HTTP answer can
 //   arrive after the event the action caused.
@@ -37,6 +42,10 @@ export function removeTask(list: Task[] | undefined, id: string): Task[] | undef
 export type Filter = 'all' | 'active' | 'completed' | 'failed'
 
 export const FILTERS: Filter[] = ['all', 'active', 'completed', 'failed']
+
+export function parseFilter(value: string | null): Filter | null {
+  return FILTERS.find((filter) => filter === value) ?? null
+}
 
 export function matchesFilter(task: Task, filter: Filter): boolean {
   switch (filter) {

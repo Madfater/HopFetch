@@ -5,12 +5,13 @@ import { NavLink } from 'react-router'
 import { api } from '../api/client'
 import { useTasks } from '../hooks/useTasks'
 import { formatStorage } from '../lib/format'
-import { isActive, STORAGE_KEY } from '../lib/tasks'
+import { isActive, needsAttention, STORAGE_KEY } from '../lib/tasks'
 import { Lamp } from './Lamp'
 import styles from './NavBar.module.css'
 
 // - Sticky top bar: the three pages, and NAS free space on the right.
-// - The Downloads tab counts queued and downloading tasks.
+// - The Downloads tab counts queued and downloading tasks, and beside that, behind a red lamp,
+//   the failed tasks that wait on the user.
 // - The active tab's underline has a view-transition name, so a page change slides it to the
 //   new tab.
 // - Free space is read once and then kept current by `storage` events. On a narrow screen its
@@ -28,6 +29,7 @@ export function NavBar({ connected }: { connected: boolean }) {
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity })
   const tasks = useTasks().data
   const active = tasks ? tasks.filter(isActive).length : null
+  const failed = tasks ? tasks.filter(needsAttention).length : 0
 
   return (
     <header className={styles.header}>
@@ -41,6 +43,15 @@ export function NavBar({ connected }: { connected: boolean }) {
                   <>
                     {t(tab.key)}
                     {tab.counted && <Count value={active} label={t('nav.active', { count: active ?? 0 })} />}
+                    {tab.counted && failed > 0 && (
+                      <>
+                        <span className={styles.attention} aria-hidden="true">
+                          <Lamp color="red" />
+                          <span className="num">{failed}</span>
+                        </span>
+                        <span className="visually-hidden">{t('nav.attention', { count: failed })}</span>
+                      </>
+                    )}
                     {current && <span className={styles.indicator} aria-hidden="true" />}
                   </>
                 )}

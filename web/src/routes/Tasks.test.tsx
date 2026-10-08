@@ -23,7 +23,7 @@ function task(change: Partial<Task> = {}): Task {
   }
 }
 
-function setup(tasks: Task[]) {
+function setup(tasks: Task[], path = '/tasks') {
   vi.spyOn(api, 'providers').mockResolvedValue(providers)
   vi.spyOn(api, 'tasks').mockResolvedValue(tasks)
   const cancel = vi.spyOn(api, 'cancel').mockResolvedValue(task({ status: 'canceled', bytes_done: 0 }))
@@ -32,7 +32,7 @@ function setup(tasks: Task[]) {
   render(
     <QueryClientProvider client={client}>
       <Tooltip.Provider>
-        <MemoryRouter>
+        <MemoryRouter initialEntries={[path]}>
           <Tasks />
         </MemoryRouter>
       </Tooltip.Provider>
@@ -86,6 +86,18 @@ describe('Tasks', () => {
   it('notes a task the server resumed after a restart', async () => {
     setup([task({ status: 'queued', message_key: 'messages.waiting_slot', notice_key: 'messages.resumed_restart' })])
     expect(await screen.findByText('Resumed after a server restart')).toBeInTheDocument()
+  })
+
+  it('opens on the filter named in the address and drops it when another is chosen', async () => {
+    const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }),
+      task({ id: 'b', file_name: 'b.rar', status: 'completed' })], '/tasks?filter=failed')
+    const failed = await screen.findByRole('radio', { name: /Failed/ })
+    expect(failed).toBeChecked()
+    expect(screen.getByText('a.rar')).toBeInTheDocument()
+    expect(screen.queryByText('b.rar')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /All/ }))
+    expect(await screen.findByText('b.rar')).toBeInTheDocument()
   })
 
   it('leaves the cost out when deleting a completed task', async () => {

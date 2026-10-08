@@ -13,7 +13,7 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { errorText, taskStatusText } from '../lib/messages'
-import { FILTERS, matchesFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
+import { FILTERS, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
 
@@ -21,6 +21,7 @@ import styles from './Tasks.module.css'
 //   every task.
 // - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS; the mark fades when it
 //   ends. A task that arrives while the page is open flashes once.
+// - `?filter=<filter>` opens the page on that filter; choosing another filter drops it.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
@@ -88,7 +89,7 @@ export function Tasks() {
   const focused = params.get('focus')
   const all = tasks.data
   const present = focused !== null && (all?.some((task) => task.id === focused) ?? false)
-  const filter = focused ? 'all' : chosenFilter
+  const filter = focused ? 'all' : (parseFilter(params.get('filter')) ?? chosenFilter)
   useEffect(() => {
     if (!present) return
     document.getElementById(`task-${focused}`)?.scrollIntoView({ block: 'center' })
@@ -113,7 +114,7 @@ export function Tasks() {
             <SegmentedControl label={t('tasks.filter.label')} value={filter}
               onChange={(value) => {
                 setFilter(value)
-                if (focused) setParams({}, { replace: true })
+                if (focused || params.has('filter')) setParams({}, { replace: true })
               }}
               options={FILTERS.map((value) => ({
                 value,
