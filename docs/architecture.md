@@ -159,6 +159,7 @@ Stopping the server pauses running jobs the same way. A server start marks any j
 | `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |
 | `hooks/useResolve.ts` | Local URL check against the provider patterns, then `/api/resolve`: 400 ms after typing stops, at once after a paste. Results are keyed by normalized URL, and outdated requests are aborted |
 | `hooks/useBatch.ts` | `/api/resolve` for every link of a pasted batch, at most 3 at a time, under the same query keys as a single link |
+| `hooks/useTouchScreen.ts` | Whether the main input is a touch screen (`(hover: none) and (pointer: coarse)`), followed live. Home leaves out the paste, drop and key hints there |
 | `lib/batch.ts` | A pasted batch's row states, the files that can start, the space they need, and whether the batch can start or Enter may start it |
 | `lib/url.ts`, `lib/format.ts`, `lib/messages.ts`, `lib/tasks.ts` | URL extraction and matching, including a batch of supported links from pasted text, `Intl` formatting, translation of backend keys, and pure task-list helpers |
 | `routes/` | The download, files and settings pages |

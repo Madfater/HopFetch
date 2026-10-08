@@ -11,6 +11,7 @@ import { useToast } from '../components/toast-context'
 import { useBatch } from '../hooks/useBatch'
 import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
+import { useTouchScreen } from '../hooks/useTouchScreen'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/format'
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
@@ -35,8 +36,9 @@ import styles from './Home.module.css'
 //   start; downloading again and retrying an earlier task need a click. Esc clears the input
 //   and the batch, except while a batch is starting.
 // - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
-//   While the input is empty, the placeholder names the supported sites and a hint under the
-//   slot says where links can go.
+//   While the input is empty, the placeholder names the supported sites, a hint under the
+//   slot says where links can go, and a row under it shows each supported site's mark and
+//   name. On a touch screen the hint and the key hints are left out.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
@@ -266,6 +268,7 @@ export function Home() {
     ? batchStatus(t, view, providers.isError)
     : statusLine(t, state, noneSupported, sites, providers.isError)
   const recent = (tasks.data ?? []).slice(0, RECENT_COUNT)
+  const touch = useTouchScreen()
 
   return (
     <main className={styles.home}>
@@ -317,12 +320,22 @@ export function Home() {
         <p id="link-status" className={`${styles.status} ${status.error ? styles.statusError : ''}`} aria-live="polite">
           {status.text && <span key={status.text} className={styles.statusText}>{status.text}</span>}
         </p>
-        {!input && !inBatch && !status.text && (
+        {!touch && !input && !inBatch && !status.text && (
           <p id="link-hint" className={styles.hint}>
             {t('home.hint')}
           </p>
         )}
       </div>
+      {!input && !inBatch && (providers.data ?? []).length > 0 && (
+        <ul className={styles.sites} aria-label={t('home.sites')}>
+          {(providers.data ?? []).map((provider) => (
+            <li key={provider.id} className={styles.site}>
+              <ProviderMark icon={provider.icon} />
+              {provider.name}
+            </li>
+          ))}
+        </ul>
+      )}
 
       {!noneSupported && !inBatch && state.data && state.local.kind === 'matched' && planned && (
         <Preview
@@ -458,6 +471,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
   const duplicate = data.duplicate
   const retryable = duplicate != null && (duplicate.status === 'failed' || duplicate.status === 'canceled') && short === 0
   const enterDownloads = plan.kind === 'download' && !plan.force
+  const touch = useTouchScreen()
   const notes: { text: string; error: boolean }[] = []
   if (data.size == null) notes.push({ text: t('preview.sizeUnknownHint'), error: true })
   if (short > 0) notes.push({ text: t('preview.short', { size: formatBytes(locale, short) }), error: true })
@@ -512,9 +526,11 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
             {t('preview.view')}
           </Link>
         )}
-        <span className={styles.keys}>
-          <Trans i18nKey={enterDownloads ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
-        </span>
+        {!touch && (
+          <span className={styles.keys}>
+            <Trans i18nKey={enterDownloads ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
+          </span>
+        )}
       </div>
     </section>
   )

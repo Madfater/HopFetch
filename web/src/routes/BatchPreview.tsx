@@ -1,5 +1,6 @@
 import { Trans, useTranslation } from 'react-i18next'
 import { Lamp, type LampColor } from '../components/Lamp'
+import { useTouchScreen } from '../hooks/useTouchScreen'
 import type { BatchView, RowState } from '../lib/batch'
 import { formatBytes, formatStorage } from '../lib/format'
 import { BATCH_LIMIT, type Batch } from '../lib/url'
@@ -13,6 +14,7 @@ import styles from './Home.module.css'
 // - Notes say how many other links were left out: unsupported ones and those past the limit.
 // - The button stays disabled while a link is being checked or the set does not fit. While it
 //   can start, a line under the facts says where the files go and that the page can be closed.
+// - The key hint is left out on a touch screen.
 
 interface Props {
   batch: Batch
@@ -32,6 +34,7 @@ function lampOf(state: RowState): LampColor {
 
 export function BatchPreview({ batch, view, free, locale, starting, onStart }: Props) {
   const { t } = useTranslation()
+  const touch = useTouchScreen()
 
   const detail = (state: RowState) => {
     switch (state.kind) {
@@ -98,9 +101,11 @@ export function BatchPreview({ batch, view, free, locale, starting, onStart }: P
             {t('batch.download', { count: view.ready.length })}
           </button>
         )}
-        <span className={styles.keys}>
-          <Trans i18nKey={view.enterStarts ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
-        </span>
+        {!touch && (
+          <span className={styles.keys}>
+            <Trans i18nKey={view.enterStarts ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
+          </span>
+        )}
       </div>
     </section>
   )
