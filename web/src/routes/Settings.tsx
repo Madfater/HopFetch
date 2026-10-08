@@ -19,8 +19,8 @@ import styles from './Settings.module.css'
 // - Three plates: the download settings, stored on the server and shared by everyone; the
 //   download folder and its free space, read only; and other settings, which hold the language.
 // - The download settings are a draft until saved. The footer counts unsaved changes and
-//   offers Discard and Save, which turns amber only when there is something to save; while
-//   there is, the footer stays in view. After a save it reads "Settings saved" for SAVED_MS.
+//   offers Discard and Save, which becomes the primary button only when there is something to
+//   save; while there is, the footer stays in view. After a save it reads "Settings saved" for SAVED_MS.
 // - A number field shows its problem once it has lost focus or a save was tried. A save with a
 //   problem sends nothing and focuses the first field in trouble.
 // - One save runs at a time. An edit made while it runs is kept as the new draft, with any

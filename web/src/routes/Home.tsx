@@ -34,7 +34,7 @@ import styles from './Home.module.css'
 // - Enter starts only a plain download that is not blocked, or a batch whose every link can
 //   start; downloading again and retrying an earlier task need a click. Esc clears the input
 //   and the batch, except while a batch is starting.
-// - A link dragged over the slot lights it up. While the input is empty, the placeholder names
+// - A link dragged over the slot lights its edge; the lamp keeps showing the link's state. While the input is empty, the placeholder names
 //   the supported sites and a hint under the slot says where links can go.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
@@ -260,7 +260,7 @@ export function Home() {
   const sites = formatList(i18n.language, names, 'conjunction')
   const anySite = formatList(i18n.language, names, 'disjunction')
   const placeholder = names.length > 0 ? t('home.placeholder', { sites: anySite }) : t('home.placeholderPlain')
-  const lamp = dragging ? 'amber' : inBatch ? batchLamp(view) : lampFor(state, plan, noneSupported, providers.isError)
+  const lamp = inBatch ? batchLamp(view) : lampFor(state, plan, noneSupported, providers.isError)
   const status = inBatch
     ? batchStatus(t, view, providers.isError)
     : statusLine(t, state, noneSupported, sites, providers.isError)
@@ -273,7 +273,8 @@ export function Home() {
       <label htmlFor="link" className="visually-hidden">
         {t('home.inputLabel')}
       </label>
-      <div className={`${styles.slot} ${dragging ? styles.dragging : ''}`} onDragEnter={onDragEnter}
+      <div className={[styles.slot, lamp === 'red' && styles.invalid, dragging && styles.dragging].filter(Boolean).join(' ')}
+        onDragEnter={onDragEnter}
         onDragLeave={onDragLeave} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
         <input
           ref={inputRef}
