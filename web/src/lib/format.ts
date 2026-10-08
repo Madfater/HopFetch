@@ -44,3 +44,13 @@ export function formatDuration(seconds: number): string {
 export function formatPercent(locale: string, ratio: number): string {
   return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(ratio)
 }
+
+// - A list of names joined the way the locale joins lists, for example "Keep2Share or MEGA".
+// - Chinese list patterns put no space around their connectives, so a space is added wherever
+//   a Latin letter or digit meets a Han character, the usual spacing in mixed text.
+export function formatList(locale: string, names: string[], type: 'conjunction' | 'disjunction'): string {
+  return new Intl.ListFormat(locale, { type })
+    .format(names)
+    .replace(/([A-Za-z0-9])(\p{Script=Han})/gu, '$1 $2')
+    .replace(/(\p{Script=Han})([A-Za-z0-9])/gu, '$1 $2')
+}

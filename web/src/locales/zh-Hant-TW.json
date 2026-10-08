@@ -2,7 +2,7 @@
   "nav": {
     "label": "主要導覽",
     "home": "下載",
-    "tasks": "檔案狀況",
+    "tasks": "下載清單",
     "settings": "設定",
     "storage": "NAS 剩餘",
     "storageUnknown": "NAS 剩餘空間未知",
@@ -10,18 +10,21 @@
   },
   "home": {
     "inputLabel": "分享連結",
-    "placeholder": "https://k2s.cc/file/8d028cc29f08b/sample.rar",
+    "placeholder": "貼上 {{sites}} 的分享連結",
     "hint": "在這頁任何位置貼上連結，或把連結拖放到這裡。",
-    "drop": "放開即可解析這個連結",
+    "drop": "放開即可檢查這個連結",
     "lamp": {
       "idle": "等待輸入連結",
-      "checking": "解析中",
+      "checking": "檢查中",
       "ready": "可以下載",
       "blocked": "無法下載"
     },
-    "checking": "解析連結中",
+    "checking": "正在檢查連結",
     "recent": "最近的任務",
-    "viewAll": "查看全部"
+    "viewAll": "查看全部",
+    "promise": "完成後會存到 NAS 的下載資料夾。可以關閉這頁，下載會在伺服器上繼續。",
+    "unsupported": "目前只支援 {{sites}} 的連結。",
+    "placeholderPlain": "貼上分享連結"
   },
   "preview": {
     "size": "大小",
@@ -31,7 +34,7 @@
     "short": "空間不足，還差 {{size}}。清出空間後再試一次。",
     "download": "下載",
     "downloadAnyway": "仍要下載",
-    "view": "前往查看",
+    "view": "查看任務",
     "retry": "重試",
     "duplicateActive": "這個檔案已經在下載清單中。",
     "duplicateFailed": "這個檔案先前下載失敗或已取消。",
@@ -68,7 +71,7 @@
     "canceled": "已取消"
   },
   "tasks": {
-    "title": "檔案狀況",
+    "title": "下載清單",
     "filter": {
       "label": "篩選狀態",
       "all": "全部",
@@ -146,14 +149,14 @@
     "en": "English"
   },
   "toast": {
-    "started": "已開始下載「{{name}}」",
+    "started": "已開始下載「{{name}}」，可以關閉這頁。",
     "completed": "已完成下載「{{name}}」",
     "failed": "「{{name}}」下載失敗：{{reason}}",
     "removed": "已刪除任務",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
     "close": "關閉通知",
-    "batchStarted_other": "已開始下載 {{count}} 個檔案",
+    "batchStarted_other": "已開始下載 {{count}} 個檔案，可以關閉這頁。",
     "batchPartial": "已開始 {{started}} 個，{{failed}} 個無法開始"
   },
   "errors": {

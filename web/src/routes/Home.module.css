@@ -167,6 +167,12 @@
   color: var(--color-red-text);
 }
 
+.promise {
+  margin-top: var(--space-3);
+  color: var(--color-steel);
+  font-size: 0.9rem;
+}
+
 .actions {
   display: flex;
   flex-wrap: wrap;

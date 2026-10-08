@@ -11,7 +11,8 @@ import styles from './Home.module.css'
 // - Each row is a lamp, the file name, the host and the row's state, and the file size. A
 //   skipped row says why. While the batch starts, rows switch to their outcome one by one.
 // - Notes say how many other links were left out: unsupported ones and those past the limit.
-// - The button stays disabled while a link is being checked or the set does not fit.
+// - The button stays disabled while a link is being checked or the set does not fit. While it
+//   can start, a line under the facts says where the files go and that the page can be closed.
 
 interface Props {
   batch: Batch
@@ -88,6 +89,7 @@ export function BatchPreview({ batch, view, free, locale, starting, onStart }: P
           {t('batch.short', { size: formatBytes(locale, view.short) })}
         </p>
       )}
+      {view.canStart && <p className={styles.promise}>{t('home.promise')}</p>}
       <div className={styles.actions}>
         {view.ready.length > 0 && (!view.started || starting) && (
           <button type="button" className={`${controls.button} ${controls.primary}`} onClick={onStart}
