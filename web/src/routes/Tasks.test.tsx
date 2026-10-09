@@ -89,6 +89,14 @@ describe('Tasks', () => {
     expect(await screen.findByText('Resumed after a server restart')).toBeInTheDocument()
   })
 
+  it('offers every task when a filter matches nothing', async () => {
+    const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'completed' })], '/tasks?filter=failed')
+    expect(await screen.findByText('No tasks match this filter')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Show all' }))
+    expect(await screen.findByText('a.rar')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /All/ })).toBeChecked()
+  })
+
   it('opens on the filter named in the address and drops it when another is chosen', async () => {
     const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }),
       task({ id: 'b', file_name: 'b.rar', status: 'completed' })], '/tasks?filter=failed')

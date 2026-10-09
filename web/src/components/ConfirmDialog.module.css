@@ -3,7 +3,7 @@
  *   they arrive. Radix keeps them mounted until the closing animation ends.
  * - The dialog is centered with `translate`, so its animations are free to use `transform`.
  * - The cost line sits under the body in error red, one step apart from it.
- * - The checkbox is a recessed box that fills with ink when checked, and its check mark is
+ * - The checkbox is a recessed box that fills with the text color when checked, and its check mark is
  *   drawn in.
  */
 .overlay {

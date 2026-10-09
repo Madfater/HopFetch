@@ -1,6 +1,9 @@
 /*
- * - The track is 42px inside its border and the knob 16px, 3px from either end; on, the knob
- *   moves 20px. While pressed the knob is 4px wider, growing toward the middle of the track.
+ * - The track is 42px inside its border and the knob 16px, 3px from either end; on, the
+ *   visible knob moves 20px. While pressed the knob stretches to a 20px pill, growing toward
+ *   the middle of the track.
+ * - The knob is always a 20px pill clipped to a 16px circle at its outer end; the press
+ *   uncovers the rest, so the stretch animates the clip and never the layout.
  */
 .track {
   position: relative;
@@ -29,25 +32,23 @@
   top: 3px;
   left: 3px;
   display: block;
-  width: 16px;
+  width: 20px;
   height: 16px;
   border-radius: var(--radius-round);
   background: var(--color-muted);
+  clip-path: inset(0 4px 0 0 round 8px);
   transition:
     transform var(--motion-base) var(--ease-out),
-    width var(--motion-fast) var(--ease-out),
+    clip-path var(--motion-fast) var(--ease-out),
     background-color var(--motion-base) var(--ease-out);
 }
 
 .thumb[data-state='checked'] {
   background: var(--color-ground);
-  transform: translateX(20px);
+  transform: translateX(16px);
+  clip-path: inset(0 0 0 4px round 8px);
 }
 
 .track:active .thumb {
-  width: 20px;
-}
-
-.track:active .thumb[data-state='checked'] {
-  transform: translateX(16px);
+  clip-path: inset(0 0 0 0 round 8px);
 }

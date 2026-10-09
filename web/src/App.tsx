@@ -10,8 +10,8 @@ import { NavBar } from './components/NavBar'
 import { ToastProvider } from './components/Toasts'
 import { useToast } from './components/toast-context'
 import { connectEvents } from './lib/events'
-import { errorText } from './lib/messages'
-import { isActive, type Finished } from './lib/tasks'
+import { errorText, pageTitle } from './lib/messages'
+import { isActive, needsAttention, type Finished } from './lib/tasks'
 import { useTasks } from './hooks/useTasks'
 import { Home } from './routes/Home'
 import { Settings } from './routes/Settings'
@@ -21,7 +21,8 @@ import { Tasks } from './routes/Tasks'
 //   whole app.
 // - The router is a data router, the kind that runs a navigation marked `viewTransition` inside
 //   a view transition.
-// - The tab title shows `(n) APP_NAME` while n tasks are queued or downloading.
+// - The tab title counts the tasks queued or downloading and the failed ones, so a failure shows
+//   in a tab left open; see `pageTitle`.
 // - A task that completes or fails while the page is open raises a toast.
 
 const queryClient = new QueryClient({
@@ -78,9 +79,11 @@ function Layout() {
   )
 
   const active = (tasks.data ?? []).filter(isActive).length
+  const failed = (tasks.data ?? []).filter(needsAttention).length
+  const title = pageTitle(t, active, failed, APP_NAME)
   useEffect(() => {
-    document.title = active > 0 ? `(${active}) ${APP_NAME}` : APP_NAME
-  }, [active])
+    document.title = title
+  }, [title])
 
   return (
     <>

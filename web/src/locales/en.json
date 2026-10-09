@@ -8,7 +8,8 @@
     "storageUnknown": "NAS free space unknown",
     "active": "{{count}} downloading or queued",
     "attention_one": "{{count}} failed task",
-    "attention_other": "{{count}} failed tasks"
+    "attention_other": "{{count}} failed tasks",
+    "titleFailed": "{{count}} failed"
   },
   "home": {
     "inputLabel": "Share link",
@@ -106,6 +107,7 @@
     "empty": "No downloads yet",
     "emptyLink": "Paste a link on the download page",
     "emptyFiltered": "No tasks match this filter",
+    "showAll": "Show all",
     "progressLabel": "Progress of {{name}}",
     "fileMissing": "File missing",
     "videoCorrupt": "ffmpeg found problems in this video.",

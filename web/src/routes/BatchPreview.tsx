@@ -62,7 +62,8 @@ export function BatchPreview({ batch, view, free, locale, starting, onStart }: P
               </span>
               <p className={styles.batchName} title={name}>{name}</p>
               <p className={`${styles.batchDetail} ${failing ? styles.noteError : ''}`}>
-                {item.link.provider.name} · {detail(state)}
+                <span>{item.link.provider.name}</span>
+                <span>{detail(state)}</span>
               </p>
               <span className={`${styles.batchSize} num`}>
                 {item.data?.size == null ? '' : formatBytes(locale, item.data.size)}

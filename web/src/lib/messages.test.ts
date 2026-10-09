@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Task } from '../api/types'
 import i18n from '../i18n'
-import { taskStatus } from './messages'
+import { pageTitle, taskStatus } from './messages'
 
 // - Checks the state word and detail line the status cell shows for each status and phase.
 
@@ -74,5 +74,19 @@ describe('taskStatus', () => {
     expect(taskStatus(t, task({ phase: 'captcha', message_key: 'messages.captcha_attempt', message_params: { n: 3 } })))
       .toEqual({ text: '準備中', detail: '辨識驗證碼（第 3 次）' })
     expect(taskStatus(t, task({ phase: 'assembling', message_key: 'messages.assembling' })).text).toBe('收尾中')
+  })
+})
+
+describe('pageTitle', () => {
+  it('counts active and failed tasks before the name', () => {
+    expect(pageTitle(t, 0, 0, 'Hop fetch')).toBe('Hop fetch')
+    expect(pageTitle(t, 2, 0, 'Hop fetch')).toBe('(2) Hop fetch')
+    expect(pageTitle(t, 2, 1, 'Hop fetch')).toBe('(2) 1 failed – Hop fetch')
+    expect(pageTitle(t, 0, 3, 'Hop fetch')).toBe('3 failed – Hop fetch')
+  })
+
+  it('uses the Traditional Chinese count', async () => {
+    await i18n.changeLanguage('zh-Hant-TW')
+    expect(pageTitle(t, 2, 1, 'Hop fetch')).toBe('(2) 1 個失敗 – Hop fetch')
   })
 })

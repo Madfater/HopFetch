@@ -109,6 +109,31 @@ describe('useResolve', () => {
     expect(hook.result.current.pending).toBe(true)
   })
 
+  it('holds back the verdict on typed input until the typing pauses', async () => {
+    fakeResolve()
+    const hook = setup()
+    hook.rerender({ input: 'h', immediate: 0 })
+    expect(hook.result.current.local.kind).toBe('typing')
+    hook.rerender({ input: 'ht', immediate: 0 })
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(RESOLVE_DELAY_MS - 1)
+    })
+    expect(hook.result.current.local.kind).toBe('typing')
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1)
+    })
+    expect(hook.result.current.local.kind).toBe('invalid')
+  })
+
+  it('gives the verdict at once when the caller asks', () => {
+    fakeResolve()
+    const hook = setup()
+    hook.rerender({ input: 'https://example.com/file/x', immediate: 0 })
+    expect(hook.result.current.local.kind).toBe('typing')
+    hook.rerender({ input: 'https://example.com/file/x', immediate: 1 })
+    expect(hook.result.current.local.kind).toBe('unsupported')
+  })
+
   it('checks locally without the backend', () => {
     const { calls } = fakeResolve()
     const hook = setup()

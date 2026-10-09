@@ -202,6 +202,16 @@
   font-weight: 600;
 }
 
+.table .emptyRow td {
+  border-bottom: 0;
+}
+
+@media (hover: hover) {
+  .table tbody tr.emptyRow:hover td {
+    background: transparent;
+  }
+}
+
 .statusText {
   overflow: hidden;
   text-overflow: ellipsis;
@@ -241,6 +251,12 @@
   .table td {
     padding: 0;
     border: 0;
+  }
+
+  .table tr.emptyRow,
+  .table tr.emptyRow td {
+    display: block;
+    border-bottom: 0;
   }
 
   .focused {
