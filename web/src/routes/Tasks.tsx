@@ -22,6 +22,9 @@ import styles from './Tasks.module.css'
 // - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS; the mark fades when it
 //   ends. A task that arrives while the page is open flashes once.
 // - `?filter=<filter>` opens the page on that filter; choosing another filter drops it.
+// - A row's status cell holds the state and its step; the task's notes, such as an error or a
+//   restart notice, sit under the file name, and speed and time left sit under the progress bar
+//   while the task downloads.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
@@ -32,6 +35,14 @@ import styles from './Tasks.module.css'
 
 const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
+
+// - The progress fill's color by status: amber while downloading, green when completed, red when
+//   failed; other statuses keep the neutral steel fill.
+const FILL: Partial<Record<Task['status'], string>> = {
+  downloading: styles.fillActive,
+  completed: styles.fillDone,
+  failed: styles.fillFailed,
+}
 
 type Action = 'pause' | 'resume' | 'cancel' | 'retry'
 
@@ -152,15 +163,13 @@ export function Tasks() {
               <th scope="col">{t('tasks.column.name')}</th>
               <th scope="col" className={`${styles.colSize} ${styles.right}`}>{t('tasks.column.size')}</th>
               <th scope="col" className={styles.colProgress}>{t('tasks.column.progress')}</th>
-              <th scope="col" className={`${styles.colSpeed} ${styles.right}`}>{t('tasks.column.speed')}</th>
-              <th scope="col" className={`${styles.colEta} ${styles.right}`}>{t('tasks.column.eta')}</th>
               <th scope="col" className={`${styles.colActions} ${styles.right}`}>{t('tasks.column.actions')}</th>
             </tr>
           </thead>
           <tbody>
             {visible.length === 0 && (
               <tr>
-                <td colSpan={8}>{t('tasks.emptyFiltered')}</td>
+                <td colSpan={6}>{t('tasks.emptyFiltered')}</td>
               </tr>
             )}
             {visible.map((task) => (
@@ -225,6 +234,10 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
           <StatusLamp status={task.status} text={status.text} />
         </span>
         {status.detail && <span className={styles.sub}>{status.detail}</span>}
+      </td>
+      <td className={styles.cellProvider}>{provider?.name ?? task.provider}</td>
+      <td className={styles.cellName}>
+        <span className={styles.name} title={name}>{name}</span>
         {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
         {task.status === 'failed' && task.error && (
           <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
@@ -233,10 +246,6 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
           <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.fileMissing')}</span>
         )}
         {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
-      </td>
-      <td className={styles.cellProvider}>{provider?.name ?? task.provider}</td>
-      <td className={`${styles.cellName} ${styles.name}`} title={name}>
-        {name}
       </td>
       <td className={`${styles.cellSize} ${styles.right} num`}>{formatBytes(locale, task.size)}</td>
       <td className={styles.cellProgress}>
@@ -249,16 +258,18 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
             aria-valuemax={100}
             aria-valuenow={Math.round(ratio * 100)}
           >
-            <div
-              className={`${styles.fill} ${task.status === 'downloading' ? styles.fillActive : ''} ${task.status === 'completed' ? styles.fillDone : ''}`}
-              style={{ transform: `scaleX(${ratio})` }}
-            />
+            <div className={`${styles.fill} ${FILL[task.status] ?? ''}`} style={{ transform: `scaleX(${ratio})` }} />
           </div>
           <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
         </div>
+        {showSpeed && (
+          <span className={`${styles.sub} ${styles.rate} num`}>
+            {task.eta != null
+              ? t('tasks.rate', { speed: formatSpeed(locale, task.speed), eta: formatDuration(task.eta) })
+              : formatSpeed(locale, task.speed)}
+          </span>
+        )}
       </td>
-      <td className={`${styles.cellSpeed} ${styles.right} num`}>{showSpeed ? formatSpeed(locale, task.speed) : ''}</td>
-      <td className={`${styles.cellEta} ${styles.right} num`}>{showSpeed && task.eta != null ? formatDuration(task.eta) : ''}</td>
       <td className={styles.cellActions}>
         <div className={styles.actions}>
           {(task.status === 'queued' || task.status === 'downloading') && task.resumable && !finishing && (

@@ -6,7 +6,13 @@
  *   where its red notes still keep 4.5:1.
  * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
  *   progress events.
- * - Below 768px each row becomes two lines: name and actions, then status and the numbers.
+ * - The name cell carries the task's notes under the name, and the progress cell carries the
+ *   speed under the bar, so the wide name column holds the long text.
+ * - Delete stands a little apart from the other actions.
+ * - Below 768px each row is a grid: the name with its notes, wrapped to at most two lines; the
+ *   status beside the host stacked over the size; the progress beside the actions. The right
+ *   column fits three actions, 32px or 44px on a touch screen, so every row's bar ends at the
+ *   same place.
  */
 .head {
   display: flex;
@@ -72,7 +78,7 @@
 }
 
 .colStatus {
-  width: 20%;
+  width: 18%;
 }
 
 .colProvider {
@@ -84,22 +90,15 @@
 }
 
 .colProgress {
-  width: 14%;
-}
-
-.colSpeed {
-  width: 9%;
-}
-
-.colEta {
-  width: 8%;
+  width: 20%;
 }
 
 .colActions {
-  width: 120px;
+  width: 132px;
 }
 
 .name {
+  display: block;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -158,10 +157,22 @@
   background: var(--color-green);
 }
 
+.fillFailed {
+  background: var(--color-red);
+}
+
+.rate {
+  margin-top: var(--space-1);
+}
+
 .actions {
   display: flex;
   justify-content: flex-end;
   gap: var(--space-1);
+}
+
+.actions > :last-child {
+  margin-left: var(--space-2);
 }
 
 .state {
@@ -204,12 +215,17 @@
   }
 
   .table tr {
-    --mobile-actions: 108px;
+    display: grid;
+    --row-actions: 112px;
 
-    display: flex;
-    flex-wrap: wrap;
+    grid-template-columns: minmax(0, 1fr) var(--row-actions);
+    grid-template-areas:
+      'name name'
+      'status provider'
+      'status size'
+      'progress actions';
     align-items: center;
-    gap: var(--space-1) var(--space-4);
+    gap: var(--space-1) var(--space-3);
     padding: var(--space-3) 0;
     border-bottom: 1px solid var(--color-divider);
     transition: background-color 600ms var(--ease-out);
@@ -237,37 +253,62 @@
     animation: none;
   }
 
+  @media (hover: none) and (pointer: coarse) {
+    .table tr {
+      --row-actions: 148px;
+    }
+  }
+
+  .table td[colspan] {
+    grid-column: 1 / -1;
+  }
+
   .cellName {
-    order: 1;
-    flex: 0 0 calc(100% - var(--mobile-actions) - var(--space-4));
+    grid-area: name;
+    min-width: 0;
+  }
+
+  .name {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .cellStatus {
+    grid-area: status;
+    min-width: 0;
+  }
+
+  .cellProvider {
+    grid-area: provider;
+  }
+
+  .cellSize {
+    grid-area: size;
+  }
+
+  .cellProvider,
+  .cellSize {
+    white-space: nowrap;
+    color: var(--color-steel);
+    font-size: 0.85rem;
+    text-align: right;
+  }
+
+  .cellProgress,
+  .cellActions {
+    margin-top: var(--space-1);
+  }
+
+  .cellProgress {
+    grid-area: progress;
     min-width: 0;
   }
 
   .cellActions {
-    order: 2;
-    flex: 0 0 var(--mobile-actions);
-  }
-
-  .cellStatus {
-    order: 3;
-    min-width: 0;
-  }
-
-  .cellProvider,
-  .cellSize,
-  .cellProgress,
-  .cellSpeed,
-  .cellEta {
-    order: 4;
-    white-space: nowrap;
-    color: var(--color-steel);
-  }
-
-  .cellProgress {
-    flex: 1 1 120px;
-  }
-
-  .table .right {
-    text-align: left;
+    grid-area: actions;
   }
 }

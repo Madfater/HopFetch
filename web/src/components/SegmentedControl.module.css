@@ -2,7 +2,8 @@
  * - A recessed track; the chosen segment sits on the lighter `selected` face, which slides
  *   between segments.
  * - A track wider than its container scrolls sideways inside itself instead of widening the
- *   page.
+ *   page, and its right edge fades while more segments lie past it.
+ * - Below 480px the segments take less padding, so more of them fit on a phone.
  * - The focus ring sits just outside the segment, within the track's padding, so it is drawn
  *   against the slot color rather than the lighter chosen face.
  */
@@ -18,6 +19,10 @@
   background: var(--color-slot);
   box-shadow: var(--shadow-recess);
   scrollbar-width: none;
+}
+
+.track[data-more] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
 }
 
 .thumb {
@@ -57,4 +62,10 @@
 
 .segment:focus-visible {
   outline-offset: 0;
+}
+
+@media (max-width: 479px) {
+  .segment {
+    padding: 0 var(--space-2);
+  }
 }

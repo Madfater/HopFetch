@@ -7,6 +7,8 @@ import styles from './SegmentedControl.module.css'
 // - A raised thumb sits under the chosen segment. Its place is measured from that segment, and
 //   measured again whenever a segment changes size, such as after a language change. It first
 //   appears in place and slides on later changes.
+// - `data-more` marks a track whose segments run past its right edge, measured on resize and
+//   scroll, so the edge can fade to show that the track scrolls.
 
 export interface Segment<T extends string> {
   value: T
@@ -26,25 +28,32 @@ interface Props<T extends string> {
 export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy, describedBy }: Props<T>) {
   const track = useRef<HTMLDivElement>(null)
   const [thumb, setThumb] = useState<{ x: number; width: number } | null>(null)
+  const [more, setMore] = useState(false)
 
   useLayoutEffect(() => {
     const root = track.current
     if (!root) return
     const measure = () => {
+      setMore(root.scrollLeft + root.clientWidth < root.scrollWidth - 1)
       const chosen = root.querySelector<HTMLElement>('[role="radio"][data-state="checked"]')
       if (!chosen) return
       const next = { x: chosen.offsetLeft, width: chosen.offsetWidth }
       setThumb((shown) => (shown && shown.x === next.x && shown.width === next.width ? shown : next))
     }
     measure()
-    if (typeof ResizeObserver === 'undefined') return
+    root.addEventListener('scroll', measure, { passive: true })
+    if (typeof ResizeObserver === 'undefined') return () => root.removeEventListener('scroll', measure)
     const observer = new ResizeObserver(measure)
+    observer.observe(root)
     for (const segment of root.querySelectorAll('[role="radio"]')) observer.observe(segment)
-    return () => observer.disconnect()
+    return () => {
+      observer.disconnect()
+      root.removeEventListener('scroll', measure)
+    }
   }, [value, options.length])
 
   return (
-    <RadioGroup.Root ref={track} className={styles.track} value={value} orientation="horizontal" loop
+    <RadioGroup.Root ref={track} className={styles.track} data-more={more || undefined} value={value} orientation="horizontal" loop
       aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
       onValueChange={(next) => onChange(next as T)}>
       {thumb && (
