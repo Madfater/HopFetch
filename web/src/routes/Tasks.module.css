@@ -246,7 +246,8 @@
     border: 0;
   }
 
-  .table tr.emptyRow {
+  .table tr.emptyRow,
+  .table tr.emptyRow td {
     display: block;
     border-bottom: 0;
   }
