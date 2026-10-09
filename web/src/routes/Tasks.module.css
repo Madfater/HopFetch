@@ -10,7 +10,9 @@
  *   speed under the bar, so the wide name column holds the long text.
  * - Delete stands a little apart from the other actions.
  * - Below 768px each row is a grid: the name with its notes, wrapped to at most two lines; the
- *   status beside the host stacked over the size; the progress beside the actions.
+ *   status beside the host stacked over the size; the progress beside the actions. The right
+ *   column fits three actions, 32px or 44px on a touch screen, so every row's bar ends at the
+ *   same place.
  */
 .head {
   display: flex;
@@ -214,7 +216,9 @@
 
   .table tr {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    --row-actions: 112px;
+
+    grid-template-columns: minmax(0, 1fr) var(--row-actions);
     grid-template-areas:
       'name name'
       'status provider'
@@ -247,6 +251,12 @@
 
   .arrived td {
     animation: none;
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    .table tr {
+      --row-actions: 148px;
+    }
   }
 
   .table td[colspan] {

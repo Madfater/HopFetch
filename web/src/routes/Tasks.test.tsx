@@ -133,6 +133,12 @@ describe('Tasks', () => {
     expect(screen.queryByRole('columnheader', { name: 'Time left' })).not.toBeInTheDocument()
   })
 
+  it('shows the speed alone while time left is unknown', async () => {
+    setup([task({ status: 'downloading', phase: 'downloading', speed: 4 * 2 ** 20, eta: null })])
+    expect(await screen.findByText('4.00 MB/s')).toBeInTheDocument()
+    expect(screen.queryByText(/left$/)).not.toBeInTheDocument()
+  })
+
   it('puts a failed task\'s error under its name', async () => {
     setup([task({ status: 'failed', error: { code: 'captcha_failed', key: 'errors.captcha_failed_ocr', params: {}, message: '' } })])
     const name = await screen.findByText('a.rar')
