@@ -105,7 +105,7 @@ describe('Tasks', () => {
     const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }),
       task({ id: 'b', file_name: 'b.rar', status: 'canceled' })], '/tasks?filter=failed')
     const failed = await screen.findByRole('radio', { name: /Failed/ })
-    expect(failed).toHaveTextContent('1')
+    expect(failed).toHaveTextContent(/^Failed\s*1$/)
     expect(screen.getByText('a.rar')).toBeInTheDocument()
     expect(screen.queryByText('b.rar')).not.toBeInTheDocument()
 
