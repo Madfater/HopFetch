@@ -208,4 +208,24 @@ describe('Tasks', () => {
     expect(dialog).not.toHaveTextContent('This discards')
     expect(screen.getByRole('checkbox', { name: 'Also delete the file on the NAS' })).toBeInTheDocument()
   })
+
+  it('notes a completed file that is gone neutrally and removes only its list entry', async () => {
+    const { remove, user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: false })])
+    const note = await screen.findByText('Moved or deleted from the NAS', { exact: false })
+    expect(note.className).not.toMatch(/subError/)
+    await user.click(screen.getByRole('button', { name: 'Remove from list: a.rar' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(remove).toHaveBeenCalledWith('job1', false)
+    await waitFor(() => expect(screen.queryByText('a.rar')).not.toBeInTheDocument())
+  })
+
+  it('waits on a running list removal', async () => {
+    const { remove, user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: false })])
+    remove.mockReturnValue(new Promise(() => {}))
+    const button = await screen.findByRole('button', { name: 'Remove from list: a.rar' })
+    await user.click(button)
+    expect(button).toBeDisabled()
+    await user.click(button)
+    expect(remove).toHaveBeenCalledTimes(1)
+  })
 })

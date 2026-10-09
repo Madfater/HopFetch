@@ -3,6 +3,10 @@
  * - The product name is set large in wide, bold Archivo and star-white text, so it reads as
  *   the product's name rather than a placeholder. It stays smaller than the slot is tall, so
  *   the slot still leads the page.
+ * - Between the name and the slot, the summary line holds one line of height even while empty.
+ *   Its parts sit centered and wrap, each a lamp and a count in the text color, parted by a
+ *   gap; a part underlines on hover. Under 480px the parts sit two to a row, so four parts
+ *   fill two even rows.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
@@ -14,7 +18,9 @@
  *   preview lists one row per link: lamp, name and size on the first line, host and state
  *   below, parted by a gap rather than a separator character. Rows scroll inside the card past
  *   about eight; under 480px the size moves under the name.
- * - A recent task that arrived while the page is open flashes once.
+ * - The supported sites row turns invisible while the input holds text, keeping its height.
+ * - A recent task is a full-width link row with a panel hover; one that arrived while the page
+ *   is open flashes once.
  */
 .home {
   max-width: 560px;
@@ -23,7 +29,7 @@
 }
 
 .logo {
-  margin-bottom: var(--space-5);
+  margin-bottom: var(--space-4);
   color: var(--color-text);
   font-family: var(--font-numeric);
   font-stretch: 125%;
@@ -32,6 +38,36 @@
   line-height: 1.1;
   letter-spacing: -0.01em;
   text-align: center;
+}
+
+.summary {
+  min-height: 1.5em;
+  margin-bottom: var(--space-3);
+}
+
+.summaryList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-1) var(--space-5);
+}
+
+@media (max-width: 480px) {
+  .summaryList {
+    display: grid;
+    grid-template-columns: repeat(2, auto);
+  }
+}
+
+.summaryLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  text-decoration: none;
+}
+
+.summaryLink:hover {
+  text-decoration: underline;
 }
 
 .slot {
@@ -123,6 +159,10 @@
   color: var(--color-muted);
   font-size: 0.9rem;
   animation: fade-in var(--motion-base) var(--ease-out);
+}
+
+.sitesHidden {
+  visibility: hidden;
 }
 
 .site {
@@ -292,21 +332,6 @@
   margin-top: var(--space-6);
 }
 
-.attention {
-  margin-top: var(--space-6);
-}
-
-.attentionLink {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  color: var(--color-failed-text);
-}
-
-.recentAfterAttention {
-  margin-top: var(--space-4);
-}
-
 .recentHead {
   display: flex;
   align-items: baseline;
@@ -328,11 +353,8 @@
   width: calc(100% + 2 * var(--space-3));
   margin: 0 calc(-1 * var(--space-3));
   padding: var(--space-2) var(--space-3);
-  border: 0;
   border-radius: var(--radius-m);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
+  text-decoration: none;
   transition: background-color var(--motion-fast) var(--ease-out);
 }
 

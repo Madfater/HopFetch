@@ -25,14 +25,23 @@
       "blocked": "Cannot download"
     },
     "checking": "Checking the link",
-    "attention_one": "{{count}} task needs attention",
-    "attention_other": "{{count}} tasks need attention",
     "recent": "Recent tasks",
     "viewAll": "View all",
     "promise": "Saves to the NAS download folder. You can close this page; the download continues on the server.",
     "unsupported": "Only {{sites}} links are supported.",
     "placeholderPlain": "Paste a share link",
-    "sites": "Supported sites"
+    "sites": "Supported sites",
+    "summary": {
+      "label": "Task summary",
+      "finished_one": "finished",
+      "finished_other": "finished",
+      "attention_one": "needs you",
+      "attention_other": "need you",
+      "active_one": "in progress",
+      "active_other": "in progress",
+      "paused_one": "paused",
+      "paused_other": "paused"
+    }
   },
   "preview": {
     "size": "Size",
@@ -120,7 +129,8 @@
     "progressLabel": "Progress of {{name}}",
     "progressText": "{{percent}}, {{done}} of {{size}}, {{state}}",
     "progressTextNoSize": "{{done}} downloaded, {{state}}",
-    "fileMissing": "File missing",
+    "fileGone": "Moved or deleted from the NAS",
+    "removeEntry": "Remove from list",
     "videoCorrupt": "ffmpeg found problems in this video.",
     "loading": "Loading tasks",
     "unnamed": "Unnamed file"
@@ -191,6 +201,7 @@
     "failed": "{{name}} failed: {{reason}}",
     "unfixable": "{{name}} cannot be downloaded: {{reason}}",
     "removed": "Task deleted",
+    "removedEntry": "Removed from the list",
     "copyFailed": "Could not copy. Select the path to copy it by hand.",
     "cleared_one": "Cleared {{count}} completed task",
     "cleared_other": "Cleared {{count}} completed tasks",

@@ -14,6 +14,8 @@
  *   running work is bright.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
+ * - An action inside a note is underlined, in the main text color; on a touch screen it grows
+ *   to a 44px tall target without moving the text around it.
  * - Delete stands a little apart from the other actions.
  * - Below 768px each row is a grid of three lines: the name with its notes, wrapped to at most
  *   two lines; the status, with the percent and size at the right end; the progress bar beside
@@ -119,6 +121,29 @@
 
 .subError {
   color: var(--color-failed-text);
+}
+
+.subAction {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.subAction:disabled {
+  color: var(--color-muted);
+  cursor: default;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .subAction {
+    padding: 12px 0;
+    margin: -12px 0;
+  }
 }
 
 .table .right {
