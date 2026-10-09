@@ -126,3 +126,29 @@ describe('Home slot lamp', () => {
     expect(screen.queryByText('Checking')).toBeNull()
   })
 })
+
+describe('Home typed input', () => {
+  it('waits for the typing to stop before calling a link invalid', async () => {
+    vi.spyOn(api, 'providers').mockResolvedValue(providers)
+    vi.spyOn(api, 'tasks').mockResolvedValue([])
+    vi.spyOn(api, 'storage').mockResolvedValue({ free_bytes: FREE, total_bytes: 4 * FREE })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const user = userEvent.setup()
+    await vi.waitFor(() => expect(api.providers).toHaveBeenCalled())
+    const input = screen.getByRole('textbox')
+    await user.type(input, 'h')
+    expect(screen.queryByText(/not a valid URL/)).not.toBeInTheDocument()
+    expect(input).not.toHaveAttribute('aria-invalid')
+
+    fireEvent.blur(input)
+    expect(await screen.findByText(/not a valid URL/)).toBeInTheDocument()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+  })
+})

@@ -68,7 +68,7 @@ function planFor(data: Resolved, free: number): { plan: Plan; short: number } {
 
 function lampFor(state: ResolveState, plan: Plan | null, noneSupported: boolean, providersFailed: boolean): LampColor {
   if (noneSupported) return 'red'
-  if (state.local.kind === 'empty') return 'off'
+  if (state.local.kind === 'empty' || state.local.kind === 'typing') return 'off'
   if (state.local.kind === 'waiting') return providersFailed ? 'red' : 'amber'
   if (state.local.kind !== 'matched' || state.error) return 'red'
   if (state.pending || !state.data) return 'amber'
@@ -316,6 +316,7 @@ export function Home() {
             setFromPaste(text)
           }}
           onKeyDown={onKeyDown}
+          onBlur={() => setImmediate((n) => n + 1)}
         />
         <Lamp color={lamp} pulse={lamp === 'amber'} />
         <span className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
@@ -419,6 +420,7 @@ function statusLine(
   if (noneSupported) return { text: t('batch.noneSupported', { sites }), error: true }
   switch (state.local.kind) {
     case 'empty':
+    case 'typing':
       return { text: '', error: false }
     case 'invalid':
       return { text: t('errors.invalid_url'), error: true }

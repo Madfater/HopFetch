@@ -8,6 +8,9 @@ import { isHttpUrl, matchProvider, normalizeUrl } from '../lib/url'
 // - Checks the input locally against the provider patterns, then asks /api/resolve.
 // - Typed input waits RESOLVE_DELAY_MS after the last change; pasted or dropped input is
 //   checked at once.
+// - An invalid or unsupported verdict on typed input waits the same delay and reads `typing`
+//   meanwhile, so a half-typed link is not called wrong; a paste, a drop or leaving the field
+//   gives the verdict at once.
 // - Each lookup is keyed by the normalized URL, so an older answer can never stand in for a
 //   newer input, and a request whose key has lost every observer is aborted through its signal.
 
@@ -16,6 +19,7 @@ export const RESOLVE_DELAY_MS = 400
 
 export type Local =
   | { kind: 'empty' }
+  | { kind: 'typing' }
   | { kind: 'waiting' }
   | { kind: 'invalid' }
   | { kind: 'unsupported' }
@@ -39,18 +43,30 @@ export interface ResolveState {
   error: unknown
 }
 
-// - `immediate` is a counter the caller bumps on paste or drop, which skips the delay for the
-//   current input.
+// - `immediate` is a counter the caller bumps on paste, drop or blur, which skips the delay for
+//   the current input.
 export function useResolve(input: string, providers: Provider[] | undefined, immediate: number): ResolveState {
-  const local = checkLocally(input, providers)
-  const candidate = local.kind === 'matched' ? local.url : null
+  const checked = checkLocally(input, providers)
+  const candidate = checked.kind === 'matched' ? checked.url : null
+  const text = input.trim()
   const [target, setTarget] = useState<string | null>(null)
+  const [judged, setJudged] = useState(text)
   const [lastImmediate, setLastImmediate] = useState(immediate)
 
   if (immediate !== lastImmediate) {
     setLastImmediate(immediate)
     setTarget(candidate)
+    setJudged(text)
   }
+
+  useEffect(() => {
+    if (text === judged) return
+    const timer = setTimeout(() => setJudged(text), RESOLVE_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [text, judged])
+
+  const rejected = checked.kind === 'invalid' || checked.kind === 'unsupported'
+  const local: Local = rejected && text !== judged ? { kind: 'typing' } : checked
 
   useEffect(() => {
     if (candidate === null) return
