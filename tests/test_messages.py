@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from downloader.messages import CATALOG_DIR, FORMATTERS, PERMANENT_ERRORS, CodedError, catalog, render, is_permanent
+from downloader.messages import CATALOG_DIR, FORMATTERS, PERMANENT_ERRORS, CodedError, catalog, is_permanent, render
 
 LOCALES = ["zh-Hant-TW", "en"]
 SOURCE = Path(__file__).resolve().parent.parent / "downloader"

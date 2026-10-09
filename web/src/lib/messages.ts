@@ -15,6 +15,12 @@ export interface StatusText {
   detail: string
 }
 
+// - The word for a task's status; a failed task that no retry can fix reads "cannot be
+//   downloaded" instead of "failed".
+export function statusWord(t: TFunction, task: Task): string {
+  return t(isUnfixable(task) ? 'status.unfixable' : `status.${task.status}`)
+}
+
 // - The status cell's two lines: `text` is the state beside the lamp, `detail` the step behind
 //   it, empty when there is nothing to add. A failed task's reason is shown separately with
 //   `errorText`.
@@ -25,9 +31,8 @@ export interface StatusText {
 //   such as a restart after the remote file changed, stay as the detail.
 // - A paused task shows its reason as the detail, unless the reason is a plain pause, which
 //   `messages.paused` and `messages.paused_legacy` both are.
-// - A failed task that no retry can fix reads "cannot be downloaded" instead of "failed".
 export function taskStatus(t: TFunction, task: Task): StatusText {
-  const status = t(isUnfixable(task) ? 'status.unfixable' : `status.${task.status}`)
+  const status = statusWord(t, task)
   const message = task.message_key
     ? t(task.message_key, { ...task.message_params, defaultValue: task.message || '' })
     : ''

@@ -29,10 +29,10 @@ import styles from './Tasks.module.css'
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for canceled ones and failed ones a retry can fix, save for
-//   completed ones whose file exists, delete always.
+//   completed ones whose file exists, delete always. Pause, cancel and delete wait while the file
+//   is being joined or checked, which the backend refuses.
 // - A failed task no retry can fix reads "cannot be downloaded" beside a struck steel lamp, with
-//   its reason as a plain note and delete as its only action. Only the All filter shows it. Pause, cancel and delete wait while the file is being joined
-//   or checked, which the backend refuses.
+//   its reason as a plain note and delete as its only action. Only the All filter shows it.
 // - Cancel and delete open a confirm dialog first; it states the downloaded bytes the action
 //   throws away, which is every byte of a task that is not completed.
 
