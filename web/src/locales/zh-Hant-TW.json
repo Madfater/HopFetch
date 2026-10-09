@@ -96,7 +96,7 @@
       "completed": "已完成",
       "failed": "失敗"
     },
-    "clearCompleted": "清除所有已完成",
+    "clearCompleted": "清除已完成",
     "column": {
       "status": "狀態",
       "provider": "雲端",
@@ -121,7 +121,7 @@
   "action": {
     "pause": "暫停",
     "resume": "繼續",
-    "cancel": "取消",
+    "cancel": "停止並捨棄",
     "retry": "重試",
     "save": "下載到電腦",
     "delete": "刪除",
@@ -129,9 +129,9 @@
   },
   "confirmDialog": {
     "cancel": {
-      "title": "取消下載",
+      "title": "停止並捨棄下載",
       "body": "停止「{{name}}」。任務會以「已取消」留在清單中，重試時會從頭下載。",
-      "confirm": "取消下載"
+      "confirm": "停止並捨棄"
     },
     "delete": {
       "title": "刪除任務",
@@ -165,6 +165,8 @@
     "storage": "儲存空間",
     "root": "下載根目錄",
     "rootHint": "由伺服器設定檔決定，無法在這裡修改。",
+    "copyRoot": "複製路徑",
+    "copied": "已複製路徑",
     "storageFree": "剩餘 {{free}}，共 {{total}}",
     "other": "其他設定",
     "language": "語言",
@@ -181,6 +183,7 @@
     "failed": "「{{name}}」下載失敗：{{reason}}",
     "unfixable": "「{{name}}」無法下載：{{reason}}",
     "removed": "已刪除任務",
+    "copyFailed": "無法複製，請手動選取路徑。",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
     "close": "關閉通知",

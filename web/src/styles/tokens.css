@@ -52,6 +52,8 @@
 
   --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   --font-numeric: 'Archivo Variable', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', Menlo, Consolas, 'DejaVu Sans Mono', 'Noto Sans Mono',
+    'Noto Sans Mono CJK TC', monospace;
 
   --radius-s: 4px;
   --radius-m: 8px;

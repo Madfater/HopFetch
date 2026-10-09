@@ -486,7 +486,7 @@
       },
       {
         "name": "The Sentence Case Rule",
-        "body": "Labels are sentence case in English. No all-caps labels, no letter-spaced small caps, no monospace data labels.",
+        "body": "Labels are sentence case in English. No all-caps labels, no letter-spaced small caps, no monospace data labels. The one monospace value is the download folder path in Settings, which wraps only after its separators.",
         "section": "typography"
       },
       {
@@ -512,7 +512,7 @@
       "**Don't** use gold for a status, or teal, green or red for an action.",
       "**Don't** add glow to anything but a lit lamp, or a drop shade to anything that does not float.",
       "**Don't** add gradients for decoration; gradients appear only as hard-stop devices (the progress leading edge, the shell band in the scrollbar gutter) and the overflow fade mask.",
-      "**Don't** set English labels in all caps, or data labels in a monospace face.",
+      "**Don't** set English labels in all caps, or data labels in a monospace face; only the download folder path is monospace.",
       "**Don't** join facts with a middle dot or end link and button text with an arrow.",
       "**Don't** wrap every block in a rounded card; the task list is a bare table on the ground.",
       "**Don't** add a light theme."

@@ -45,6 +45,12 @@ export function formatPercent(locale: string, ratio: number): string {
   return new Intl.NumberFormat(locale, { style: 'percent', maximumFractionDigits: 0 }).format(ratio)
 }
 
+// - Splits a filesystem path after each separator, so the separators stay at line ends when
+//   the path wraps.
+export function pathSegments(path: string): string[] {
+  return path.match(/[^/\\]*[/\\]|[^/\\]+$/g) ?? [path]
+}
+
 // - A list of names joined the way the locale joins lists, for example "Keep2Share or MEGA".
 // - Chinese list patterns put no space around their connectives, so a space is added wherever
 //   a Latin letter or digit meets a Han character, the usual spacing in mixed text.
