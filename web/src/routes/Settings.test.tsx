@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { Tooltip } from 'radix-ui'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { ApiError, api } from '../api/client'
 import type { Settings as SettingsData } from '../api/types'
@@ -22,7 +23,9 @@ function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <Settings />
+      <Tooltip.Provider>
+        <Settings />
+      </Tooltip.Provider>
     </QueryClientProvider>,
   )
   return { save, user: userEvent.setup() }
@@ -164,8 +167,25 @@ describe('Settings', () => {
 
   it('shows the download folder and its free space', async () => {
     setup()
-    expect(await screen.findByText('/volume1/downloads')).toBeInTheDocument()
+    const path = await screen.findByText((_, element) =>
+      element?.tagName === 'SPAN' && element.textContent === '/volume1/downloads' && element.querySelector('wbr') !== null)
+    expect([...path.children].filter((child) => child.tagName === 'SPAN').map((child) => child.textContent))
+      .toEqual(['/', 'volume1/', 'downloads'])
     expect(await screen.findByText('1.00 TB free of 4.00 TB')).toBeInTheDocument()
+  })
+
+  it('copies the download folder and confirms it', async () => {
+    const { user } = setup()
+    const copied: string[] = []
+    const execCommand = vi.fn(() => {
+      copied.push(document.querySelector('textarea')?.value ?? '')
+      return true
+    })
+    Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true })
+    await user.click(await screen.findByRole('button', { name: 'Copy path' }))
+    expect(execCommand).toHaveBeenCalledWith('copy')
+    expect(copied).toEqual(['/volume1/downloads'])
+    expect(await screen.findByText('Path copied')).toBeInTheDocument()
   })
 
   it('applies the language at once', async () => {

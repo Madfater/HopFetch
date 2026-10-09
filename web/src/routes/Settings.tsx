@@ -1,12 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { ApiError, api } from '../api/client'
+import { IconButton } from '../components/IconButton'
 import { Lamp } from '../components/Lamp'
 import { NumberStepper } from '../components/NumberStepper'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { Switch } from '../components/Switch'
+import { useToast } from '../components/toast-context'
 import { chooseLanguage, LANGUAGES, toSupported } from '../i18n'
+import { copyText, pathSegments } from '../lib/clipboard'
 import { formatStorage } from '../lib/format'
 import { errorText } from '../lib/messages'
 import {
@@ -29,6 +32,7 @@ import styles from './Settings.module.css'
 // - The language applies at once and is kept in this browser only.
 
 const SAVED_MS = 2500
+const COPIED_MS = 1600
 
 const NUMBER_ROWS: { field: NumberField; id: string; label: string; hint: string; unit?: string }[] = [
   { field: 'connections', id: 'connections', label: 'settings.connections', hint: 'settings.connectionsHint' },
@@ -216,6 +220,9 @@ function Row({ id, label, hint, error, children }: RowProps) {
 
 // - The download folder, and how much of its filesystem is used, from the same storage query
 //   the navigation bar reads.
+// - The folder is set in monospace and may wrap only after a path separator; a single
+//   segment wider than the line breaks inside itself. Copy puts it on the clipboard, then
+//   shows a check for COPIED_MS and announces it; a failed copy raises an error toast.
 function StoragePlate({ root }: { root: string }) {
   const { t, i18n } = useTranslation()
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
@@ -231,7 +238,17 @@ function StoragePlate({ root }: { root: string }) {
           <span className={styles.label}>{t('settings.root')}</span>
           <span className={styles.hint}>{t('settings.rootHint')}</span>
         </div>
-        <span className={styles.path}>{root}</span>
+        <div className={`${styles.control} ${styles.pathControl}`}>
+          <span className={styles.path}>
+            {pathSegments(root).map((segment, index) => (
+              <Fragment key={index}>
+                <span className={styles.segment}>{segment}</span>
+                <wbr />
+              </Fragment>
+            ))}
+          </span>
+          <CopyButton text={root} />
+        </div>
       </div>
       {storage && used !== null && (
         <div className={styles.meterRow}>
@@ -247,6 +264,30 @@ function StoragePlate({ root }: { root: string }) {
         </div>
       )}
     </section>
+  )
+}
+
+function CopyButton({ text }: { text: string }) {
+  const { t } = useTranslation()
+  const toast = useToast()
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
+    return () => window.clearTimeout(timer)
+  }, [copied])
+
+  const copy = async () => {
+    if (await copyText(text)) setCopied(true)
+    else toast(t('toast.copyFailed'), 'error')
+  }
+
+  return (
+    <>
+      <IconButton icon={copied ? 'check' : 'copy'} label={t('settings.copyRoot')} onClick={copy} />
+      <span className="visually-hidden" role="status">{copied ? t('settings.copied') : ''}</span>
+    </>
   )
 }
 
