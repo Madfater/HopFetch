@@ -108,7 +108,8 @@
     "emptyFiltered": "沒有符合這個篩選的任務",
     "showAll": "顯示全部",
     "progressLabel": "{{name}} 的進度",
-    "fileMissing": "檔案不存在",
+    "fileGone": "已從 NAS 移動或刪除",
+    "removeEntry": "從清單移除",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",
     "loading": "載入任務中",
     "unnamed": "未命名檔案"
@@ -175,6 +176,7 @@
     "completed": "已完成下載「{{name}}」",
     "failed": "「{{name}}」下載失敗：{{reason}}",
     "removed": "已刪除任務",
+    "removedEntry": "已從清單移除",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
     "close": "關閉通知",

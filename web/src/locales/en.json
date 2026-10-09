@@ -118,7 +118,8 @@
     "emptyFiltered": "No tasks match this filter",
     "showAll": "Show all",
     "progressLabel": "Progress of {{name}}",
-    "fileMissing": "File missing",
+    "fileGone": "Moved or deleted from the NAS",
+    "removeEntry": "Remove from list",
     "videoCorrupt": "ffmpeg found problems in this video.",
     "loading": "Loading tasks",
     "unnamed": "Unnamed file"
@@ -186,6 +187,7 @@
     "completed": "Download finished: {{name}}",
     "failed": "{{name}} failed: {{reason}}",
     "removed": "Task deleted",
+    "removedEntry": "Removed from the list",
     "cleared_one": "Cleared {{count}} completed task",
     "cleared_other": "Cleared {{count}} completed tasks",
     "offline": "Cannot reach the server. Reconnecting.",

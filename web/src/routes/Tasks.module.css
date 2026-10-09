@@ -8,6 +8,8 @@
  *   progress events.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
+ * - An action inside a note is underlined ink text; on a touch screen it grows to a 44px tall
+ *   target without moving the text around it.
  * - Delete stands a little apart from the other actions.
  * - Below 768px each row is a grid: the name with its notes, wrapped to at most two lines; the
  *   status beside the host stacked over the size; the progress beside the actions. The right
@@ -113,6 +115,24 @@
 
 .subError {
   color: var(--color-red-text);
+}
+
+.subAction {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-ink);
+  font-size: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .subAction {
+    padding: 12px 0;
+    margin: -12px 0;
+  }
 }
 
 .table .right {

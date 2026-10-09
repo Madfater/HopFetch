@@ -26,6 +26,8 @@ import styles from './Tasks.module.css'
 // - A row's status cell holds the state and its step; the task's notes, such as an error or a
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
+// - A completed task whose file is no longer on the NAS says so in a neutral note, with an
+//   action that removes the task from the list without a dialog, since no file or byte is lost.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
@@ -77,11 +79,12 @@ export function Tasks() {
   })
 
   const remove = useMutation({
-    mutationFn: ({ id, deleteFile }: { id: string; deleteFile: boolean }) => api.remove(id, deleteFile),
-    onSuccess: (_, { id }) => {
+    mutationFn: ({ id, deleteFile }: { id: string; deleteFile: boolean; entryOnly?: boolean }) =>
+      api.remove(id, deleteFile),
+    onSuccess: (_, { id, entryOnly }) => {
       client.setQueryData<Task[]>(TASKS_KEY, (list) => removeTask(list, id))
       client.removeQueries({ queryKey: RESOLVE_KEY })
-      toast(t('toast.removed'))
+      toast(t(entryOnly ? 'toast.removedEntry' : 'toast.removed'))
     },
     onError: fail,
   })
@@ -192,6 +195,7 @@ export function Tasks() {
                 focused={focused === task.id}
                 arrived={isNew(task.id)}
                 onAction={(action) => act.mutate({ id: task.id, action })}
+                onRemoveEntry={() => remove.mutate({ id: task.id, deleteFile: false, entryOnly: true })}
                 onConfirm={(kind) => {
                   setConfirming({ id: task.id, kind })
                   setConfirmOpen(true)
@@ -225,10 +229,11 @@ interface RowProps {
   focused: boolean
   arrived: boolean
   onAction: (action: Action) => void
+  onRemoveEntry: () => void
   onConfirm: (kind: ConfirmKind) => void
 }
 
-function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowProps) {
+function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, onConfirm }: RowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const name = task.file_name ?? t('tasks.unnamed')
@@ -255,7 +260,11 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
           <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
         )}
         {task.status === 'completed' && !task.file_exists && (
-          <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.fileMissing')}</span>
+          <span className={styles.sub}>
+            {t('tasks.fileGone')}{' '}
+            <button type="button" className={styles.subAction} onClick={onRemoveEntry}
+              aria-label={t('action.named', { action: t('tasks.removeEntry'), name })}>{t('tasks.removeEntry')}</button>
+          </span>
         )}
         {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
       </td>
@@ -297,7 +306,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
             <IconButton icon="retry" label={label('retry')} tooltip={t('action.retry')} onClick={() => onAction('retry')} />
           )}
           {task.status === 'completed' && (
-            <IconButton icon="save" label={label('save')} tooltip={task.file_exists ? t('action.save') : t('tasks.fileMissing')}
+            <IconButton icon="save" label={label('save')} tooltip={task.file_exists ? t('action.save') : t('tasks.fileGone')}
               href={api.fileUrl(task.id)} disabled={!task.file_exists} />
           )}
           <IconButton icon="delete" label={label('delete')} tooltip={t('action.delete')} onClick={() => onConfirm('delete')}
