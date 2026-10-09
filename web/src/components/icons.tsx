@@ -10,6 +10,8 @@ const PATHS = {
   delete: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5',
   minus: 'M3.5 8h9',
   plus: 'M8 3.5v9M3.5 8h9',
+  copy: 'M6 6h7v7H6zM10 6V3H3v7h3',
+  check: 'M3.5 8.5 6.5 11.5 12.5 4.5',
 } as const
 
 export type IconName = keyof typeof PATHS

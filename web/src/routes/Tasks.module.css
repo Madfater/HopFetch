@@ -4,6 +4,8 @@
  * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
  *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
  *   where its red notes still keep 4.5:1.
+ * - A queued, canceled or failed track carries a 1px inner ring in its lamp color, and a
+ *   failed track's well is also tinted red, so those bars differ even when empty.
  * - A progress fill spans the whole track and slides in from the left, so its texture never
  *   stretches; it glides for 500ms, about the time between two progress events.
  * - A downloading fill is a strip of a long exposure: teal with an irregular grain of brighter points, one authored 60px tile,
@@ -142,6 +144,19 @@
   border-top: 1px solid var(--color-well-edge-top);
   border-radius: var(--radius-round);
   background: var(--color-well);
+}
+
+.trackQueued {
+  box-shadow: inset 0 0 0 1px var(--color-active);
+}
+
+.trackCanceled {
+  box-shadow: inset 0 0 0 1px var(--color-muted);
+}
+
+.trackFailed {
+  background: color-mix(in oklab, var(--color-failed) 28%, var(--color-well));
+  box-shadow: inset 0 0 0 1px var(--color-failed);
 }
 
 .fill {

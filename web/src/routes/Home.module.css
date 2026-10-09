@@ -1,6 +1,8 @@
 /*
- * - The home column, centered and at most 560px wide. The product name is small, so the slot
- *   leads the page.
+ * - The home column, centered and at most 560px wide.
+ * - The product name is set large in wide, bold Archivo and star-white text, so it reads as
+ *   the product's name rather than a placeholder. It stays smaller than the slot is tall, so
+ *   the slot still leads the page.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
@@ -21,13 +23,14 @@
 }
 
 .logo {
-  margin-bottom: var(--space-4);
-  color: var(--color-muted);
+  margin-bottom: var(--space-5);
+  color: var(--color-text);
   font-family: var(--font-numeric);
   font-stretch: 125%;
-  font-weight: 500;
-  font-size: 1.25rem;
-  line-height: 1.2;
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   text-align: center;
 }
 
