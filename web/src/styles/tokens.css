@@ -1,18 +1,25 @@
 /*
  * - Every color, radius, shadow and motion value the app uses, named by role. A light theme
  *   only needs another set of the color values under a selector such as [data-theme='light'].
- * - Surfaces, from back to front: chassis (page), panel (plates), raised (hovered and selected
- *   faces), and slot (recessed fields and tracks). Steel text keeps 4.5:1 on all of them.
- * - `--color-red-text` is the red of every error text; it keeps 4.5:1 on the chassis and the
- *   panel, where the lamp red does not. `--color-on-lamp` is the dark text on a lit amber or
- *   red face, and on the ink face of a primary button.
- * - Amber is the lamp color: it marks only work that is checking, queued, in progress or
- *   not yet saved.
- *   Keyboard focus and drop targets use `--color-focus`, a cool light gray, and the primary
- *   button is an ink face, so neither reads as a lamp.
+ * - The colors come from a night sky: a blue-black ground, star-white text, and the narrowband
+ *   lines of a long exposure for state. Hex values are derived from OKLCH, hue 264 for the
+ *   neutrals.
+ * - Surfaces, from back to front: ground (page), panel (plates), raised (hovered and selected
+ *   faces), and well (recessed fields and tracks). `--color-shell` is the indigo band of the
+ *   navigation bar, also painted into the scrollbar gutter beside it. Muted text keeps 4.5:1 on all of them.
+ * - State colors, each always paired with a text label:
+ *   - `--color-active`, teal, marks only work that is checking, queued, in progress or not
+ *     yet saved.
+ *   - `--color-done`, pale green, marks finished work and links that can be downloaded.
+ *   - `--color-failed`, red, marks failures; `--color-failed-text` is the red of every error
+ *     text, lighter so it keeps 4.5:1 on the raised face too.
+ * - `--color-accent`, star gold, is the operator's hand: the primary button, the current tab,
+ *   switches the operator turned on, keyboard focus, drop targets, text selection and the
+ *   caret. It is never a state, so it never reads as a lamp. `--color-on-light` is the dark
+ *   text on a gold, teal, green or red face.
  * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
  *   with 3:1 against the plate around it. `--color-selected` is the face of a chosen segment,
- *   3:1 against its track.
+ *   from the shell's indigo, 3:1 against its track.
  * - Depth encodes elevation only: recessed fields get `--shadow-recess`, flush plates the
  *   `--shadow-plate` highlight, and floating layers `--shadow-float`.
  * - Motion: `fast` for hover, press and tooltips, `base` for toggles and small entrances,
@@ -20,26 +27,28 @@
  *   `--ease-out`, with no overshoot.
  */
 :root {
-  --color-chassis: #202428;
-  --color-panel: #2a2f34;
-  --color-raised: #31373e;
-  --color-slot: #15181b;
-  --color-slot-edge-top: #0e1012;
-  --color-slot-edge-bottom: #3a4046;
-  --color-field-edge: #747c85;
-  --color-selected: #5f666e;
-  --color-ink: #e4e7e4;
-  --color-steel: #9aa1aa;
-  --color-divider: #2f3439;
-  --color-amber: #f0a03a;
-  --color-focus: #c4ccd6;
-  --color-on-lamp: #1b1e21;
-  --color-green: #3dba6f;
-  --color-red: #ee6a61;
-  --color-red-text: #f0716a;
-  --color-edge-light: rgb(255 255 255 / 6%);
-  --color-shade: rgb(0 0 0 / 45%);
-  --color-scrim: rgb(0 0 0 / 55%);
+  --color-ground: #0c1220;
+  --color-shell: #171443;
+  --color-panel: #141b2c;
+  --color-raised: #1b2539;
+  --color-well: #050914;
+  --color-well-edge-top: #02040b;
+  --color-well-edge-bottom: #283348;
+  --color-field-edge: #6c7b96;
+  --color-selected: #585aa0;
+  --color-text: #e7eef5;
+  --color-muted: #a0aec1;
+  --color-divider: #1d2535;
+  --color-active: #4dd4db;
+  --color-done: #9cdd76;
+  --color-failed: #f35863;
+  --color-failed-text: #f8767a;
+  --color-accent: #f4cb75;
+  --color-focus: #f4cb75;
+  --color-on-light: #090f1c;
+  --color-edge-light: rgb(200 215 255 / 7%);
+  --color-shade: rgb(0 2 10 / 55%);
+  --color-scrim: rgb(2 4 12 / 65%);
 
   --font-text: system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   --font-numeric: 'Archivo Variable', system-ui, sans-serif;

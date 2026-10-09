@@ -14,10 +14,10 @@
   max-width: 100%;
   padding: 3px;
   overflow-x: auto;
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-top-color: var(--color-slot-edge-top);
+  border: 1px solid var(--color-well-edge-bottom);
+  border-top-color: var(--color-well-edge-top);
   border-radius: var(--radius-m);
-  background: var(--color-slot);
+  background: var(--color-well);
   box-shadow: var(--shadow-recess);
   scrollbar-width: none;
 }
@@ -57,7 +57,7 @@
   border: 0;
   border-radius: calc(var(--radius-m) - 2px);
   background: transparent;
-  color: var(--color-steel);
+  color: var(--color-muted);
   white-space: nowrap;
   cursor: pointer;
   transition: color var(--motion-fast) var(--ease-out);
@@ -65,7 +65,7 @@
 
 .segment:hover,
 .segment[data-state='checked'] {
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .segment:focus-visible {

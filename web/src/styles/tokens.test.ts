@@ -3,8 +3,8 @@ import tokens from './tokens.css?raw'
 
 // - WCAG contrast of the color tokens as they are used: text needs 4.5:1, and the parts that
 //   identify a control or its state (lamps, the focus ring, field edges, switch and segment
-//   faces, the red error edge of a field) need 3:1 against what surrounds them. The primary
-//   button's dark text sits on an ink face.
+//   faces, the red error edge of a field) need 3:1 against what surrounds them. Dark text sits
+//   on the gold primary button and on the lit faces of the state colors.
 
 function hexColors(css: string): Map<string, string> {
   const found = new Map<string, string>()
@@ -32,26 +32,26 @@ function color(name: string): string {
   return value
 }
 
-const SURFACES = ['chassis', 'panel', 'raised', 'slot']
+const SURFACES = ['ground', 'shell', 'panel', 'raised', 'well']
 
 const TEXT: [string, string[]][] = [
-  ['ink', [...SURFACES, 'selected']],
-  ['steel', SURFACES],
-  ['red-text', ['chassis', 'panel']],
-  ['on-lamp', ['amber', 'red', 'ink']],
+  ['text', [...SURFACES, 'selected']],
+  ['muted', SURFACES],
+  ['active', ['shell']],
+  ['failed-text', SURFACES],
+  ['on-light', ['accent', 'active', 'done', 'failed']],
 ]
 
 const PARTS: [string, string[]][] = [
-  ['amber', SURFACES],
-  ['green', SURFACES],
-  ['red', SURFACES],
-  ['steel', SURFACES],
-  ['field-edge', ['chassis', 'panel']],
+  ['active', SURFACES],
+  ['done', SURFACES],
+  ['failed', SURFACES],
+  ['muted', SURFACES],
+  ['field-edge', ['ground', 'panel']],
   ['focus', SURFACES],
-  ['red-text', ['chassis', 'slot']],
-  ['selected', ['slot']],
-  ['ink', ['panel']],
-  ['chassis', ['ink']],
+  ['accent', ['panel']],
+  ['selected', ['well']],
+  ['ground', ['accent']],
 ]
 
 const pairs = (list: [string, string[]][]) => list.flatMap(([fg, backgrounds]) => backgrounds.map((bg) => [fg, bg]))

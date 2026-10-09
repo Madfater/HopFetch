@@ -67,12 +67,12 @@ function planFor(data: Resolved, free: number): { plan: Plan; short: number } {
 }
 
 function lampFor(state: ResolveState, plan: Plan | null, noneSupported: boolean, providersFailed: boolean): LampColor {
-  if (noneSupported) return 'red'
+  if (noneSupported) return 'failed'
   if (state.local.kind === 'empty' || state.local.kind === 'typing') return 'off'
-  if (state.local.kind === 'waiting') return providersFailed ? 'red' : 'amber'
-  if (state.local.kind !== 'matched' || state.error) return 'red'
-  if (state.pending || !state.data) return 'amber'
-  return plan?.kind === 'download' ? 'green' : 'red'
+  if (state.local.kind === 'waiting') return providersFailed ? 'failed' : 'active'
+  if (state.local.kind !== 'matched' || state.error) return 'failed'
+  if (state.pending || !state.data) return 'active'
+  return plan?.kind === 'download' ? 'done' : 'failed'
 }
 
 export function Home() {
@@ -283,7 +283,7 @@ export function Home() {
       <label htmlFor="link" className="visually-hidden">
         {t('home.inputLabel')}
       </label>
-      <div className={[styles.slot, lamp === 'red' && styles.invalid, dragging && styles.dragging].filter(Boolean).join(' ')}
+      <div className={[styles.slot, lamp === 'failed' && styles.invalid, dragging && styles.dragging].filter(Boolean).join(' ')}
         onDragEnter={onDragEnter}
         onDragLeave={onDragLeave} onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
         <input
@@ -300,7 +300,7 @@ export function Home() {
             : listed ? t('batch.summary', { count: listed.links.length }) : placeholder}
           value={input}
           aria-describedby="link-status link-hint"
-          aria-invalid={lamp === 'red' ? true : undefined}
+          aria-invalid={lamp === 'failed' ? true : undefined}
           onChange={(event) => {
             const pasted = pastedRef.current
             pastedRef.current = false
@@ -326,7 +326,7 @@ export function Home() {
           onKeyDown={onKeyDown}
           onBlur={() => setImmediate((n) => n + 1)}
         />
-        <Lamp color={lamp} pulse={lamp === 'amber'} />
+        <Lamp color={lamp} pulse={lamp === 'active'} />
         <span className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
       </div>
       <div className={styles.below}>
@@ -373,7 +373,7 @@ export function Home() {
       {failed > 0 && (
         <p className={styles.attention}>
           <Link className={styles.attentionLink} to="/tasks?filter=failed" viewTransition>
-            <Lamp color="red" />
+            <Lamp color="failed" />
             {t('home.attention', { count: failed })}
           </Link>
         </p>
@@ -413,7 +413,7 @@ export function Home() {
 }
 
 function lampName(lamp: LampColor): string {
-  return { off: 'idle', amber: 'checking', green: 'ready', red: 'blocked', steel: 'idle' }[lamp]
+  return { off: 'idle', active: 'checking', done: 'ready', failed: 'blocked', idle: 'idle' }[lamp]
 }
 
 // - While the provider list is missing, a URL cannot be judged: "checking" while it loads, the
@@ -446,9 +446,9 @@ function statusLine(
 }
 
 function batchLamp(view: BatchView | null): LampColor {
-  if (!view || view.checking > 0) return 'amber'
-  if (view.started) return view.rows.some((row) => row.state.kind === 'failed') ? 'red' : 'green'
-  return view.canStart ? 'green' : 'red'
+  if (!view || view.checking > 0) return 'active'
+  if (view.started) return view.rows.some((row) => row.state.kind === 'failed') ? 'failed' : 'done'
+  return view.canStart ? 'done' : 'failed'
 }
 
 // - Until the provider list is loaded the batch cannot be read; then the line counts the links
