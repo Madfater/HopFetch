@@ -8,8 +8,7 @@
     "storageUnknown": "NAS free space unknown",
     "active": "{{count}} downloading or queued",
     "attention_one": "{{count}} failed task",
-    "attention_other": "{{count}} failed tasks"
-,
+    "attention_other": "{{count}} failed tasks",
     "titleFailed": "{{count}} failed"
   },
   "home": {

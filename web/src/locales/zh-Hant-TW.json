@@ -7,8 +7,7 @@
     "storage": "NAS 剩餘",
     "storageUnknown": "NAS 剩餘空間未知",
     "active": "{{count}} 個下載中或排隊中",
-    "attention_other": "{{count}} 個任務失敗"
-,
+    "attention_other": "{{count}} 個任務失敗",
     "titleFailed": "{{count}} 個失敗"
   },
   "home": {

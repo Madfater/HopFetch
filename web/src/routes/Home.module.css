@@ -10,8 +10,8 @@
  * - The preview slides out from under the slot.
  * - While a batch is pasted, the slot's placeholder shows the link count in ink. The batch
  *   preview lists one row per link: lamp, name and size on the first line, host and state
- *   below, parted by a gap rather than a separator character. Rows scroll inside the card past about eight; under 480px the size moves under the
- *   name.
+ *   below, parted by a gap rather than a separator character. Rows scroll inside the card past
+ *   about eight; under 480px the size moves under the name.
  * - A recent task that arrived while the page is open flashes once.
  */
 .home {
