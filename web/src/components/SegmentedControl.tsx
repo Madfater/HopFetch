@@ -7,6 +7,9 @@ import styles from './SegmentedControl.module.css'
 // - A raised thumb sits under the chosen segment. Its place is measured from that segment, and
 //   measured again whenever a segment changes size, such as after a language change. It first
 //   appears in place and slides on later changes.
+// - The thumb spans from the track's start to the end of the last segment and is clipped to the
+//   chosen one, so it slides by animating its clip, never its size or place. Its span comes from
+//   the segments, not the track's scroll width, which the thumb itself would widen.
 // - `data-more` marks a track whose segments run past its right edge, measured on resize and
 //   scroll, so the edge can fade to show that the track scrolls.
 
@@ -27,7 +30,7 @@ interface Props<T extends string> {
 
 export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy, describedBy }: Props<T>) {
   const track = useRef<HTMLDivElement>(null)
-  const [thumb, setThumb] = useState<{ x: number; width: number } | null>(null)
+  const [thumb, setThumb] = useState<{ x: number; width: number; span: number } | null>(null)
   const [more, setMore] = useState(false)
 
   useLayoutEffect(() => {
@@ -37,8 +40,12 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
       setMore(root.scrollLeft + root.clientWidth < root.scrollWidth - 1)
       const chosen = root.querySelector<HTMLElement>('[role="radio"][data-state="checked"]')
       if (!chosen) return
-      const next = { x: chosen.offsetLeft, width: chosen.offsetWidth }
-      setThumb((shown) => (shown && shown.x === next.x && shown.width === next.width ? shown : next))
+      const segments = root.querySelectorAll<HTMLElement>('[role="radio"]')
+      const last = segments[segments.length - 1]
+      const span = last.offsetLeft + last.offsetWidth
+      const next = { x: chosen.offsetLeft, width: chosen.offsetWidth, span }
+      setThumb((shown) =>
+        shown && shown.x === next.x && shown.width === next.width && shown.span === next.span ? shown : next)
     }
     measure()
     root.addEventListener('scroll', measure, { passive: true })
@@ -58,7 +65,10 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
       onValueChange={(next) => onChange(next as T)}>
       {thumb && (
         <span className={styles.thumb} aria-hidden="true"
-          style={{ transform: `translateX(${thumb.x}px)`, width: thumb.width }} />
+          style={{
+            width: thumb.span,
+            clipPath: `inset(0 ${thumb.span - thumb.x - thumb.width}px 0 ${thumb.x}px round var(--thumb-radius))`,
+          }} />
       )}
       {options.map((option) => (
         <RadioGroup.Item key={option.value} value={option.value} className={styles.segment} lang={option.lang}>

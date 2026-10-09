@@ -1,6 +1,7 @@
 /*
  * - The track is 42px inside its border and the knob 16px, 3px from either end; on, the knob
- *   moves 20px. While pressed the knob is 4px wider, growing toward the middle of the track.
+ *   moves 20px. While pressed the knob stretches to 20px wide, growing toward the middle of
+ *   the track; the stretch is a scale, so it never changes layout.
  */
 .track {
   position: relative;
@@ -33,21 +34,23 @@
   height: 16px;
   border-radius: var(--radius-round);
   background: var(--color-steel);
+  transform-origin: left center;
   transition:
     transform var(--motion-base) var(--ease-out),
-    width var(--motion-fast) var(--ease-out),
     background-color var(--motion-base) var(--ease-out);
 }
 
 .thumb[data-state='checked'] {
   background: var(--color-chassis);
   transform: translateX(20px);
+  transform-origin: right center;
 }
 
 .track:active .thumb {
-  width: 20px;
+  transform: scaleX(1.25);
+  transition-duration: var(--motion-fast), var(--motion-base);
 }
 
 .track:active .thumb[data-state='checked'] {
-  transform: translateX(16px);
+  transform: translateX(20px) scaleX(1.25);
 }
