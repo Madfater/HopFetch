@@ -73,6 +73,10 @@
     "failed": "失敗",
     "canceled": "已取消"
   },
+  "phaseState": {
+    "preparing": "準備中",
+    "finishing": "收尾中"
+  },
   "tasks": {
     "title": "下載清單",
     "filter": {

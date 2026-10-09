@@ -79,8 +79,9 @@ describe('Tasks', () => {
   })
 
   it('shows why a task is paused', async () => {
-    setup([task({ message_key: 'messages.paused_legacy' })])
-    expect(await screen.findByText('Paused. Resume continues where it stopped.')).toBeInTheDocument()
+    setup([task({ message_key: 'messages.paused_restart' })])
+    expect(await screen.findByText('The server restarted, so the download paused. Resume continues where it stopped.'))
+      .toBeInTheDocument()
   })
 
   it('notes a task the server resumed after a restart', async () => {
@@ -98,6 +99,28 @@ describe('Tasks', () => {
 
     await user.click(screen.getByRole('radio', { name: /All/ }))
     expect(await screen.findByText('b.rar')).toBeInTheDocument()
+  })
+
+  it('lists failed tasks only under Failed and canceled ones only under All', async () => {
+    const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }),
+      task({ id: 'b', file_name: 'b.rar', status: 'canceled' })], '/tasks?filter=failed')
+    const failed = await screen.findByRole('radio', { name: /Failed/ })
+    expect(failed).toHaveTextContent(/^Failed\s*1$/)
+    expect(screen.getByText('a.rar')).toBeInTheDocument()
+    expect(screen.queryByText('b.rar')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /All/ }))
+    expect(await screen.findByText('b.rar')).toBeInTheDocument()
+  })
+
+  it('shows the state word with the step under it while downloading', async () => {
+    setup([task({ status: 'downloading', phase: 'captcha', message_key: 'messages.captcha_attempt', message_params: { n: 3 } }),
+      task({ id: 'job2', file_name: 'b.rar', status: 'downloading', phase: 'downloading',
+        message_key: 'messages.downloading', message_params: { count: 20 } })])
+    expect(await screen.findByText('Preparing')).toBeInTheDocument()
+    expect(screen.getByText('Reading the captcha (try 3)')).toBeInTheDocument()
+    expect(screen.getByText('Downloading')).toBeInTheDocument()
+    expect(screen.queryByText(/connections/)).not.toBeInTheDocument()
   })
 
   it('leaves the cost out when deleting a completed task', async () => {

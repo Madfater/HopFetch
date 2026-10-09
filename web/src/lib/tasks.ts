@@ -56,7 +56,7 @@ export function matchesFilter(task: Task, filter: Filter): boolean {
     case 'completed':
       return task.status === 'completed'
     case 'failed':
-      return task.status === 'failed' || task.status === 'canceled'
+      return needsAttention(task)
   }
 }
 
