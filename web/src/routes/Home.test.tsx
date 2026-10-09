@@ -151,4 +151,26 @@ describe('Home typed input', () => {
     expect(await screen.findByText(/not a valid URL/)).toBeInTheDocument()
     expect(input).toHaveAttribute('aria-invalid', 'true')
   })
+
+  it('calls pasted text that holds no link invalid at once', async () => {
+    vi.spyOn(api, 'providers').mockResolvedValue(providers)
+    vi.spyOn(api, 'tasks').mockResolvedValue([])
+    vi.spyOn(api, 'storage').mockResolvedValue({ free_bytes: FREE, total_bytes: 4 * FREE })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    const user = userEvent.setup()
+    await vi.waitFor(() => expect(api.providers).toHaveBeenCalled())
+    const input = screen.getByRole('textbox')
+    await user.click(input)
+    await user.paste('not a link')
+    expect(input).toHaveValue('not a link')
+    expect(screen.getByText(/not a valid URL/)).toBeInTheDocument()
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+  })
 })

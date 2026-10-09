@@ -89,6 +89,8 @@ export function Home() {
   const [starting, setStarting] = useState(false)
   // - Mirrors `starting` for the page-wide paste listener, which outlives a render.
   const startingRef = useRef(false)
+  // - Set by a paste the browser inserts itself, so the change it causes is judged at once.
+  const pastedRef = useRef(false)
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -300,8 +302,11 @@ export function Home() {
           aria-describedby="link-status link-hint"
           aria-invalid={lamp === 'red' ? true : undefined}
           onChange={(event) => {
+            const pasted = pastedRef.current
+            pastedRef.current = false
             if (starting) return
             setInput(event.target.value)
+            if (pasted) setImmediate((n) => n + 1)
             setNoneSupported(false)
             setBatchText(null)
             setOutcomes(new Map())
@@ -310,7 +315,10 @@ export function Home() {
           onPaste={(event) => {
             const text = event.clipboardData.getData('text')
             const found = extractSingleUrl(text)
-            if (found.kind === 'none') return
+            if (found.kind === 'none') {
+              pastedRef.current = true
+              return
+            }
             event.preventDefault()
             if (starting) return
             setFromPaste(text)
