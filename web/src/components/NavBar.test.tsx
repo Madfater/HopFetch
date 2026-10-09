@@ -17,9 +17,9 @@ function task(id: string, status: Status): Task {
   }
 }
 
-function setup(statuses: Status[]) {
+function setup(statuses: Status[], storage?: Promise<{ free_bytes: number; total_bytes: number }>) {
   vi.spyOn(api, 'tasks').mockResolvedValue(statuses.map((status, i) => task(`t${i}`, status)))
-  vi.spyOn(api, 'storage').mockResolvedValue({ free_bytes: 2 ** 40, total_bytes: 4 * 2 ** 40 })
+  vi.spyOn(api, 'storage').mockReturnValue(storage ?? Promise.resolve({ free_bytes: 2 ** 40, total_bytes: 4 * 2 ** 40 }))
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
@@ -44,6 +44,22 @@ describe('NavBar', () => {
     const tab = await screen.findByRole('link', { name: /Downloads/ })
     expect(await screen.findByText('2 failed tasks')).toBeInTheDocument()
     expect(tab).toHaveTextContent('1 downloading or queued')
+  })
+
+  it('says free space is being checked until the first answer, then shows it', async () => {
+    let answer: (value: { free_bytes: number; total_bytes: number }) => void = () => {}
+    setup([], new Promise((resolve) => { answer = resolve }))
+    expect(screen.getByText('Checking NAS free space')).toBeInTheDocument()
+    expect(screen.queryByText('NAS free space unknown')).not.toBeInTheDocument()
+    answer({ free_bytes: 11 * 2 ** 30, total_bytes: 4 * 2 ** 40 })
+    expect(await screen.findAllByText('11 GB')).not.toHaveLength(0)
+    expect(screen.getByText('free')).toBeInTheDocument()
+    expect(screen.queryByText('Checking NAS free space')).not.toBeInTheDocument()
+  })
+
+  it('says free space is unknown only when the request fails', async () => {
+    setup([], Promise.reject(new Error('down')))
+    expect(await screen.findByText('NAS free space unknown')).toBeInTheDocument()
   })
 
   it('shows no failed count when nothing failed', async () => {

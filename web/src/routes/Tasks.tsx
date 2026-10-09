@@ -26,6 +26,9 @@ import styles from './Tasks.module.css'
 // - A row's status cell holds the state and its step; the task's notes, such as an error or a
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
+// - On a phone the size cell also leads with the percent, so the state, percent and size read
+//   as one line; that copy is hidden from screen readers, which hear the progress bar's text.
+// - The progress bar's text names the percent, the bytes downloaded of the size, and the state.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
@@ -238,6 +241,12 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
   const showSpeed = task.status === 'downloading' && task.phase === 'downloading' && task.speed > 0
   const status = taskStatus(t, task)
   const label = (action: string) => t('action.named', { action: t(`action.${action}`), name })
+  const percent = formatPercent(locale, ratio)
+  const progressText = task.size
+    ? t('tasks.progressText', {
+        percent, done: formatBytes(locale, task.bytes_done), size: formatBytes(locale, task.size), state: status.text,
+      })
+    : t('tasks.progressTextNoSize', { done: formatBytes(locale, task.bytes_done), state: status.text })
 
   return (
     <tr id={`task-${task.id}`} className={`${focused ? styles.focused : ''} ${arrived ? styles.arrived : ''}`}>
@@ -259,7 +268,10 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
         )}
         {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
       </td>
-      <td className={`${styles.cellSize} ${styles.right} num`}>{formatBytes(locale, task.size)}</td>
+      <td className={`${styles.cellSize} ${styles.right} num`}>
+        <span className={styles.phonePercent} aria-hidden="true">{percent}</span>
+        {formatBytes(locale, task.size)}
+      </td>
       <td className={styles.cellProgress}>
         <div className={styles.progress}>
           <div
@@ -269,10 +281,11 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(ratio * 100)}
+            aria-valuetext={progressText}
           >
             <div className={`${styles.fill} ${FILL[task.status] ?? ''}`} style={{ transform: `scaleX(${ratio})` }} />
           </div>
-          <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
+          <span className={`${styles.percent} num`}>{percent}</span>
         </div>
         {showSpeed && (
           <span className={`${styles.sub} ${styles.rate} num`}>

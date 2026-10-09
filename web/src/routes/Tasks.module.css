@@ -9,10 +9,10 @@
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
  * - Delete stands a little apart from the other actions.
- * - Below 768px each row is a grid: the name with its notes, wrapped to at most two lines; the
- *   status beside the host stacked over the size; the progress beside the actions. The right
- *   column fits three actions, 32px or 44px on a touch screen, so every row's bar ends at the
- *   same place.
+ * - Below 768px each row is a grid of three lines: the name with its notes, wrapped to at most
+ *   two lines; the status, with the percent and size at the right end; the progress bar beside
+ *   the actions. The host is left to screen readers. The right column fits three actions, 32px
+ *   or 44px on a touch screen, so every row's bar ends at the same place.
  */
 .head {
   display: flex;
@@ -210,6 +210,10 @@
   text-overflow: ellipsis;
 }
 
+.phonePercent {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .table thead {
     position: absolute;
@@ -228,10 +232,9 @@
     display: grid;
     --row-actions: 112px;
 
-    grid-template-columns: minmax(0, 1fr) var(--row-actions);
+    grid-template-columns: minmax(0, 1fr) minmax(var(--row-actions), auto);
     grid-template-areas:
       'name name'
-      'status provider'
       'status size'
       'progress actions';
     align-items: center;
@@ -298,25 +301,41 @@
     min-width: 0;
   }
 
+  .statusText {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .cellStatus,
+  .cellSize {
+    align-self: first baseline;
+  }
+
   .cellProvider {
-    grid-area: provider;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .cellSize {
     grid-area: size;
-  }
-
-  .cellProvider,
-  .cellSize {
     white-space: nowrap;
     color: var(--color-steel);
     font-size: 0.85rem;
     text-align: right;
   }
 
-  .cellProgress,
-  .cellActions {
-    margin-top: var(--space-1);
+  .phonePercent {
+    display: inline;
+    margin-right: var(--space-2);
+    color: var(--color-ink);
+  }
+
+  .percent {
+    display: none;
   }
 
   .cellProgress {
