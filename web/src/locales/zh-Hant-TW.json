@@ -7,7 +7,8 @@
     "storage": "NAS 剩餘",
     "storageUnknown": "NAS 剩餘空間未知",
     "active": "{{count}} 個下載中或排隊中",
-    "attention_other": "{{count}} 個任務失敗"
+    "attention_other": "{{count}} 個任務失敗",
+    "titleFailed": "{{count}} 個失敗"
   },
   "home": {
     "inputLabel": "分享連結",
@@ -99,6 +100,7 @@
     "empty": "還沒有下載任務",
     "emptyLink": "前往下載頁貼上連結",
     "emptyFiltered": "沒有符合這個篩選的任務",
+    "showAll": "顯示全部",
     "progressLabel": "{{name}} 的進度",
     "fileMissing": "檔案不存在",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",

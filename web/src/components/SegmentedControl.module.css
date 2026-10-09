@@ -26,16 +26,15 @@
 }
 
 .thumb {
+  --thumb-radius: calc(var(--radius-m) - 2px);
+
   position: absolute;
   top: 3px;
   bottom: 3px;
   left: 0;
-  border-radius: calc(var(--radius-m) - 2px);
   background: var(--color-selected);
   box-shadow: var(--shadow-plate);
-  transition:
-    transform var(--motion-base) var(--ease-out),
-    width var(--motion-base) var(--ease-out);
+  transition: clip-path var(--motion-base) var(--ease-out);
 }
 
 .segment {

@@ -14,6 +14,8 @@ import styles from './ConfirmDialog.module.css'
 // - The dialog is opened by state rather than by a Radix trigger, so it remembers the element
 //   that had focus when it opened and gives focus back to it on close, while that element is
 //   still on the page.
+// - It opens with focus on Keep, the safe choice, so Enter or Space never confirms or ticks the
+//   file option by accident.
 
 export type ConfirmKind = 'cancel' | 'delete'
 
@@ -31,6 +33,7 @@ export function ConfirmDialog({ kind, name, discards, canDeleteFile, open, onOpe
   const { t, i18n } = useTranslation()
   const [deleteFile, setDeleteFile] = useState(false)
   const returnFocus = useRef<HTMLElement | null>(null)
+  const keep = useRef<HTMLButtonElement>(null)
 
   return (
     <Dialog.Root
@@ -44,8 +47,10 @@ export function ConfirmDialog({ kind, name, discards, canDeleteFile, open, onOpe
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content
           className={styles.content}
-          onOpenAutoFocus={() => {
+          onOpenAutoFocus={(event) => {
             returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null
+            event.preventDefault()
+            keep.current?.focus()
           }}
           onCloseAutoFocus={(event) => {
             if (!returnFocus.current?.isConnected) return
@@ -78,7 +83,7 @@ export function ConfirmDialog({ kind, name, discards, canDeleteFile, open, onOpe
           )}
           <div className={styles.actions}>
             <Dialog.Close asChild>
-              <button type="button" className={controls.button}>
+              <button ref={keep} type="button" className={controls.button}>
                 {t('confirmDialog.keep')}
               </button>
             </Dialog.Close>

@@ -68,7 +68,7 @@ function planFor(data: Resolved, free: number): { plan: Plan; short: number } {
 
 function lampFor(state: ResolveState, plan: Plan | null, noneSupported: boolean, providersFailed: boolean): LampColor {
   if (noneSupported) return 'red'
-  if (state.local.kind === 'empty') return 'off'
+  if (state.local.kind === 'empty' || state.local.kind === 'typing') return 'off'
   if (state.local.kind === 'waiting') return providersFailed ? 'red' : 'amber'
   if (state.local.kind !== 'matched' || state.error) return 'red'
   if (state.pending || !state.data) return 'amber'
@@ -89,6 +89,8 @@ export function Home() {
   const [starting, setStarting] = useState(false)
   // - Mirrors `starting` for the page-wide paste listener, which outlives a render.
   const startingRef = useRef(false)
+  // - Set by a paste the browser inserts itself, so the change it causes is judged at once.
+  const pastedRef = useRef(false)
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
@@ -300,8 +302,11 @@ export function Home() {
           aria-describedby="link-status link-hint"
           aria-invalid={lamp === 'red' ? true : undefined}
           onChange={(event) => {
+            const pasted = pastedRef.current
+            pastedRef.current = false
             if (starting) return
             setInput(event.target.value)
+            if (pasted) setImmediate((n) => n + 1)
             setNoneSupported(false)
             setBatchText(null)
             setOutcomes(new Map())
@@ -310,12 +315,16 @@ export function Home() {
           onPaste={(event) => {
             const text = event.clipboardData.getData('text')
             const found = extractSingleUrl(text)
-            if (found.kind === 'none') return
+            if (found.kind === 'none') {
+              pastedRef.current = text.trim() !== ''
+              return
+            }
             event.preventDefault()
             if (starting) return
             setFromPaste(text)
           }}
           onKeyDown={onKeyDown}
+          onBlur={() => setImmediate((n) => n + 1)}
         />
         <Lamp color={lamp} pulse={lamp === 'amber'} />
         <span className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
@@ -384,7 +393,7 @@ export function Home() {
               <li key={task.id}>
                 <button type="button" className={`${styles.recentItem} ${isNew(task.id) ? styles.arrived : ''}`}
                   onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
-                  <span className={styles.recentName}>{task.file_name ?? t('tasks.unnamed')}</span>
+                  <span className={styles.recentName} title={task.file_name ?? undefined}>{task.file_name ?? t('tasks.unnamed')}</span>
                   <span className={styles.recentStatus}>
                     {task.status === 'downloading' && task.size ? (
                       <span className={`${styles.percent} num`}>
@@ -419,6 +428,7 @@ function statusLine(
   if (noneSupported) return { text: t('batch.noneSupported', { sites }), error: true }
   switch (state.local.kind) {
     case 'empty':
+    case 'typing':
       return { text: '', error: false }
     case 'invalid':
       return { text: t('errors.invalid_url'), error: true }
