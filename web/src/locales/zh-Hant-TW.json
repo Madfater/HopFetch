@@ -87,7 +87,7 @@
       "completed": "已完成",
       "failed": "失敗"
     },
-    "clearCompleted": "清除所有已完成",
+    "clearCompleted": "清除已完成",
     "column": {
       "status": "狀態",
       "provider": "雲端",
@@ -110,7 +110,7 @@
   "action": {
     "pause": "暫停",
     "resume": "繼續",
-    "cancel": "取消",
+    "cancel": "停止並捨棄",
     "retry": "重試",
     "save": "下載到電腦",
     "delete": "刪除",
@@ -118,9 +118,9 @@
   },
   "confirmDialog": {
     "cancel": {
-      "title": "取消下載",
+      "title": "停止並捨棄下載",
       "body": "停止「{{name}}」。任務會以「已取消」留在清單中，重試時會從頭下載。",
-      "confirm": "取消下載"
+      "confirm": "停止並捨棄"
     },
     "delete": {
       "title": "刪除任務",
