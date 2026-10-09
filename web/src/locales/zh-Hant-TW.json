@@ -80,6 +80,12 @@
     "preparing": "準備中",
     "finishing": "收尾中"
   },
+  "stepDetail": {
+    "requesting_key_direct": "取得下載授權",
+    "requesting_key_proxy": "取得下載授權",
+    "captcha_attempt": "辨識驗證碼",
+    "verifying": "檢查影片"
+  },
   "tasks": {
     "title": "下載清單",
     "filter": {

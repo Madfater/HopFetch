@@ -121,12 +121,13 @@ describe('Tasks', () => {
     expect(await screen.findByText('b.rar')).toBeInTheDocument()
   })
 
-  it('shows the state word with the step under it while downloading', async () => {
+  it('shows the state word with the step under it while downloading, the try count only in its tooltip', async () => {
     setup([task({ status: 'downloading', phase: 'captcha', message_key: 'messages.captcha_attempt', message_params: { n: 3 } }),
       task({ id: 'job2', file_name: 'b.rar', status: 'downloading', phase: 'downloading',
         message_key: 'messages.downloading', message_params: { count: 20 } })])
     expect(await screen.findByText('Preparing')).toBeInTheDocument()
-    expect(screen.getByText('Reading the captcha (try 3)')).toBeInTheDocument()
+    expect(screen.getByText('Reading the captcha')).toHaveAttribute('title', 'Reading the captcha (try 3)')
+    expect(screen.queryByText(/try 3/)).not.toBeInTheDocument()
     expect(screen.getByText('Downloading')).toBeInTheDocument()
     expect(screen.queryByText(/connections/)).not.toBeInTheDocument()
   })
