@@ -5,6 +5,8 @@
     "tasks": "Downloads",
     "settings": "Settings",
     "storage": "NAS free",
+    "storageShort": "free",
+    "storageLoading": "Checking NAS free space",
     "storageUnknown": "NAS free space unknown",
     "active": "{{count}} downloading or queued",
     "attention_one": "{{count}} failed task",

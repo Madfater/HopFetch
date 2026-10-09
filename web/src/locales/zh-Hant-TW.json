@@ -5,6 +5,8 @@
     "tasks": "下載清單",
     "settings": "設定",
     "storage": "NAS 剩餘",
+    "storageShort": "剩餘",
+    "storageLoading": "正在讀取 NAS 剩餘空間",
     "storageUnknown": "NAS 剩餘空間未知",
     "active": "{{count}} 個下載中或排隊中",
     "attention_other": "{{count}} 個任務失敗",
