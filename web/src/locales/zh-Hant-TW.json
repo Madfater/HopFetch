@@ -101,6 +101,7 @@
     "empty": "還沒有下載任務",
     "emptyLink": "前往下載頁貼上連結",
     "emptyFiltered": "沒有符合這個篩選的任務",
+    "showAll": "顯示全部",
     "progressLabel": "{{name}} 的進度",
     "fileMissing": "檔案不存在",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",

@@ -108,6 +108,7 @@
     "empty": "No downloads yet",
     "emptyLink": "Paste a link on the download page",
     "emptyFiltered": "No tasks match this filter",
+    "showAll": "Show all",
     "progressLabel": "Progress of {{name}}",
     "fileMissing": "File missing",
     "videoCorrupt": "ffmpeg found problems in this video.",

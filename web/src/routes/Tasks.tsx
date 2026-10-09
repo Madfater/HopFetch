@@ -22,6 +22,7 @@ import styles from './Tasks.module.css'
 // - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS; the mark fades when it
 //   ends. A task that arrives while the page is open flashes once.
 // - `?filter=<filter>` opens the page on that filter; choosing another filter drops it.
+// - A filter that matches nothing says so, with a button back to every task.
 // - A row's status cell holds the state and its step; the task's notes, such as an error or a
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
@@ -168,8 +169,19 @@ export function Tasks() {
           </thead>
           <tbody>
             {visible.length === 0 && (
-              <tr>
-                <td colSpan={6}>{t('tasks.emptyFiltered')}</td>
+              <tr className={styles.emptyRow}>
+                <td colSpan={6}>
+                  <div className={styles.empty}>
+                    <p className={styles.emptyTitle}>{t('tasks.emptyFiltered')}</p>
+                    <button type="button" className={controls.button}
+                      onClick={() => {
+                        setFilter('all')
+                        if (params.has('filter')) setParams({}, { replace: true })
+                      }}>
+                      {t('tasks.showAll')}
+                    </button>
+                  </div>
+                </td>
               </tr>
             )}
             {visible.map((task) => (
