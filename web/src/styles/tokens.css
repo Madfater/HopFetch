@@ -6,19 +6,19 @@
  *   neutrals.
  * - Surfaces, from back to front: ground (page), panel (plates), raised (hovered and selected
  *   faces), and well (recessed fields and tracks). `--color-shell` is the indigo band of the
- *   navigation bar. Muted text keeps 4.5:1 on all of them.
+ *   navigation bar, also painted into the scrollbar gutter beside it. Muted text keeps 4.5:1 on all of them.
  * - State colors, each always paired with a text label:
  *   - `--color-active`, teal, marks only work that is checking, queued, in progress or not
  *     yet saved.
  *   - `--color-done`, pale green, marks finished work and links that can be downloaded.
  *   - `--color-failed`, red, marks failures; `--color-failed-text` is the red of every error
  *     text, lighter so it keeps 4.5:1 on the raised face too.
- * - `--color-accent`, star gold, is the operator's hand: the primary button, the current tab
- *   and keyboard focus. It is never a state, so it never reads as a lamp. `--color-on-light`
+ * - `--color-accent`, star gold, is the operator's hand: the primary button, the current tab,
+ *   switches the operator turned on, keyboard focus, drop targets, text selection and the caret. It is never a state, so it never reads as a lamp. `--color-on-light`
  *   is the dark text on a gold, teal, green or red face.
  * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
  *   with 3:1 against the plate around it. `--color-selected` is the face of a chosen segment,
- *   3:1 against its track.
+ *   from the shell's indigo, 3:1 against its track.
  * - Depth encodes elevation only: recessed fields get `--shadow-recess`, flush plates the
  *   `--shadow-plate` highlight, and floating layers `--shadow-float`.
  * - Motion: `fast` for hover, press and tooltips, `base` for toggles and small entrances,
@@ -27,14 +27,14 @@
  */
 :root {
   --color-ground: #0c1220;
-  --color-shell: #151c36;
+  --color-shell: #171443;
   --color-panel: #141b2c;
   --color-raised: #1b2539;
   --color-well: #050914;
   --color-well-edge-top: #02040b;
   --color-well-edge-bottom: #283348;
   --color-field-edge: #6c7b96;
-  --color-selected: #506191;
+  --color-selected: #585aa0;
   --color-text: #e7eef5;
   --color-muted: #a0aec1;
   --color-divider: #1d2535;

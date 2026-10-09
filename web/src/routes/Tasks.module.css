@@ -6,7 +6,7 @@
  *   where its red notes still keep 4.5:1.
  * - A progress fill spans the whole track and slides in from the left, so its texture never
  *   stretches; it glides for 500ms, about the time between two progress events.
- * - A downloading fill is a strip of a long exposure: teal with a fine grain of brighter points
+ * - A downloading fill is a strip of a long exposure: teal with an irregular grain of brighter points, one authored 100px tile,
  *   that slides in with the bytes, and a lit leading edge. A completed fill settles to a solid,
  *   dimmed green, and a paused one to a dimmed muted tone, so only running work is bright.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
@@ -156,10 +156,8 @@
   background-color: var(--color-active);
   background-image:
     linear-gradient(to left, color-mix(in oklab, var(--color-active) 30%, white) 0 3px, transparent 3px),
-    radial-gradient(circle at 30% 35%, rgb(255 255 255 / 90%) 0 0.6px, transparent 1.1px),
-    radial-gradient(circle at 70% 70%, rgb(255 255 255 / 60%) 0 0.5px, transparent 1px),
-    radial-gradient(circle at 50% 20%, rgb(9 15 28 / 35%) 0 0.6px, transparent 1.1px);
-  background-size: auto, 23px 6px, 13px 7px, 9px 5px;
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='6'%3E%3Ccircle cx='4' cy='2.1' r='0.55' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='13' cy='4.3' r='0.4' fill='white' fill-opacity='0.5'/%3E%3Ccircle cx='21' cy='1.4' r='0.35' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='29' cy='3.6' r='0.6' fill='white' fill-opacity='0.95'/%3E%3Ccircle cx='38' cy='2.7' r='0.35' fill='white' fill-opacity='0.45'/%3E%3Ccircle cx='47' cy='4.8' r='0.45' fill='white' fill-opacity='0.7'/%3E%3Ccircle cx='55' cy='1.8' r='0.55' fill='white' fill-opacity='0.85'/%3E%3Ccircle cx='63' cy='3.9' r='0.35' fill='white' fill-opacity='0.5'/%3E%3Ccircle cx='71' cy='2.4' r='0.45' fill='white' fill-opacity='0.65'/%3E%3Ccircle cx='80' cy='4.6' r='0.6' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='88' cy='1.6' r='0.35' fill='white' fill-opacity='0.55'/%3E%3Ccircle cx='95' cy='3.2' r='0.45' fill='white' fill-opacity='0.75'/%3E%3Ccircle cx='9' cy='5.0' r='0.3' fill='white' fill-opacity='0.4'/%3E%3Ccircle cx='34' cy='0.9' r='0.3' fill='white' fill-opacity='0.4'/%3E%3Ccircle cx='76' cy='1.1' r='0.3' fill='white' fill-opacity='0.45'/%3E%3C/svg%3E");
+  background-size: auto, 100px 100%;
 }
 
 .fillDone {
