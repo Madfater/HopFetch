@@ -4,7 +4,7 @@
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
- *   dashed focus gray, over the red edge.
+ *   dashed focus gold, over the red edge.
  * - The status line and the hint share one line under the slot; the hint shows only while the
  *   input is empty. Under them, the supported sites sit in one quiet row of marks and names.
  * - The preview slides out from under the slot.
