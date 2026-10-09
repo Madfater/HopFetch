@@ -4,6 +4,8 @@
  * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
  *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
  *   where its red notes still keep 4.5:1.
+ * - A queued, canceled or failed track carries a 1px inner ring in its lamp color, and a
+ *   failed track's slot is also tinted red, so those bars differ even when empty.
  * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
  *   progress events.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
@@ -138,6 +140,19 @@
   border-top: 1px solid var(--color-slot-edge-top);
   border-radius: var(--radius-round);
   background: var(--color-slot);
+}
+
+.trackQueued {
+  box-shadow: inset 0 0 0 1px var(--color-amber);
+}
+
+.trackCanceled {
+  box-shadow: inset 0 0 0 1px var(--color-steel);
+}
+
+.trackFailed {
+  background: color-mix(in srgb, var(--color-red) 28%, var(--color-slot));
+  box-shadow: inset 0 0 0 1px var(--color-red);
 }
 
 .fill {

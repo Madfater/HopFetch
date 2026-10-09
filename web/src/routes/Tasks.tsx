@@ -39,10 +39,19 @@ const FINISHING = new Set(['assembling', 'verifying'])
 
 // - The progress fill's color by status: amber while downloading, green when completed, red when
 //   failed; other statuses keep the neutral steel fill.
+// - The track repeats the status lamp, so bars still differ at 0%: a queued track is ringed in
+//   amber and a canceled one in steel, like their hollow lamps, and a failed track is ringed and
+//   tinted red.
 const FILL: Partial<Record<Task['status'], string>> = {
   downloading: styles.fillActive,
   completed: styles.fillDone,
   failed: styles.fillFailed,
+}
+
+const TRACK: Partial<Record<Task['status'], string>> = {
+  queued: styles.trackQueued,
+  canceled: styles.trackCanceled,
+  failed: styles.trackFailed,
 }
 
 type Action = 'pause' | 'resume' | 'cancel' | 'retry'
@@ -263,7 +272,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
       <td className={styles.cellProgress}>
         <div className={styles.progress}>
           <div
-            className={styles.track}
+            className={`${styles.track} ${TRACK[task.status] ?? ''}`}
             role="progressbar"
             aria-label={t('tasks.progressLabel', { name })}
             aria-valuemin={0}
