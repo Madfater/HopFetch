@@ -316,7 +316,7 @@ export function Home() {
             const text = event.clipboardData.getData('text')
             const found = extractSingleUrl(text)
             if (found.kind === 'none') {
-              pastedRef.current = true
+              pastedRef.current = text.trim() !== ''
               return
             }
             event.preventDefault()

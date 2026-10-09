@@ -1,7 +1,7 @@
 /*
- * - The track is 42px inside its border and the knob 16px, 3px from either end; on, the knob
- *   moves 16px. While pressed the knob stretches to a 20px pill, growing toward the middle of
- *   the track.
+ * - The track is 42px inside its border and the knob 16px, 3px from either end; on, the
+ *   visible knob moves 20px. While pressed the knob stretches to a 20px pill, growing toward
+ *   the middle of the track.
  * - The knob is always a 20px pill clipped to a 16px circle at its outer end; the press
  *   uncovers the rest, so the stretch animates the clip and never the layout.
  */
