@@ -112,6 +112,16 @@ describe('Tasks', () => {
     expect(await screen.findByText('b.rar')).toBeInTheDocument()
   })
 
+  it('shows the state word with the step under it while downloading', async () => {
+    setup([task({ status: 'downloading', phase: 'captcha', message_key: 'messages.captcha_attempt', message_params: { n: 3 } }),
+      task({ id: 'job2', file_name: 'b.rar', status: 'downloading', phase: 'downloading',
+        message_key: 'messages.downloading', message_params: { count: 20 } })])
+    expect(await screen.findByText('Preparing')).toBeInTheDocument()
+    expect(screen.getByText('Reading the captcha (try 3)')).toBeInTheDocument()
+    expect(screen.getByText('Downloading')).toBeInTheDocument()
+    expect(screen.queryByText(/connections/)).not.toBeInTheDocument()
+  })
+
   it('leaves the cost out when deleting a completed task', async () => {
     const { user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: true })])
     await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))

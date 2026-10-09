@@ -80,6 +80,10 @@
     "failed": "Failed",
     "canceled": "Canceled"
   },
+  "phaseState": {
+    "preparing": "Preparing",
+    "finishing": "Finishing"
+  },
   "tasks": {
     "title": "Downloads",
     "filter": {

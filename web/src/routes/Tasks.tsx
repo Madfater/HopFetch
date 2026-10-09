@@ -12,7 +12,7 @@ import { Lamp, StatusLamp } from '../components/Lamp'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
-import { errorText, taskStatusText } from '../lib/messages'
+import { errorText, taskStatus } from '../lib/messages'
 import { FILTERS, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
@@ -215,15 +215,16 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
   const unfinished = task.status === 'queued' || task.status === 'downloading' || task.status === 'paused'
   const finishing = task.phase !== null && FINISHING.has(task.phase)
   const showSpeed = task.status === 'downloading' && task.phase === 'downloading' && task.speed > 0
-  const statusText = taskStatusText(t, task)
+  const status = taskStatus(t, task)
   const label = (action: string) => t('action.named', { action: t(`action.${action}`), name })
 
   return (
     <tr id={`task-${task.id}`} className={`${focused ? styles.focused : ''} ${arrived ? styles.arrived : ''}`}>
       <td className={styles.cellStatus}>
         <span className={styles.statusText}>
-          <StatusLamp status={task.status} text={statusText} />
+          <StatusLamp status={task.status} text={status.text} />
         </span>
+        {status.detail && <span className={styles.sub}>{status.detail}</span>}
         {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
         {task.status === 'failed' && task.error && (
           <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>

@@ -9,11 +9,40 @@ export function errorText(t: TFunction, error: CodedError | null | undefined): s
   return t(error.key, { ...error.params, defaultValue: error.message || t('errors.unknown') })
 }
 
-// - The status cell's text: the step detail while downloading, the reason a task is paused,
-//   the plain status otherwise. A failed task's reason is shown separately with `errorText`.
-export function taskStatusText(t: TFunction, task: Task): string {
-  if ((task.status === 'downloading' || task.status === 'paused') && task.message_key) {
-    return t(task.message_key, { ...task.message_params, defaultValue: task.message || t(`status.${task.status}`) })
+export interface StatusText {
+  text: string
+  detail: string
+}
+
+// - The status cell's two lines: `text` is the state beside the lamp, `detail` the step behind
+//   it, empty when there is nothing to add. A failed task's reason is shown separately with
+//   `errorText`.
+// - While downloading, the phase picks a state word: preparing for resolving, captcha and links,
+//   finishing for assembling and verifying. A wait shows its message as the state, since the
+//   countdown is what the user needs.
+// - The connection count of `messages.downloading` is left out; other downloading messages,
+//   such as a restart after the remote file changed, stay as the detail.
+// - A paused task shows its reason as the detail, unless the reason is a plain pause.
+export function taskStatus(t: TFunction, task: Task): StatusText {
+  const status = t(`status.${task.status}`)
+  const message = task.message_key
+    ? t(task.message_key, { ...task.message_params, defaultValue: task.message || '' })
+    : ''
+  if (task.status === 'paused') {
+    return { text: status, detail: task.message_key === 'messages.paused' ? '' : message }
   }
-  return t(`status.${task.status}`)
+  if (task.status !== 'downloading') return { text: status, detail: '' }
+  switch (task.phase) {
+    case 'waiting':
+      return { text: message || status, detail: '' }
+    case 'resolving':
+    case 'captcha':
+    case 'links':
+      return { text: t('phaseState.preparing'), detail: message }
+    case 'assembling':
+    case 'verifying':
+      return { text: t('phaseState.finishing'), detail: message }
+    default:
+      return { text: status, detail: task.message_key === 'messages.downloading' ? '' : message }
+  }
 }
