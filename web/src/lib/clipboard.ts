@@ -1,7 +1,7 @@
 // - Puts text on the clipboard and reports whether it got there.
 // - The async Clipboard API exists only in a secure context, and the app is usually reached
 //   over plain http on the LAN, so without it the text goes through a hidden, selected
-//   textarea and the legacy copy command.
+//   textarea and `document.execCommand('copy')`.
 
 export async function copyText(text: string): Promise<boolean> {
   if (window.isSecureContext && navigator.clipboard) {
