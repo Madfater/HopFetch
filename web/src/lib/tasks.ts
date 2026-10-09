@@ -60,6 +60,33 @@ export function matchesFilter(task: Task, filter: Filter): boolean {
   }
 }
 
+// - What a check-in needs to know, each part with the filter that lists its tasks.
+// - `finished` counts tasks completed after `seen`, a `completed_at` mark from the server clock;
+//   with no mark it is zero. The other parts count the current state.
+// - Parts with no tasks are left out, so an empty result means there is nothing to report.
+export type SummaryPart = { kind: 'finished' | 'attention' | 'active' | 'paused'; count: number; filter: Filter }
+
+export function summarize(list: Task[], seen: number | null): SummaryPart[] {
+  const count = (test: (task: Task) => boolean) => list.filter(test).length
+  const parts: SummaryPart[] = [
+    {
+      kind: 'finished',
+      count: seen === null ? 0 : count((task) => task.status === 'completed' && (task.completed_at ?? 0) > seen),
+      filter: 'completed',
+    },
+    { kind: 'attention', count: count(needsAttention), filter: 'failed' },
+    { kind: 'active', count: count(isActive), filter: 'active' },
+    { kind: 'paused', count: count((task) => task.status === 'paused'), filter: 'active' },
+  ]
+  return parts.filter((part) => part.count > 0)
+}
+
+// - The newest `completed_at` in the list, or null when nothing has completed.
+export function lastCompleted(list: Task[]): number | null {
+  const times = list.map((task) => task.completed_at).filter((time) => time != null)
+  return times.length > 0 ? Math.max(...times) : null
+}
+
 // - Status changes worth a toast: a task that reached completed or failed since the last copy.
 export type Finished = { task: Task; outcome: 'completed' | 'failed' }
 

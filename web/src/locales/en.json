@@ -23,14 +23,23 @@
       "blocked": "Cannot download"
     },
     "checking": "Checking the link",
-    "attention_one": "{{count}} task needs attention",
-    "attention_other": "{{count}} tasks need attention",
     "recent": "Recent tasks",
     "viewAll": "View all",
     "promise": "Saves to the NAS download folder. You can close this page; the download continues on the server.",
     "unsupported": "Only {{sites}} links are supported.",
     "placeholderPlain": "Paste a share link",
-    "sites": "Supported sites"
+    "sites": "Supported sites",
+    "summary": {
+      "label": "Task summary",
+      "finished_one": "finished",
+      "finished_other": "finished",
+      "attention_one": "needs you",
+      "attention_other": "need you",
+      "active_one": "in progress",
+      "active_other": "in progress",
+      "paused_one": "paused",
+      "paused_other": "paused"
+    }
   },
   "preview": {
     "size": "Size",

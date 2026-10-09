@@ -9,6 +9,7 @@ import { Lamp, StatusLamp, type LampColor } from '../components/Lamp'
 import { ProviderMark } from '../components/icons'
 import { useToast } from '../components/toast-context'
 import { useBatch } from '../hooks/useBatch'
+import { useLastVisit } from '../hooks/useLastVisit'
 import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
 import { useTouchScreen } from '../hooks/useTouchScreen'
@@ -17,7 +18,7 @@ import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/fo
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
 import { errorText } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
-import { needsAttention, RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
+import { RESOLVE_KEY, STORAGE_KEY, summarize, TASKS_KEY, upsertTask, type SummaryPart } from '../lib/tasks'
 import { extractBatch, extractSingleUrl } from '../lib/url'
 import controls from '../styles/controls.module.css'
 import { BatchPreview } from './BatchPreview'
@@ -25,8 +26,10 @@ import styles from './Home.module.css'
 
 // - The download page: logo, the input slot, a preview of the resolved file or of a batch,
 //   recent tasks.
-// - While any task has failed, a red line above the recent tasks counts them and links to the
-//   failed filter of the files page.
+// - Above the slot, a summary line counts what a check-in needs: tasks finished since this
+//   browser's last visit, tasks that need the user, tasks in progress and paused ones. Each
+//   part links to its filter on the files page. The line keeps its height while empty, so the
+//   slot never moves when the list loads.
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Text with one URL fills the input. Text with several becomes a batch of its supported
 //   links: with two or more the slot shows their count and the batch preview lists them, with
@@ -41,7 +44,11 @@ import styles from './Home.module.css'
 // - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
 //   While the input is empty, the placeholder names the supported sites, a hint under the
 //   slot says where links can go, and a row under it shows each supported site's mark and
-//   name. On a touch screen the hint and the key hints are left out.
+//   name. On a touch screen the hint and the key hints are left out. Typing hides the row but
+//   keeps its space, so the recent list stays put; a preview or a batch takes its place.
+// - The input is described by the lamp's state, the status line and, while it shows, the hint.
+// - Recent tasks are links to their row on the files page; downloading and paused ones show
+//   their percent, or the bytes so far when the size is unknown.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
@@ -98,6 +105,7 @@ export function Home() {
   const providers = useProviders()
   const tasks = useTasks()
   const isNew = useNewIds(tasks.data?.map((task) => task.id))
+  const seen = useLastVisit(tasks.data)
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
   const state = useResolve(input, providers.data, immediate)
 
@@ -273,12 +281,29 @@ export function Home() {
     ? batchStatus(t, view, providers.isError)
     : statusLine(t, state, noneSupported, sites, providers.isError)
   const recent = (tasks.data ?? []).slice(0, RECENT_COUNT)
-  const failed = (tasks.data ?? []).filter(needsAttention).length
+  const summary = summarize(tasks.data ?? [], seen)
   const touch = useTouchScreen()
+  const showHint = !touch && !input && !inBatch && !status.text
+  const showPreview = !noneSupported && !inBatch && state.data != null && state.local.kind === 'matched' && planned != null
 
   return (
     <main className={styles.home}>
       <h1 className={styles.logo}>{APP_NAME}</h1>
+
+      <div className={styles.summary}>
+        {summary.length > 0 && (
+          <ul className={styles.summaryList} aria-label={t('home.summary.label')}>
+            {summary.map((part) => (
+              <li key={part.kind}>
+                <Link className={styles.summaryLink} to={`/tasks?filter=${part.filter}`} viewTransition>
+                  <Lamp color={SUMMARY_LAMP[part.kind].color} hollow={SUMMARY_LAMP[part.kind].hollow} />
+                  <span><span className="num">{part.count}</span> {t(`home.summary.${part.kind}`, { count: part.count })}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
       <label htmlFor="link" className="visually-hidden">
         {t('home.inputLabel')}
@@ -299,7 +324,7 @@ export function Home() {
             ? t('home.drop')
             : listed ? t('batch.summary', { count: listed.links.length }) : placeholder}
           value={input}
-          aria-describedby="link-status link-hint"
+          aria-describedby={showHint ? 'link-lamp link-status link-hint' : 'link-lamp link-status'}
           aria-invalid={lamp === 'red' ? true : undefined}
           onChange={(event) => {
             const pasted = pastedRef.current
@@ -327,20 +352,20 @@ export function Home() {
           onBlur={() => setImmediate((n) => n + 1)}
         />
         <Lamp color={lamp} pulse={lamp === 'amber'} />
-        <span className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
+        <span id="link-lamp" className="visually-hidden">{t(`home.lamp.${lampName(lamp)}`)}</span>
       </div>
       <div className={styles.below}>
         <p id="link-status" className={`${styles.status} ${status.error ? styles.statusError : ''}`} aria-live="polite">
           {status.text && <span key={status.text} className={styles.statusText}>{status.text}</span>}
         </p>
-        {!touch && !input && !inBatch && !status.text && (
+        {showHint && (
           <p id="link-hint" className={styles.hint}>
             {t('home.hint')}
           </p>
         )}
       </div>
-      {!input && !inBatch && (providers.data ?? []).length > 0 && (
-        <ul className={styles.sites} aria-label={t('home.sites')}>
+      {!showPreview && !inBatch && (providers.data ?? []).length > 0 && (
+        <ul className={`${styles.sites} ${input ? styles.sitesHidden : ''}`} aria-label={t('home.sites')}>
           {(providers.data ?? []).map((provider) => (
             <li key={provider.id} className={styles.site}>
               <ProviderMark icon={provider.icon} />
@@ -350,7 +375,7 @@ export function Home() {
         </ul>
       )}
 
-      {!noneSupported && !inBatch && state.data && state.local.kind === 'matched' && planned && (
+      {showPreview && state.data && state.local.kind === 'matched' && planned && (
         <Preview
           data={state.data}
           provider={state.local.provider}
@@ -370,18 +395,8 @@ export function Home() {
           onStart={() => void startBatch(view)} />
       )}
 
-      {failed > 0 && (
-        <p className={styles.attention}>
-          <Link className={styles.attentionLink} to="/tasks?filter=failed" viewTransition>
-            <Lamp color="red" />
-            {t('home.attention', { count: failed })}
-          </Link>
-        </p>
-      )}
-
       {recent.length > 0 && (
-        <section className={`${styles.recent} ${failed > 0 ? styles.recentAfterAttention : ''}`}
-          aria-labelledby="recent-title">
+        <section className={styles.recent} aria-labelledby="recent-title">
           <div className={styles.recentHead}>
             <h2 id="recent-title" className={styles.recentTitle}>
               {t('home.recent')}
@@ -391,18 +406,16 @@ export function Home() {
           <ul>
             {recent.map((task) => (
               <li key={task.id}>
-                <button type="button" className={`${styles.recentItem} ${isNew(task.id) ? styles.arrived : ''}`}
-                  onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
+                <Link className={`${styles.recentItem} ${isNew(task.id) ? styles.arrived : ''}`}
+                  to={`/tasks?focus=${task.id}`} viewTransition>
                   <span className={styles.recentName} title={task.file_name ?? undefined}>{task.file_name ?? t('tasks.unnamed')}</span>
                   <span className={styles.recentStatus}>
-                    {task.status === 'downloading' && task.size ? (
-                      <span className={`${styles.percent} num`}>
-                        {formatPercent(i18n.language, Math.min(1, task.bytes_done / task.size))}
-                      </span>
-                    ) : null}
+                    {(task.status === 'downloading' || task.status === 'paused') && (
+                      <span className={`${styles.percent} num`}>{recentProgress(i18n.language, task)}</span>
+                    )}
                     <StatusLamp status={task.status} text={t(`status.${task.status}`)} />
                   </span>
-                </button>
+                </Link>
               </li>
             ))}
           </ul>
@@ -410,6 +423,19 @@ export function Home() {
       )}
     </main>
   )
+}
+
+const SUMMARY_LAMP: Record<SummaryPart['kind'], { color: LampColor; hollow: boolean }> = {
+  finished: { color: 'green', hollow: false },
+  attention: { color: 'red', hollow: false },
+  active: { color: 'amber', hollow: false },
+  paused: { color: 'steel', hollow: false },
+}
+
+// - The percent done, or the bytes so far when the size is unknown; nothing before any byte.
+function recentProgress(locale: string, task: Task): string {
+  if (task.size) return formatPercent(locale, Math.min(1, task.bytes_done / task.size))
+  return task.bytes_done > 0 ? formatBytes(locale, task.bytes_done) : ''
 }
 
 function lampName(lamp: LampColor): string {
