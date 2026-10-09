@@ -22,14 +22,16 @@ export interface StatusText {
 //   countdown is what the user needs.
 // - The connection count of `messages.downloading` is left out; other downloading messages,
 //   such as a restart after the remote file changed, stay as the detail.
-// - A paused task shows its reason as the detail, unless the reason is a plain pause.
+// - A paused task shows its reason as the detail, unless the reason is a plain pause, which
+//   `messages.paused` and `messages.paused_legacy` both are.
 export function taskStatus(t: TFunction, task: Task): StatusText {
   const status = t(`status.${task.status}`)
   const message = task.message_key
     ? t(task.message_key, { ...task.message_params, defaultValue: task.message || '' })
     : ''
   if (task.status === 'paused') {
-    return { text: status, detail: task.message_key === 'messages.paused' ? '' : message }
+    const plain = task.message_key === 'messages.paused' || task.message_key === 'messages.paused_legacy'
+    return { text: status, detail: plain ? '' : message }
   }
   if (task.status !== 'downloading') return { text: status, detail: '' }
   switch (task.phase) {

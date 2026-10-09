@@ -58,6 +58,8 @@ describe('taskStatus', () => {
       .toEqual({ text: 'Paused', detail: 'The server restarted, so the download paused. Resume continues where it stopped.' })
     expect(taskStatus(t, task({ status: 'paused', message_key: 'messages.paused' })))
       .toEqual({ text: 'Paused', detail: '' })
+    expect(taskStatus(t, task({ status: 'paused', message_key: 'messages.paused_legacy' })))
+      .toEqual({ text: 'Paused', detail: '' })
   })
 
   it('shows the plain status otherwise', () => {

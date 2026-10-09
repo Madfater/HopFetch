@@ -79,8 +79,9 @@ describe('Tasks', () => {
   })
 
   it('shows why a task is paused', async () => {
-    setup([task({ message_key: 'messages.paused_legacy' })])
-    expect(await screen.findByText('Paused. Resume continues where it stopped.')).toBeInTheDocument()
+    setup([task({ message_key: 'messages.paused_restart' })])
+    expect(await screen.findByText('The server restarted, so the download paused. Resume continues where it stopped.'))
+      .toBeInTheDocument()
   })
 
   it('notes a task the server resumed after a restart', async () => {
