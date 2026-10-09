@@ -112,7 +112,8 @@ def test_task_lifecycle(client, content, tmp_path):
     assert created.status_code == 201
     task = created.json()
     assert set(task) >= {"id", "provider", "file_id", "file_name", "size", "bytes_done", "speed", "eta",
-                         "status", "resumable", "file_exists", "error", "created_at", "completed_at"}
+                         "status", "resumable", "file_exists", "error", "retryable", "created_at",
+                         "completed_at"}
 
     duplicate = client.post("/api/tasks", json={"url": URL.format("one")})
     assert duplicate.status_code == 409

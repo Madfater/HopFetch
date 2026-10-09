@@ -17,9 +17,18 @@ export function isActive(task: Task): boolean {
   return ACTIVE.includes(task.status)
 }
 
-// - A failed task is the one state that waits on the user; canceled tasks were their choice.
+// - A failed task whose error a retry can fix is the one state that waits on the user; canceled
+//   tasks were their choice.
+// - The backend sets `retryable`; the frontend keeps no list of error keys of its own.
 export function needsAttention(task: Task): boolean {
-  return task.status === 'failed'
+  return task.status === 'failed' && task.retryable
+}
+
+// - A failed task that no retry can fix, such as a deleted or private file: its own outcome,
+//   "cannot be downloaded". It needs nothing from the user but deleting, so it stays out of the
+//   failed count, and only the All filter shows it, as with canceled tasks.
+export function isUnfixable(task: Task): boolean {
+  return task.status === 'failed' && !task.retryable
 }
 
 // - Replaces the task with the same id, or puts a new one first.
@@ -61,10 +70,12 @@ export function matchesFilter(task: Task, filter: Filter): boolean {
 }
 
 // - Status changes worth a toast: a task that reached completed or failed since the last copy.
-export type Finished = { task: Task; outcome: 'completed' | 'failed' }
+//   A failed task that no retry can fix has its own outcome, `unfixable`.
+export type Finished = { task: Task; outcome: 'completed' | 'failed' | 'unfixable' }
 
 export function finishedSince(previous: Task | undefined, next: Task): Finished | null {
   if (!previous || previous.status === next.status) return null
-  if (next.status === 'completed' || next.status === 'failed') return { task: next, outcome: next.status }
+  if (next.status === 'completed') return { task: next, outcome: 'completed' }
+  if (next.status === 'failed') return { task: next, outcome: isUnfixable(next) ? 'unfixable' : 'failed' }
   return null
 }

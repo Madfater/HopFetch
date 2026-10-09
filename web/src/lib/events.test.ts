@@ -8,7 +8,7 @@ function task(id: string, change: Partial<Task> = {}): Task {
   return {
     id, provider: 'k2s', file_id: id, file_name: `${id}.bin`, size: 100, bytes_done: 0, speed: 0, eta: null,
     status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true,
-    notice_key: null, file_exists: false, error: null, verified: null, created_at: 1, updated_at: 1,
+    notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,
   }
 }
@@ -51,6 +51,15 @@ describe('applyEvent', () => {
     applyEvent(client, 'task', task('a', { status: 'completed' }), { onFinished })
     expect(onFinished).toHaveBeenCalledTimes(1)
     expect(onFinished.mock.calls[0][0].outcome).toBe('completed')
+  })
+
+  it('reports a failure no retry can fix as its own outcome', () => {
+    const client = new QueryClient()
+    const onFinished = vi.fn()
+    client.setQueryData(TASKS_KEY, [task('a', { status: 'downloading' }), task('b', { status: 'downloading' })])
+    applyEvent(client, 'task', task('a', { status: 'failed', retryable: false }), { onFinished })
+    applyEvent(client, 'task', task('b', { status: 'failed', retryable: true }), { onFinished })
+    expect(onFinished.mock.calls.map(([finished]) => finished.outcome)).toEqual(['unfixable', 'failed'])
   })
 })
 

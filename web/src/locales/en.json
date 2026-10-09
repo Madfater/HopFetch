@@ -81,7 +81,8 @@
     "paused": "Paused",
     "completed": "Completed",
     "failed": "Failed",
-    "canceled": "Canceled"
+    "canceled": "Canceled",
+    "unfixable": "Cannot be downloaded"
   },
   "phaseState": {
     "preparing": "Preparing",
@@ -188,6 +189,7 @@
     "started": "Download started: {{name}}. You can close this page.",
     "completed": "Download finished: {{name}}",
     "failed": "{{name}} failed: {{reason}}",
+    "unfixable": "{{name}} cannot be downloaded: {{reason}}",
     "removed": "Task deleted",
     "copyFailed": "Could not copy. Select the path to copy it by hand.",
     "cleared_one": "Cleared {{count}} completed task",

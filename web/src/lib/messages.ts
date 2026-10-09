@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { CodedError, Task } from '../api/types'
+import { isUnfixable } from './tasks'
 
 // - Turns backend translation keys into text, falling back to the backend's own `message` and
 //   then to a generic sentence; raw exception text never reaches the backend's answers.
@@ -13,6 +14,12 @@ export interface StatusText {
   text: string
   detail: string
   title: string
+}
+
+// - The word for a task's status; a failed task that no retry can fix reads "cannot be
+//   downloaded" instead of "failed".
+export function statusWord(t: TFunction, task: Task): string {
+  return t(isUnfixable(task) ? 'status.unfixable' : `status.${task.status}`)
 }
 
 // - The status cell's two lines: `text` is the state beside the lamp, `detail` the step behind
@@ -29,7 +36,7 @@ export interface StatusText {
 // - A paused task shows its reason as the detail, unless the reason is a plain pause, which
 //   `messages.paused` and `messages.paused_legacy` both are.
 export function taskStatus(t: TFunction, task: Task): StatusText {
-  const status = t(`status.${task.status}`)
+  const status = statusWord(t, task)
   const message = task.message_key
     ? t(task.message_key, { ...task.message_params, defaultValue: task.message || '' })
     : ''

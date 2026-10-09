@@ -5,6 +5,9 @@ import styles from './Lamp.module.css'
 // - An indicator light. Color is never the only signal: callers always put text beside it.
 // - A solid active, done or failed lamp is lit; active and failed lamps glow, done lamps do not.
 //   `pulse` makes a lit lamp's glow breathe, for work in progress.
+// - `struck` draws a bar across a hollow idle lamp: an outcome that has ended and needs nothing,
+//   such as a download no retry can fix. It is never the failed color, which means the lamp
+//   needs the user.
 // - A lamp that changes color or fill after its first render blinks once, so the change is
 //   seen. The element is remounted under a new key, which replays the blink animation.
 
@@ -15,11 +18,12 @@ const LIT: LampColor[] = ['active', 'done', 'failed']
 interface Props {
   color: LampColor
   hollow?: boolean
+  struck?: boolean
   pulse?: boolean
 }
 
-export function Lamp({ color, hollow = false, pulse = false }: Props) {
-  const look = `${color} ${hollow}`
+export function Lamp({ color, hollow = false, struck = false, pulse = false }: Props) {
+  const look = `${color} ${hollow} ${struck}`
   const [shown, setShown] = useState(look)
   const [blinks, setBlinks] = useState(0)
   if (look !== shown) {
@@ -27,7 +31,7 @@ export function Lamp({ color, hollow = false, pulse = false }: Props) {
     setBlinks((n) => n + 1)
   }
   const lit = !hollow && LIT.includes(color)
-  const classes = [styles.lamp, styles[color], hollow && styles.hollow, lit && styles.lit, lit && pulse && styles.pulse,
+  const classes = [styles.lamp, styles[color], hollow && styles.hollow, struck && styles.struck, lit && styles.lit, lit && pulse && styles.pulse,
     blinks > 0 && styles.blink]
   return <span key={blinks} aria-hidden="true" className={classes.filter(Boolean).join(' ')} />
 }
@@ -41,12 +45,15 @@ const STATUS_LAMP: Record<Status, { color: LampColor; hollow: boolean }> = {
   failed: { color: 'failed', hollow: false },
 }
 
+const UNFIXABLE_LAMP = { color: 'idle', hollow: true } as const
+
 // - A task status: its lamp followed by `text`. A downloading task's lamp breathes.
-export function StatusLamp({ status, text }: { status: Status; text: string }) {
-  const lamp = STATUS_LAMP[status]
+// - `unfixable` marks a failed task no retry can fix: a struck idle lamp instead of the failed one.
+export function StatusLamp({ status, text, unfixable = false }: { status: Status; text: string; unfixable?: boolean }) {
+  const lamp = unfixable ? UNFIXABLE_LAMP : STATUS_LAMP[status]
   return (
     <span className={styles.status}>
-      <Lamp color={lamp.color} hollow={lamp.hollow} pulse={status === 'downloading'} />
+      <Lamp color={lamp.color} hollow={lamp.hollow} struck={unfixable} pulse={status === 'downloading'} />
       <span>{text}</span>
     </span>
   )

@@ -15,9 +15,9 @@ import { useTouchScreen } from '../hooks/useTouchScreen'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/format'
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
-import { errorText } from '../lib/messages'
+import { errorText, statusWord } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
-import { needsAttention, RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
+import { isUnfixable, needsAttention, RESOLVE_KEY, STORAGE_KEY, TASKS_KEY, upsertTask } from '../lib/tasks'
 import { extractBatch, extractSingleUrl } from '../lib/url'
 import controls from '../styles/controls.module.css'
 import { BatchPreview } from './BatchPreview'
@@ -400,7 +400,7 @@ export function Home() {
                         {formatPercent(i18n.language, Math.min(1, task.bytes_done / task.size))}
                       </span>
                     ) : null}
-                    <StatusLamp status={task.status} text={t(`status.${task.status}`)} />
+                    <StatusLamp status={task.status} text={statusWord(t, task)} unfixable={isUnfixable(task)} />
                   </span>
                 </button>
               </li>
