@@ -385,7 +385,7 @@ export function Home() {
               <li key={task.id}>
                 <button type="button" className={`${styles.recentItem} ${isNew(task.id) ? styles.arrived : ''}`}
                   onClick={() => navigate(`/tasks?focus=${task.id}`, { viewTransition: true })}>
-                  <span className={styles.recentName}>{task.file_name ?? t('tasks.unnamed')}</span>
+                  <span className={styles.recentName} title={task.file_name ?? undefined}>{task.file_name ?? t('tasks.unnamed')}</span>
                   <span className={styles.recentStatus}>
                     {task.status === 'downloading' && task.size ? (
                       <span className={`${styles.percent} num`}>

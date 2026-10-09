@@ -231,7 +231,7 @@ function StoragePlate({ root }: { root: string }) {
           <span className={styles.label}>{t('settings.root')}</span>
           <span className={styles.hint}>{t('settings.rootHint')}</span>
         </div>
-        <span className={`${styles.path} num`}>{root}</span>
+        <span className={styles.path}>{root}</span>
       </div>
       {storage && used !== null && (
         <div className={styles.meterRow}>

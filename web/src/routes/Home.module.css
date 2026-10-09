@@ -10,7 +10,7 @@
  * - The preview slides out from under the slot.
  * - While a batch is pasted, the slot's placeholder shows the link count in ink. The batch
  *   preview lists one row per link: lamp, name and size on the first line, host and state
- *   below. Rows scroll inside the card past about eight; under 480px the size moves under the
+ *   below, parted by a gap rather than a separator character. Rows scroll inside the card past about eight; under 480px the size moves under the
  *   name.
  * - A recent task that arrived while the page is open flashes once.
  */
@@ -251,6 +251,9 @@
 }
 
 .batchDetail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-3);
   grid-area: detail;
   color: var(--color-steel);
   font-size: 0.9rem;
