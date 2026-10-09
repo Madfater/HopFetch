@@ -3,6 +3,8 @@
  * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
  * - `primary` is a lit ink face with dark text and marks the one main action of a page.
  *   `danger` confirms a destructive action and fills red while pointed at.
+ * - A disabled button keeps its frame but drops the face: no fill or highlight, steel text,
+ *   so it still reads as a button that cannot be pressed yet.
  * - `spinner` is a turning ring shown inside a button while its request runs.
  */
 .button {
@@ -38,9 +40,10 @@
 .button:disabled,
 .button[aria-disabled='true'] {
   cursor: not-allowed;
-  color: var(--color-steel);
-  border-color: var(--color-divider);
+  background: transparent;
+  border-color: var(--color-slot-edge-bottom);
   box-shadow: none;
+  color: var(--color-steel);
 }
 
 .primary {
@@ -56,10 +59,11 @@
 }
 
 .primary:disabled {
-  background: var(--color-panel);
-  border-color: var(--color-divider);
+  background: transparent;
+  border-color: var(--color-slot-edge-bottom);
   box-shadow: none;
   color: var(--color-steel);
+  font-weight: 500;
 }
 
 .danger {
