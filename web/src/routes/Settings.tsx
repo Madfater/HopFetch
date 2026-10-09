@@ -104,7 +104,7 @@ export function Settings() {
 
       {!draft || !settings.data ? (
         <p className={styles.state}>
-          <Lamp color={settings.isError ? 'red' : 'amber'} pulse={!settings.isError} />
+          <Lamp color={settings.isError ? 'failed' : 'active'} pulse={!settings.isError} />
           {settings.isError ? t('errors.network') : t('settings.loading')}
         </p>
       ) : (
@@ -145,7 +145,7 @@ export function Settings() {
               {saveError ? (
                 <p className={`${styles.status} ${styles.failed}`} role="alert">
                   <span className={styles.statusText}>
-                    <Lamp color="red" />
+                    <Lamp color="failed" />
                     {saveError}
                   </span>
                 </p>
@@ -153,12 +153,12 @@ export function Settings() {
                 <p className={styles.status} role="status">
                   {changed.length > 0 ? (
                     <span key="dirty" className={`${styles.statusText} ${styles.dirty}`}>
-                      <Lamp color="amber" />
+                      <Lamp color="active" />
                       {t('settings.unsaved', { count: changed.length })}
                     </span>
                   ) : justSaved ? (
                     <span key="saved" className={`${styles.statusText} ${styles.dirty}`}>
-                      <Lamp color="green" />
+                      <Lamp color="done" />
                       {t('settings.saved')}
                     </span>
                   ) : (

@@ -3,8 +3,13 @@
  * - The whole file is the `base` cascade layer, so a CSS module always beats the global
  *   classes here (`.page`, `.num`, `.page-title`), whatever order the bundle puts them in.
  * - Keyboard focus is a `--color-focus` outline everywhere.
+ * - The browser's own surfaces follow the palette: text selection is a dim gold, the caret
+ *   gold, and scrollbars a well-colored track with a field-edge thumb.
  * - Under `prefers-reduced-motion: reduce`, every animation and transition finishes at once;
  *   end states still apply and animation events still fire.
+ * - The root always shows its scrollbar, so the gutter is a real track on every page. In
+ *   Chromium and Safari the track carries the 52px shell band at the top, then the ground, so
+ *   the navigation band runs to the window edge. Other browsers get `scrollbar-color`.
  * - The scrollbar gutter is always reserved, so the centered frame stays put whether or not a
  *   page scrolls.
  * - View transitions: the old and new page crossfade on opacity alone, and every part of the
@@ -21,16 +26,46 @@
     font-family: var(--font-text);
     font-size: 15px;
     line-height: 1.5;
-    color: var(--color-ink);
-    background: var(--color-chassis);
+    color: var(--color-text);
+    background: var(--color-ground);
+    overflow-y: scroll;
     scrollbar-gutter: stable;
     -webkit-font-smoothing: antialiased;
+  }
+
+  :where(html)::-webkit-scrollbar {
+    width: 14px;
+  }
+
+  :where(html)::-webkit-scrollbar-track {
+    background: linear-gradient(var(--color-shell) 52px, var(--color-ground) 52px);
+  }
+
+  :where(html)::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    border-radius: var(--radius-round);
+    background: var(--color-field-edge) padding-box;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    :where(html) {
+      scrollbar-color: var(--color-field-edge) var(--color-ground);
+    }
+  }
+
+  :where(::selection) {
+    background: color-mix(in oklab, var(--color-accent) 35%, var(--color-ground));
+    color: var(--color-text);
+  }
+
+  :where(input, textarea) {
+    caret-color: var(--color-accent);
   }
 
   :where(body) {
     margin: 0;
     min-height: 100vh;
-    background: var(--color-chassis);
+    background: var(--color-ground);
   }
 
   :where(h1, h2, h3, p, ul, ol, figure) {
@@ -48,7 +83,7 @@
   }
 
   :where(a) {
-    color: var(--color-ink);
+    color: var(--color-text);
     text-underline-offset: 3px;
   }
 
@@ -65,11 +100,11 @@
     display: inline-block;
     min-width: 1.75em;
     padding: 0 var(--space-1);
-    border: 1px solid var(--color-slot-edge-bottom);
+    border: 1px solid var(--color-well-edge-bottom);
     border-bottom-width: 2px;
     border-radius: var(--radius-s);
     background: var(--color-raised);
-    color: var(--color-ink);
+    color: var(--color-text);
     font: inherit;
     font-size: 0.8em;
     line-height: 1.6;

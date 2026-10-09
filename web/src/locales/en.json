@@ -5,6 +5,8 @@
     "tasks": "Downloads",
     "settings": "Settings",
     "storage": "NAS free",
+    "storageShort": "free",
+    "storageLoading": "Checking NAS free space",
     "storageUnknown": "NAS free space unknown",
     "active": "{{count}} downloading or queued",
     "attention_one": "{{count}} failed task",
@@ -85,6 +87,12 @@
     "preparing": "Preparing",
     "finishing": "Finishing"
   },
+  "stepDetail": {
+    "requesting_key_direct": "Requesting a download key",
+    "requesting_key_proxy": "Requesting a download key",
+    "captcha_attempt": "Reading the captcha",
+    "verifying": "Checking the video"
+  },
   "tasks": {
     "title": "Downloads",
     "filter": {
@@ -109,6 +117,8 @@
     "emptyFiltered": "No tasks match this filter",
     "showAll": "Show all",
     "progressLabel": "Progress of {{name}}",
+    "progressText": "{{percent}}, {{done}} of {{size}}, {{state}}",
+    "progressTextNoSize": "{{done}} downloaded, {{state}}",
     "fileMissing": "File missing",
     "videoCorrupt": "ffmpeg found problems in this video.",
     "loading": "Loading tasks",

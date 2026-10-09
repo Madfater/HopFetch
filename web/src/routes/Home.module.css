@@ -1,12 +1,12 @@
 /*
  * - The home column, centered and at most 560px wide.
- * - The product name is a nameplate stamped into the chassis: wide Archivo in ink, its letters
- *   pressed in with a dark upper and lit lower edge, like the slot below it. It stays smaller
- *   than the slot is tall, so the slot still leads the page.
+ * - The product name is set large in wide, bold Archivo and star-white text, so it reads as
+ *   the product's name rather than a placeholder. It stays smaller than the slot is tall, so
+ *   the slot still leads the page.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
- *   dashed focus gray, over the red edge.
+ *   dashed focus gold, over the red edge.
  * - The status line and the hint share one line under the slot; the hint shows only while the
  *   input is empty. Under them, the supported sites sit in one quiet row of marks and names.
  * - The preview slides out from under the slot.
@@ -24,7 +24,7 @@
 
 .logo {
   margin-bottom: var(--space-5);
-  color: var(--color-ink);
+  color: var(--color-text);
   font-family: var(--font-numeric);
   font-stretch: 125%;
   font-weight: 700;
@@ -32,9 +32,6 @@
   line-height: 1.1;
   letter-spacing: -0.01em;
   text-align: center;
-  text-shadow:
-    0 -1px 0 var(--color-slot-edge-top),
-    0 1px 0 var(--color-edge-light);
 }
 
 .slot {
@@ -42,12 +39,12 @@
   align-items: center;
   gap: var(--space-3);
   padding: 0 var(--space-4) 0 var(--space-5);
-  border: 1px solid var(--color-slot-edge-bottom);
-  border-top-color: var(--color-slot-edge-top);
-  border-left-color: var(--color-slot-edge-top);
+  border: 1px solid var(--color-well-edge-bottom);
+  border-top-color: var(--color-well-edge-top);
+  border-left-color: var(--color-well-edge-top);
   border-bottom-color: var(--color-field-edge);
   border-radius: var(--radius-l);
-  background: var(--color-slot);
+  background: var(--color-well);
   box-shadow: var(--shadow-recess);
   outline: 2px solid transparent;
   outline-offset: 0;
@@ -64,13 +61,13 @@
 }
 
 .invalid {
-  border-color: var(--color-red-text);
+  border-color: var(--color-failed-text);
 }
 
 .dragging {
   border-style: dashed;
   border-color: var(--color-focus);
-  background: color-mix(in srgb, var(--color-focus) 6%, var(--color-slot));
+  background: color-mix(in srgb, var(--color-focus) 6%, var(--color-well));
 }
 
 .input {
@@ -87,7 +84,7 @@
 }
 
 .input::placeholder {
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .below {
@@ -101,11 +98,11 @@
 }
 
 .status {
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .statusError {
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .statusText {
@@ -114,7 +111,7 @@
 }
 
 .hint {
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -123,7 +120,7 @@
   flex-wrap: wrap;
   gap: var(--space-2) var(--space-5);
   margin-top: var(--space-3);
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
   animation: fade-in var(--motion-base) var(--ease-out);
 }
@@ -175,12 +172,12 @@
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-5);
   margin: var(--space-3) 0 0;
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .facts dd {
   margin: 0;
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .fact {
@@ -193,12 +190,12 @@
 }
 
 .noteError {
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .promise {
   margin-top: var(--space-3);
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -211,12 +208,12 @@
 }
 
 .keys {
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.85rem;
 }
 
 .inputBatch::placeholder {
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .batchList {
@@ -261,19 +258,19 @@
   flex-wrap: wrap;
   gap: 0 var(--space-3);
   grid-area: detail;
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
 .batchSize {
   grid-area: size;
-  color: var(--color-steel);
+  color: var(--color-muted);
   text-align: right;
 }
 
 .batchNote {
   margin-top: var(--space-3);
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -303,7 +300,7 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .recentAfterAttention {
@@ -319,7 +316,7 @@
 
 .recentTitle {
   font-size: 1rem;
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-weight: 600;
 }
 
@@ -366,5 +363,5 @@
 }
 
 .percent {
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
