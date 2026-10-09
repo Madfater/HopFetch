@@ -123,6 +123,25 @@ describe('Tasks', () => {
     expect(screen.queryByText(/connections/)).not.toBeInTheDocument()
   })
 
+  it('shows speed and time left under the bar only while downloading', async () => {
+    setup([task({ status: 'downloading', phase: 'downloading', speed: 4 * 2 ** 20, eta: 310 }),
+      task({ id: 'job2', file_name: 'b.rar', status: 'paused', speed: 0 })])
+    const rate = await screen.findByText('4.00 MB/s, 5:10 left')
+    expect(rate.closest('td')).toContainElement(screen.getByRole('progressbar', { name: 'Progress of a.rar' }))
+    expect(screen.getAllByText(/left$/)).toHaveLength(1)
+    expect(screen.queryByRole('columnheader', { name: 'Speed' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'Time left' })).not.toBeInTheDocument()
+  })
+
+  it('puts a failed task\'s error under its name', async () => {
+    setup([task({ status: 'failed', error: { code: 'captcha_failed', key: 'errors.captcha_failed_ocr', params: {}, message: '' } })])
+    const name = await screen.findByText('a.rar')
+    const [statusCell] = name.closest('tr')!.querySelectorAll('td')
+    expect(name.closest('td')).toHaveTextContent(/captcha/i)
+    expect(statusCell).toHaveTextContent('Failed')
+    expect(statusCell).not.toHaveTextContent(/captcha/i)
+  })
+
   it('leaves the cost out when deleting a completed task', async () => {
     const { user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: true })])
     await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))

@@ -93,10 +93,9 @@
       "name": "檔名",
       "size": "大小",
       "progress": "進度",
-      "speed": "速度",
-      "eta": "剩餘時間",
       "actions": "操作"
     },
+    "rate": "{{speed}}，剩餘 {{eta}}",
     "empty": "還沒有下載任務",
     "emptyLink": "前往下載頁貼上連結",
     "emptyFiltered": "沒有符合這個篩選的任務",
