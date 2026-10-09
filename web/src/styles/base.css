@@ -7,8 +7,9 @@
  *   gold, and scrollbars a well-colored track with a field-edge thumb.
  * - Under `prefers-reduced-motion: reduce`, every animation and transition finishes at once;
  *   end states still apply and animation events still fire.
- * - The page background carries the 52px shell band at the top, so the band also fills the
- *   reserved scrollbar gutter beside the navigation bar.
+ * - The root always shows its scrollbar, so the gutter is a real track on every page. In
+ *   Chromium and Safari the track carries the 52px shell band at the top, then the ground, so
+ *   the navigation band runs to the window edge. Other browsers get `scrollbar-color`.
  * - The scrollbar gutter is always reserved, so the centered frame stays put whether or not a
  *   page scrolls.
  * - View transitions: the old and new page crossfade on opacity alone, and every part of the
@@ -26,10 +27,30 @@
     font-size: 15px;
     line-height: 1.5;
     color: var(--color-text);
-    background: linear-gradient(var(--color-shell) 52px, var(--color-ground) 52px) fixed;
+    background: var(--color-ground);
+    overflow-y: scroll;
     scrollbar-gutter: stable;
-    scrollbar-color: var(--color-field-edge) var(--color-ground);
     -webkit-font-smoothing: antialiased;
+  }
+
+  :where(html)::-webkit-scrollbar {
+    width: 14px;
+  }
+
+  :where(html)::-webkit-scrollbar-track {
+    background: linear-gradient(var(--color-shell) 52px, var(--color-ground) 52px);
+  }
+
+  :where(html)::-webkit-scrollbar-thumb {
+    border: 4px solid transparent;
+    border-radius: var(--radius-round);
+    background: var(--color-field-edge) padding-box;
+  }
+
+  @supports not selector(::-webkit-scrollbar) {
+    :where(html) {
+      scrollbar-color: var(--color-field-edge) var(--color-ground);
+    }
   }
 
   :where(::selection) {
