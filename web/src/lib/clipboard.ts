@@ -1,7 +1,7 @@
 // - Puts text on the clipboard and reports whether it got there.
 // - The async Clipboard API exists only in a secure context, and the app is usually reached
-//   over plain http on the LAN, so without it the text goes through a hidden, selected
-//   textarea and `document.execCommand('copy')`.
+//   over plain http on the LAN. Without it, or when it refuses the write, the text goes
+//   through a hidden, selected textarea and `document.execCommand('copy')`.
 
 export async function copyText(text: string): Promise<boolean> {
   if (window.isSecureContext && navigator.clipboard) {
@@ -9,7 +9,7 @@ export async function copyText(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text)
       return true
     } catch {
-      return false
+      // - Falls through to the textarea copy below.
     }
   }
   const field = document.createElement('textarea')
@@ -28,10 +28,4 @@ export async function copyText(text: string): Promise<boolean> {
     field.remove()
     focused?.focus()
   }
-}
-
-// - Splits a filesystem path after each separator, so the separators stay at line ends when
-//   the path wraps.
-export function pathSegments(path: string): string[] {
-  return path.match(/[^/\\]*[/\\]|[^/\\]+$/g) ?? [path]
 }

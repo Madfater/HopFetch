@@ -9,8 +9,8 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { Switch } from '../components/Switch'
 import { useToast } from '../components/toast-context'
 import { chooseLanguage, LANGUAGES, toSupported } from '../i18n'
-import { copyText, pathSegments } from '../lib/clipboard'
-import { formatStorage } from '../lib/format'
+import { copyText } from '../lib/clipboard'
+import { formatStorage, pathSegments } from '../lib/format'
 import { errorText } from '../lib/messages'
 import {
   changedFields, LIMITS, NUMBER_FIELDS, parseWhole, stepValue, toChange, toDraft, validate, type Draft, type NumberField,

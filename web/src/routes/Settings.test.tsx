@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Tooltip } from 'radix-ui'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, onTestFinished, vi } from 'vitest'
 import { ApiError, api } from '../api/client'
 import type { Settings as SettingsData } from '../api/types'
 import i18n from '../i18n'
@@ -182,6 +182,9 @@ describe('Settings', () => {
       return true
     })
     Object.defineProperty(document, 'execCommand', { value: execCommand, configurable: true })
+    onTestFinished(() => {
+      Reflect.deleteProperty(document, 'execCommand')
+    })
     await user.click(await screen.findByRole('button', { name: 'Copy path' }))
     expect(execCommand).toHaveBeenCalledWith('copy')
     expect(copied).toEqual(['/volume1/downloads'])
