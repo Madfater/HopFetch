@@ -43,6 +43,14 @@ describe('ConfirmDialog', () => {
     expect(opener).toHaveFocus()
   })
 
+  it.each<ConfirmKind>(['delete', 'cancel'])('opens the %s dialog with focus on Keep', async (kind) => {
+    const user = userEvent.setup()
+    render(<Harness kind={kind} onConfirm={vi.fn()} />)
+    await user.click(screen.getByRole('button', { name: 'Open: a.rar' }))
+    await screen.findByRole('dialog')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Keep' })).toHaveFocus())
+  })
+
   it('confirms with the file option as chosen', async () => {
     const user = userEvent.setup()
     const onConfirm = vi.fn()
