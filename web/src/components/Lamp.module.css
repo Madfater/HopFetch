@@ -1,6 +1,7 @@
 /*
  * - An indicator light: a small circle, solid or hollow, in one of the lamp colors.
  * - `off` shows only a muted ring, for the empty input slot.
+ * - `struck` lays a bar across the lamp from its `::before`, corner to corner.
  * - A lit lamp shines like a star from its `::after`: a tight bright core and a faint wider
  *   falloff. Only the glow's opacity animates, so the lamp's own color stays visible while it
  *   breathes.
@@ -66,6 +67,17 @@
 
 .hollow {
   background: transparent;
+}
+
+.struck::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  left: calc(50% - 1px);
+  width: 2px;
+  background: var(--lamp-color);
+  transform: rotate(-45deg);
 }
 
 .off {

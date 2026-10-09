@@ -27,6 +27,22 @@ def _duration(seconds: float) -> str:
 
 FORMATTERS = {"duration": _duration}
 
+# - Error keys whose failure a retry cannot fix: the file, its link or its host rules out a
+#   download. Every other error key is retryable.
+PERMANENT_ERRORS = frozenset({
+    "errors.not_found",
+    "errors.private",
+    "errors.premium_only",
+    "errors.invalid_url_key",
+    "errors.upstream_error_no_size",
+    "errors.range_unsupported",
+})
+
+
+def is_permanent(key: str | None) -> bool:
+    """Whether a failure under `key` stays failed however often it is retried."""
+    return key in PERMANENT_ERRORS
+
 
 @lru_cache(maxsize=None)
 def catalog(locale: str = FALLBACK_LOCALE) -> dict:

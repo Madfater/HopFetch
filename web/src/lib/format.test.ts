@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatBytes, formatDuration, formatList, formatStorage } from './format'
+import { formatBytes, formatDuration, formatList, formatStorage, pathSegments } from './format'
 
 describe('formatList', () => {
   it('joins names the way the locale does', () => {
@@ -28,5 +28,14 @@ describe('format', () => {
   it('formats sizes with the locale', () => {
     expect(formatBytes('en', 1536)).toBe('1.50 KB')
     expect(formatBytes('en', null)).toBe('')
+  })
+})
+
+describe('pathSegments', () => {
+  it('ends each segment at its separator', () => {
+    expect(pathSegments('/volume1/downloads/hop')).toEqual(['/', 'volume1/', 'downloads/', 'hop'])
+    expect(pathSegments('/data/')).toEqual(['/', 'data/'])
+    expect(pathSegments('C:\\Users\\me')).toEqual(['C:\\', 'Users\\', 'me'])
+    expect(pathSegments('plain')).toEqual(['plain'])
   })
 })

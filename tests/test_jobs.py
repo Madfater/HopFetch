@@ -153,6 +153,7 @@ def test_cancel_deletes_partial_data_and_retry_restarts(tmp_path, provider, serv
     manager.cancel(job.id)
     assert job.status == Status.CANCELED and job.bytes_done == 0
     assert not (tmp_path / "data" / "jobs" / job.id).exists()
+    assert manager.public(job)["retryable"] is True
     with pytest.raises(InvalidState):
         manager.cancel(job.id)
 
@@ -490,6 +491,7 @@ def test_upstream_without_ranges_fails_and_cannot_pause(tmp_path, provider, serv
     wait_for(lambda: job.status == Status.FAILED)
     assert job.error["code"] == "range_unsupported" and job.resumable is False
     assert manager.public(job)["resumable"] is False
+    assert manager.public(job)["retryable"] is False
     assert not list((tmp_path / "downloads").iterdir())
 
 
@@ -568,6 +570,7 @@ def test_restart_fails_active_jobs_that_cannot_resume(tmp_path, provider):
     (tmp_path / "data" / "jobs.json").write_text(json.dumps(stored))
     again = build_manager(tmp_path, provider).get(job.id)
     assert again.status == Status.FAILED and again.error["code"] == "interrupted"
+    assert again.public(tmp_path / "downloads")["retryable"] is True
 
 
 def test_pause_is_refused_for_a_job_that_cannot_resume(tmp_path, provider, server):

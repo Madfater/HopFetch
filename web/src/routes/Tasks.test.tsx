@@ -9,6 +9,7 @@ import { api } from '../api/client'
 import type { Task } from '../api/types'
 import i18n from '../i18n'
 import { Tasks } from './Tasks'
+import styles from './Tasks.module.css'
 
 // - Renders the files page over a faked API with the tasks given, and fakes cancel and delete.
 
@@ -18,7 +19,7 @@ function task(change: Partial<Task> = {}): Task {
   return {
     id: 'job1', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 * GIB, bytes_done: 1.31 * GIB,
     speed: 0, eta: null, status: 'paused', phase: null, message_key: null, message_params: {}, message: '',
-    resumable: true, notice_key: null, file_exists: false, error: null, verified: null, created_at: 1, updated_at: 1,
+    resumable: true, notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,
   }
 }
@@ -155,6 +156,34 @@ describe('Tasks', () => {
     expect(name.closest('td')).toHaveTextContent(/captcha/i)
     expect(statusCell).toHaveTextContent('Failed')
     expect(statusCell).not.toHaveTextContent(/captcha/i)
+  })
+
+  it('shows a failure no retry can fix as its own outcome with delete as the only action', async () => {
+    setup([task({ status: 'failed', retryable: false,
+      error: { code: 'not_found', key: 'errors.not_found', params: {}, message: '' } })])
+    const name = await screen.findByText('a.rar')
+    const row = name.closest('tr')!
+    const [statusCell] = row.querySelectorAll('td')
+    expect(statusCell).toHaveTextContent('Cannot be downloaded')
+    expect(statusCell).not.toHaveTextContent('Failed')
+    expect(screen.getByText(/This file was not found/).className).not.toContain(styles.subError)
+    expect(screen.getByRole('button', { name: 'Delete: a.rar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry: a.rar' })).not.toBeInTheDocument()
+  })
+
+  it('offers retry on a failure a retry can fix and on a canceled task', async () => {
+    setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }), task({ id: 'b', file_name: 'b.rar', status: 'canceled' })])
+    expect(await screen.findByRole('button', { name: 'Retry: a.rar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Retry: b.rar' })).toBeInTheDocument()
+  })
+
+  it('lists a failure no retry can fix only under All', async () => {
+    const { user } = setup([task({ id: 'a', file_name: 'a.rar', status: 'failed', retryable: false })], '/tasks?filter=failed')
+    expect(await screen.findByRole('radio', { name: /Failed/ })).toHaveTextContent(/^Failed\s*0$/)
+    expect(screen.queryByText('a.rar')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('radio', { name: /All/ }))
+    expect(await screen.findByText('a.rar')).toBeInTheDocument()
   })
 
   it('reads the progress bar as percent, bytes of the size, and state', async () => {

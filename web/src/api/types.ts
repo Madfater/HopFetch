@@ -31,6 +31,7 @@ export interface Task {
   notice_key: string | null
   file_exists: boolean
   error: CodedError | null
+  retryable: boolean
   verified: 'ok' | 'corrupt' | null
   created_at: number
   updated_at: number

@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from downloader.messages import CATALOG_DIR, FORMATTERS, CodedError, catalog, render
+from downloader.messages import CATALOG_DIR, FORMATTERS, PERMANENT_ERRORS, CodedError, catalog, is_permanent, render
 
 LOCALES = ["zh-Hant-TW", "en"]
 SOURCE = Path(__file__).resolve().parent.parent / "downloader"
@@ -100,3 +100,12 @@ def test_render_fills_params_and_keeps_unknown_keys():
 @pytest.mark.parametrize("code", ["not_found", "internal_error"])
 def test_coded_error_defaults_to_errors_namespace(code):
     assert CodedError(code).key == f"errors.{code}"
+
+
+def test_permanent_errors_exist_and_others_are_retryable():
+    for key in PERMANENT_ERRORS:
+        assert render(key) != key
+    assert is_permanent("errors.range_unsupported")
+    assert not is_permanent("errors.stalled")
+    assert not is_permanent("errors.captcha_failed_ocr")
+    assert not is_permanent(None)

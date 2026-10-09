@@ -17,7 +17,7 @@ function task(id: string, status: Status, change: Partial<Task> = {}): Task {
   return {
     id, provider: 'k2s', file_id: id, file_name: `${id}.rar`, size: 100, bytes_done: 0, speed: 0, eta: null,
     status, phase: null, message_key: null, message_params: {}, message: '', resumable: true, notice_key: null,
-    file_exists: false, error: null, verified: null, created_at: 1, updated_at: 1, completed_at: null, ...change,
+    file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1, completed_at: null, ...change,
   }
 }
 
@@ -89,6 +89,12 @@ describe('Home summary line', () => {
       document.dispatchEvent(new Event('visibilitychange'))
     })
     await waitFor(() => expect(screen.queryByRole('list', { name: 'Task summary' })).not.toBeInTheDocument())
+  })
+
+  it('leaves failures no retry can fix out of needs you', async () => {
+    setup([task('a', 'failed', { retryable: false }), task('b', 'failed')])
+    const links = within(await summary()).getAllByRole('link')
+    expect(links.map((link) => link.textContent)).toEqual(['1 needs you'])
   })
 
   it('has no underlined red attention line', async () => {

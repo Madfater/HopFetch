@@ -30,7 +30,7 @@ from .engine import (
 )
 from .events import EventBus
 from .files import open_in_root
-from .messages import CodedError, render
+from .messages import CodedError, is_permanent, render
 from .providers import ProviderRegistry
 from .providers.base import Cancelled, FileRef, LinkContext, Provider, ProviderError
 from .proxies import ProxyPool
@@ -160,6 +160,8 @@ class Job:
 
         - `eta` is known only while downloading with a measured speed.
         - `file_exists` is checked on disk for completed jobs, inside `root` only.
+        - `retryable` says whether a retry can help: true for a canceled job and for a failed
+          one whose error key is not permanent, false otherwise.
         """
         downloading = self.status == Status.DOWNLOADING and self.phase == Phase.DOWNLOADING
         eta = None
@@ -167,6 +169,8 @@ class Job:
             eta = max(0, round((self.size - self.bytes_done) / self.speed))
         file_exists = bool(self.status == Status.COMPLETED and self.output_path
                            and inside(root, Path(self.output_path)))
+        retryable = self.status == Status.CANCELED or (
+            self.status == Status.FAILED and not is_permanent((self.error or {}).get("key")))
         return {
             "id": self.id,
             "provider": self.provider,
@@ -185,6 +189,7 @@ class Job:
             "notice_key": self.notice_key,
             "file_exists": file_exists,
             "error": self.error,
+            "retryable": retryable,
             "verified": self.verified,
             "created_at": self.created_at,
             "updated_at": self.updated_at,

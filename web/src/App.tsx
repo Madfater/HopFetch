@@ -65,6 +65,7 @@ function Layout() {
     notify.current = ({ task, outcome }) => {
       const name = task.file_name ?? t('tasks.unnamed')
       if (outcome === 'completed') toast(t('toast.completed', { name }), 'success')
+      else if (outcome === 'unfixable') toast(t('toast.unfixable', { name, reason: errorText(t, task.error) }))
       else toast(t('toast.failed', { name, reason: errorText(t, task.error) }), 'error')
     }
   }, [t, toast])

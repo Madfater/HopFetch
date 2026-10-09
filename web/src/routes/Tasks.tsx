@@ -13,7 +13,7 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { errorText, taskStatus } from '../lib/messages'
-import { FILTERS, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
+import { FILTERS, isUnfixable, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
 
@@ -34,9 +34,11 @@ import styles from './Tasks.module.css'
 // - The progress bar's text names the percent, the bytes downloaded of the size, and the state.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
-//   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
-//   file exists, delete always. Pause, cancel and delete wait while the file is being joined
-//   or checked, which the backend refuses.
+//   cancel for unfinished ones, retry for canceled ones and failed ones a retry can fix, save for
+//   completed ones whose file exists, delete always. Pause, cancel and delete wait while the file
+//   is being joined or checked, which the backend refuses.
+// - A failed task no retry can fix reads "cannot be downloaded" beside a struck idle lamp, with
+//   its reason as a plain note and delete as its only action. Only the All filter shows it.
 // - Cancel and delete open a confirm dialog first; it states the downloaded bytes the action
 //   throws away, which is every byte of a task that is not completed.
 
@@ -44,12 +46,22 @@ const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
 
 // - The progress fill's color by status: active teal while downloading, a quiet done green when
-//   completed, failed red when failed; other statuses keep the neutral muted fill.
+//   completed, failed red when failed and a retry can fix it; other statuses keep the neutral
+//   muted fill.
 // - An empty fill is hidden, so its edge never shows at the left end of a 0% track.
+// - The track repeats the status lamp, so bars still differ at 0%: a queued track is ringed in
+//   teal and a canceled one in muted blue, like their hollow lamps, and a failed track is ringed
+//   and tinted red.
 const FILL: Partial<Record<Task['status'], string>> = {
   downloading: styles.fillActive,
   completed: styles.fillDone,
   failed: styles.fillFailed,
+}
+
+const TRACK: Partial<Record<Task['status'], string>> = {
+  queued: styles.trackQueued,
+  canceled: styles.trackCanceled,
+  failed: styles.trackFailed,
 }
 
 type Action = 'pause' | 'resume' | 'cancel' | 'retry'
@@ -249,6 +261,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
   const finishing = task.phase !== null && FINISHING.has(task.phase)
   const showSpeed = task.status === 'downloading' && task.phase === 'downloading' && task.speed > 0
   const status = taskStatus(t, task)
+  const unfixable = isUnfixable(task)
   const label = (action: string) => t('action.named', { action: t(`action.${action}`), name })
   const percent = formatPercent(locale, ratio)
   const progressText = task.size
@@ -261,7 +274,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
     <tr id={`task-${task.id}`} className={`${focused ? styles.focused : ''} ${arrived ? styles.arrived : ''}`}>
       <td className={styles.cellStatus}>
         <span className={styles.statusText}>
-          <StatusLamp status={task.status} text={status.text} />
+          <StatusLamp status={task.status} text={status.text} unfixable={unfixable} />
         </span>
         {status.detail && (
           <span className={styles.sub} title={status.title || undefined}>{status.detail}</span>
@@ -272,7 +285,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
         <span className={styles.name} title={name}>{name}</span>
         {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
         {task.status === 'failed' && task.error && (
-          <span className={`${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
+          <span className={unfixable ? styles.sub : `${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
         )}
         {task.status === 'completed' && !task.file_exists && (
           <span className={styles.sub}>
@@ -290,7 +303,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
       <td className={styles.cellProgress}>
         <div className={styles.progress}>
           <div
-            className={styles.track}
+            className={`${styles.track} ${TRACK[task.status] ?? ''}`}
             role="progressbar"
             aria-label={t('tasks.progressLabel', { name })}
             aria-valuemin={0}
@@ -298,7 +311,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
             aria-valuenow={Math.round(ratio * 100)}
             aria-valuetext={progressText}
           >
-            <div className={`${styles.fill} ${FILL[task.status] ?? ''}`} style={{ transform: `translateX(${(ratio - 1) * 100}%)`, visibility: ratio > 0 ? undefined : 'hidden' }} />
+            <div className={`${styles.fill} ${unfixable ? '' : (FILL[task.status] ?? '')}`} style={{ transform: `translateX(${(ratio - 1) * 100}%)`, visibility: ratio > 0 ? undefined : 'hidden' }} />
           </div>
           <span className={`${styles.percent} num`}>{percent}</span>
         </div>
@@ -321,7 +334,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
           {unfinished && !finishing && (
             <IconButton icon="cancel" label={label('cancel')} tooltip={t('action.cancel')} onClick={() => onConfirm('cancel')} />
           )}
-          {(task.status === 'failed' || task.status === 'canceled') && (
+          {(task.status === 'failed' || task.status === 'canceled') && task.retryable && (
             <IconButton icon="retry" label={label('retry')} tooltip={t('action.retry')} onClick={() => onAction('retry')} />
           )}
           {task.status === 'completed' && (
