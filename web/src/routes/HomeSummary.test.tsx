@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -75,6 +75,20 @@ describe('Home summary line', () => {
     expect(within(await summary()).getByRole('link')).toHaveTextContent('2 finished')
     unmount()
     expect(localStorage.getItem(LAST_VISIT_STORAGE_KEY)).toBe('12')
+  })
+
+  it('starts a new visit when the hidden page shows again', async () => {
+    localStorage.setItem(LAST_VISIT_STORAGE_KEY, '5')
+    setup(tasksOf(['completed', 'completed']))
+    expect(within(await summary()).getByRole('link')).toHaveTextContent('2 finished')
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(localStorage.getItem(LAST_VISIT_STORAGE_KEY)).toBe('11')
+    visibility.mockReturnValue('visible')
+    act(() => {
+      document.dispatchEvent(new Event('visibilitychange'))
+    })
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Task summary' })).not.toBeInTheDocument())
   })
 
   it('has no underlined red attention line', async () => {

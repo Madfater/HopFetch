@@ -3,7 +3,8 @@
  *   leads the page.
  * - Between the name and the slot, the summary line holds one line of height even while empty.
  *   Its parts sit centered and wrap, each a lamp and a count in ink, parted by a gap; a part
- *   underlines on hover. Under 480px the parts sit two to a row, so none is left alone.
+ *   underlines on hover. Under 480px the parts sit two to a row, so four parts fill two
+ *   even rows.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
