@@ -8,7 +8,8 @@
  *   stretches; it glides for 500ms, about the time between two progress events.
  * - A downloading fill is a strip of a long exposure: teal with an irregular grain of brighter points, one authored 60px tile,
  *   that slides in with the bytes, and a lit leading edge. A completed fill settles to a solid,
- *   dimmed green, and a paused one to a dimmed muted tone, so only running work is bright.
+ *   dimmed green, and a paused one to a dimmed muted tone that keeps 3:1 on the track, so only
+ *   running work is bright.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
  * - Delete stands a little apart from the other actions.
@@ -146,7 +147,7 @@
 .fill {
   height: 100%;
   border-radius: var(--radius-round);
-  background-color: color-mix(in oklab, var(--color-muted) 55%, var(--color-well));
+  background-color: color-mix(in oklab, var(--color-muted) 62%, var(--color-well));
   transition:
     transform 500ms linear,
     background-color var(--motion-base) var(--ease-out);

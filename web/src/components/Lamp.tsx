@@ -3,8 +3,8 @@ import type { Status } from '../api/types'
 import styles from './Lamp.module.css'
 
 // - An indicator light. Color is never the only signal: callers always put text beside it.
-// - A solid active, done or failed lamp is lit and glows; `pulse` makes a lit lamp's glow breathe,
-//   for work in progress.
+// - A solid active, done or failed lamp is lit; active and failed lamps glow, done lamps do not.
+//   `pulse` makes a lit lamp's glow breathe, for work in progress.
 // - A lamp that changes color or fill after its first render blinks once, so the change is
 //   seen. The element is remounted under a new key, which replays the blink animation.
 

@@ -14,8 +14,9 @@
  *   - `--color-failed`, red, marks failures; `--color-failed-text` is the red of every error
  *     text, lighter so it keeps 4.5:1 on the raised face too.
  * - `--color-accent`, star gold, is the operator's hand: the primary button, the current tab,
- *   switches the operator turned on, keyboard focus, drop targets, text selection and the caret. It is never a state, so it never reads as a lamp. `--color-on-light`
- *   is the dark text on a gold, teal, green or red face.
+ *   switches the operator turned on, keyboard focus, drop targets, text selection and the
+ *   caret. It is never a state, so it never reads as a lamp. `--color-on-light` is the dark
+ *   text on a gold, teal, green or red face.
  * - `--color-field-edge` is the lit lower edge of a field, the part that marks it as a control
  *   with 3:1 against the plate around it. `--color-selected` is the face of a chosen segment,
  *   from the shell's indigo, 3:1 against its track.
