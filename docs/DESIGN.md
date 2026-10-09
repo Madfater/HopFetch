@@ -26,6 +26,7 @@ typography:
     fontSize: "2rem"
     fontWeight: 700
     lineHeight: 1.1
+    letterSpacing: "-0.01em"
     fontVariation: "'wdth' 125"
   headline:
     fontFamily: "Archivo Variable, system-ui, 'PingFang TC', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif"
@@ -169,9 +170,9 @@ A cold night sky with three narrowband state lines and one warm gold for the hum
 - **Star Gold** (#f4cb75, oklch(86% 0.115 85)): the operator's hand. The one primary button of a page, the 2px underline of the current tab, a switch the operator turned on, the keyboard focus outline (`--color-focus` holds the same value), the dashed edge of a drop target, text selection (gold mixed 35% into the ground) and the text caret. Text on gold is On-Light Ink.
 
 ### Secondary
-- **OIII Teal** (#4dd4db, oklch(80% 0.115 200)): work in progress. Lamps for checking, queued, downloading and unsaved settings, the active progress fill, and the count chip on the Downloads tab (teal text on teal mixed 16% into the shell).
+- **OIII Teal** (#4dd4db, oklch(80% 0.115 200)): work in progress. Lamps for checking, queued, downloading and unsaved settings, the active progress fill, the 1px ring of a queued progress track, and the count chip on the Downloads tab (teal text on teal mixed 16% into the shell).
 - **Pale Green** (#9cdd76, oklch(83% 0.15 135)): finished work and links that can be downloaded. Completed progress fills use it mixed 60% into the well, so finished rows sit quieter than running ones.
-- **H-Alpha Red** (#f35863, oklch(67% 0.19 20)): failure. Failed lamps, failed progress fills, and the danger button's hover face.
+- **H-Alpha Red** (#f35863, oklch(67% 0.19 20)): failure. Failed lamps, failed progress fills, the ring and 28% tint of a failed progress track, and the danger button's hover face.
 - **H-Alpha Red Text** (#f8767a): every error text, the danger button outline, the invalid slot edge and the offline banner. It is lighter than H-Alpha Red so it keeps 4.5:1 on the raised face.
 
 ### Neutral
@@ -184,7 +185,7 @@ A cold night sky with three narrowband state lines and one warm gold for the hum
 - **Field Edge** (#6c7b96): the lit lower edge of the input slot and the switch border, 3:1 against the plate so a field reads as a control; also the scrollbar thumb.
 - **Selected Indigo** (#585aa0): the face of the chosen segment in a segmented control, drawn from the shell, 3:1 against its track.
 - **Star White** (#e7eef5): primary text.
-- **Mist Blue** (#a0aec1): secondary text, inactive tabs, table headers, paused and canceled lamps, the off switch knob and paused fills (mixed 62% into the well). It keeps 4.5:1 on every surface.
+- **Mist Blue** (#a0aec1): secondary text, inactive tabs, table headers, paused and canceled lamps, the off switch knob, the ring of a canceled progress track and paused fills (mixed 62% into the well). It keeps 4.5:1 on every surface.
 - **Divider** (#1d2535): table row rules and plate borders.
 - **On-Light Ink** (#090f1c): dark text on a gold, teal, green or red face.
 
