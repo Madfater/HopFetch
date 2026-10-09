@@ -28,8 +28,8 @@ import styles from './Home.module.css'
 //   recent tasks.
 // - Above the slot, a summary line counts what a check-in needs: tasks finished since this
 //   browser's last visit, tasks that need the user, tasks in progress and paused ones. Each
-//   part links to its filter on the files page. The line keeps its height while empty, so the
-//   slot never moves when the list loads.
+//   part links to its filter on the files page. The line keeps one line of height while empty,
+//   so the slot moves when the list loads only if the parts wrap onto a second row.
 // - A paste anywhere on the page, outside other fields, goes into the slot; so does a dropped
 //   link. Text with one URL fills the input. Text with several becomes a batch of its supported
 //   links: with two or more the slot shows their count and the batch preview lists them, with

@@ -128,6 +128,11 @@
   cursor: pointer;
 }
 
+.subAction:disabled {
+  color: var(--color-steel);
+  cursor: default;
+}
+
 @media (hover: none) and (pointer: coarse) {
   .subAction {
     padding: 12px 0;

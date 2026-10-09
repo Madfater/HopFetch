@@ -27,7 +27,8 @@ import styles from './Tasks.module.css'
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
 // - A completed task whose file is no longer on the NAS says so in a neutral note, with an
-//   action that removes the task from the list without a dialog, since no file or byte is lost.
+//   action that removes the task from the list without a dialog, since no file or byte is lost;
+//   the action waits while its request runs.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for failed or canceled ones, save for completed ones whose
@@ -196,6 +197,7 @@ export function Tasks() {
                 arrived={isNew(task.id)}
                 onAction={(action) => act.mutate({ id: task.id, action })}
                 onRemoveEntry={() => remove.mutate({ id: task.id, deleteFile: false, entryOnly: true })}
+                removing={remove.isPending && remove.variables.id === task.id}
                 onConfirm={(kind) => {
                   setConfirming({ id: task.id, kind })
                   setConfirmOpen(true)
@@ -230,10 +232,11 @@ interface RowProps {
   arrived: boolean
   onAction: (action: Action) => void
   onRemoveEntry: () => void
+  removing: boolean
   onConfirm: (kind: ConfirmKind) => void
 }
 
-function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, onConfirm }: RowProps) {
+function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, removing, onConfirm }: RowProps) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const name = task.file_name ?? t('tasks.unnamed')
@@ -262,7 +265,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, on
         {task.status === 'completed' && !task.file_exists && (
           <span className={styles.sub}>
             {t('tasks.fileGone')}{' '}
-            <button type="button" className={styles.subAction} onClick={onRemoveEntry}
+            <button type="button" className={styles.subAction} onClick={onRemoveEntry} disabled={removing}
               aria-label={t('action.named', { action: t('tasks.removeEntry'), name })}>{t('tasks.removeEntry')}</button>
           </span>
         )}
