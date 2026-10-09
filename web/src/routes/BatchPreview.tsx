@@ -26,10 +26,10 @@ interface Props {
 }
 
 function lampOf(state: RowState): LampColor {
-  if (state.kind === 'checking') return 'amber'
-  if (state.kind === 'ready' || state.kind === 'started') return 'green'
-  if (state.kind === 'skipped' && !state.error) return 'steel'
-  return 'red'
+  if (state.kind === 'checking') return 'active'
+  if (state.kind === 'ready' || state.kind === 'started') return 'done'
+  if (state.kind === 'skipped' && !state.error) return 'idle'
+  return 'failed'
 }
 
 export function BatchPreview({ batch, view, free, locale, starting, onStart }: Props) {

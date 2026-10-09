@@ -36,8 +36,8 @@ import styles from './Tasks.module.css'
 const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
 
-// - The progress fill's color by status: amber while downloading, green when completed, red when
-//   failed; other statuses keep the neutral steel fill.
+// - The progress fill's color by status: active teal while downloading, a quiet done green when
+//   completed, failed red when failed; other statuses keep the neutral muted fill.
 const FILL: Partial<Record<Task['status'], string>> = {
   downloading: styles.fillActive,
   completed: styles.fillDone,
@@ -146,7 +146,7 @@ export function Tasks() {
 
       {!all ? (
         <p className={styles.state}>
-          <Lamp color={tasks.isError ? 'red' : 'amber'} pulse={!tasks.isError} />
+          <Lamp color={tasks.isError ? 'failed' : 'active'} pulse={!tasks.isError} />
           {tasks.isError ? t('errors.network') : t('tasks.loading')}
         </p>
       ) : all.length === 0 ? (
@@ -258,7 +258,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
             aria-valuemax={100}
             aria-valuenow={Math.round(ratio * 100)}
           >
-            <div className={`${styles.fill} ${FILL[task.status] ?? ''}`} style={{ transform: `scaleX(${ratio})` }} />
+            <div className={`${styles.fill} ${FILL[task.status] ?? ''}`} style={{ transform: `translateX(${(ratio - 1) * 100}%)` }} />
           </div>
           <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
         </div>

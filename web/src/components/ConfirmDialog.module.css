@@ -80,7 +80,7 @@
 
 .cost {
   margin-top: var(--space-2);
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .check {
@@ -100,9 +100,9 @@
   padding: 0;
   border: 1px solid var(--color-field-edge);
   border-radius: var(--radius-s);
-  background: var(--color-slot);
+  background: var(--color-well);
   box-shadow: var(--shadow-recess);
-  color: var(--color-chassis);
+  color: var(--color-ground);
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-out),
@@ -110,8 +110,8 @@
 }
 
 .box[data-state='checked'] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
+  border-color: var(--color-text);
+  background: var(--color-text);
   box-shadow: none;
 }
 

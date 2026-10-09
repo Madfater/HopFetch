@@ -46,7 +46,7 @@ export function NavBar({ connected }: { connected: boolean }) {
                     {tab.counted && failed > 0 && (
                       <>
                         <span className={styles.attention} aria-hidden="true">
-                          <Lamp color="red" />
+                          <Lamp color="failed" />
                           <span className="num">{failed}</span>
                         </span>
                         <span className="visually-hidden">{t('nav.attention', { count: failed })}</span>
@@ -73,7 +73,7 @@ export function NavBar({ connected }: { connected: boolean }) {
       {!connected && (
         <div className={styles.offline}>
           <p className={styles.offlineText} role="status">
-            <Lamp color="red" />
+            <Lamp color="failed" />
             {t('toast.offline')}
           </p>
         </div>

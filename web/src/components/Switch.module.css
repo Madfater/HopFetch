@@ -10,7 +10,7 @@
   padding: 0;
   border: 1px solid var(--color-field-edge);
   border-radius: var(--radius-round);
-  background: var(--color-slot);
+  background: var(--color-well);
   box-shadow: var(--shadow-recess);
   cursor: pointer;
   transition:
@@ -19,8 +19,8 @@
 }
 
 .track[data-state='checked'] {
-  border-color: var(--color-ink);
-  background: var(--color-ink);
+  border-color: var(--color-accent);
+  background: var(--color-accent);
   box-shadow: none;
 }
 
@@ -32,7 +32,7 @@
   width: 16px;
   height: 16px;
   border-radius: var(--radius-round);
-  background: var(--color-steel);
+  background: var(--color-muted);
   transition:
     transform var(--motion-base) var(--ease-out),
     width var(--motion-fast) var(--ease-out),
@@ -40,7 +40,7 @@
 }
 
 .thumb[data-state='checked'] {
-  background: var(--color-chassis);
+  background: var(--color-ground);
   transform: translateX(20px);
 }
 

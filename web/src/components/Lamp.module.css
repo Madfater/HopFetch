@@ -1,6 +1,6 @@
 /*
  * - An indicator light: a small circle, solid or hollow, in one of the lamp colors.
- * - `off` shows only a steel ring, for the empty input slot.
+ * - `off` shows only a muted ring, for the empty input slot.
  * - A lit lamp casts a soft glow from its `::after`. Only the glow's opacity animates, so the
  *   lamp's own color stays visible while it breathes.
  */
@@ -65,24 +65,24 @@
 }
 
 .off {
-  --lamp-color: var(--color-steel);
+  --lamp-color: var(--color-muted);
   background: transparent;
 }
 
-.amber {
-  --lamp-color: var(--color-amber);
+.active {
+  --lamp-color: var(--color-active);
 }
 
-.green {
-  --lamp-color: var(--color-green);
+.done {
+  --lamp-color: var(--color-done);
 }
 
-.red {
-  --lamp-color: var(--color-red);
+.failed {
+  --lamp-color: var(--color-failed);
 }
 
-.steel {
-  --lamp-color: var(--color-steel);
+.idle {
+  --lamp-color: var(--color-muted);
 }
 
 .status {

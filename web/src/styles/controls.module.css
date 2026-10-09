@@ -1,7 +1,7 @@
 /*
  * - Shared buttons.
  * - A button is a raised face: a top highlight, a lighter face on hover, and a 1px press.
- * - `primary` is a lit ink face with dark text and marks the one main action of a page.
+ * - `primary` is a lit gold face with dark text and marks the one main action of a page.
  *   `danger` confirms a destructive action and fills red while pointed at.
  * - `spinner` is a turning ring shown inside a button while its request runs.
  */
@@ -12,11 +12,11 @@
   gap: var(--space-2);
   min-height: 36px;
   padding: 0 var(--space-4);
-  border: 1px solid var(--color-slot-edge-bottom);
+  border: 1px solid var(--color-well-edge-bottom);
   border-radius: var(--radius-m);
   background: var(--color-panel);
   box-shadow: var(--shadow-plate);
-  color: var(--color-ink);
+  color: var(--color-text);
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
@@ -38,39 +38,39 @@
 .button:disabled,
 .button[aria-disabled='true'] {
   cursor: not-allowed;
-  color: var(--color-steel);
+  color: var(--color-muted);
   border-color: var(--color-divider);
   box-shadow: none;
 }
 
 .primary {
-  background: var(--color-ink);
-  border-color: var(--color-ink);
-  box-shadow: inset 0 1px 0 rgb(255 255 255 / 70%);
-  color: var(--color-on-lamp);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 45%);
+  color: var(--color-on-light);
   font-weight: 600;
 }
 
 .primary:hover:not(:disabled, [aria-disabled='true']) {
-  background: color-mix(in srgb, var(--color-ink) 70%, white);
+  background: color-mix(in oklab, var(--color-accent) 75%, white);
 }
 
 .primary:disabled {
   background: var(--color-panel);
   border-color: var(--color-divider);
   box-shadow: none;
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .danger {
-  border-color: var(--color-red-text);
-  color: var(--color-red-text);
+  border-color: var(--color-failed-text);
+  color: var(--color-failed-text);
 }
 
 .danger:hover:not(:disabled, [aria-disabled='true']) {
-  background: var(--color-red);
-  border-color: var(--color-red);
-  color: var(--color-on-lamp);
+  background: var(--color-failed);
+  border-color: var(--color-failed);
+  color: var(--color-on-light);
 }
 
 .spinner {

@@ -3,6 +3,8 @@
  * - The whole file is the `base` cascade layer, so a CSS module always beats the global
  *   classes here (`.page`, `.num`, `.page-title`), whatever order the bundle puts them in.
  * - Keyboard focus is a `--color-focus` outline everywhere.
+ * - The browser's own surfaces follow the palette: text selection is a dim gold, the caret
+ *   gold, and scrollbars a well-colored track with a field-edge thumb.
  * - Under `prefers-reduced-motion: reduce`, every animation and transition finishes at once;
  *   end states still apply and animation events still fire.
  * - The scrollbar gutter is always reserved, so the centered frame stays put whether or not a
@@ -21,16 +23,26 @@
     font-family: var(--font-text);
     font-size: 15px;
     line-height: 1.5;
-    color: var(--color-ink);
-    background: var(--color-chassis);
+    color: var(--color-text);
+    background: var(--color-ground);
     scrollbar-gutter: stable;
+    scrollbar-color: var(--color-field-edge) var(--color-ground);
     -webkit-font-smoothing: antialiased;
+  }
+
+  :where(::selection) {
+    background: color-mix(in oklab, var(--color-accent) 35%, var(--color-ground));
+    color: var(--color-text);
+  }
+
+  :where(input, textarea) {
+    caret-color: var(--color-accent);
   }
 
   :where(body) {
     margin: 0;
     min-height: 100vh;
-    background: var(--color-chassis);
+    background: var(--color-ground);
   }
 
   :where(h1, h2, h3, p, ul, ol, figure) {
@@ -48,7 +60,7 @@
   }
 
   :where(a) {
-    color: var(--color-ink);
+    color: var(--color-text);
     text-underline-offset: 3px;
   }
 
@@ -65,11 +77,11 @@
     display: inline-block;
     min-width: 1.75em;
     padding: 0 var(--space-1);
-    border: 1px solid var(--color-slot-edge-bottom);
+    border: 1px solid var(--color-well-edge-bottom);
     border-bottom-width: 2px;
     border-radius: var(--radius-s);
     background: var(--color-raised);
-    color: var(--color-ink);
+    color: var(--color-text);
     font: inherit;
     font-size: 0.8em;
     line-height: 1.6;

@@ -70,7 +70,7 @@
   border: 0;
   border-radius: var(--radius-m);
   background: none;
-  color: var(--color-steel);
+  color: var(--color-muted);
   cursor: pointer;
   transition:
     background-color var(--motion-fast) var(--ease-out),
@@ -79,5 +79,5 @@
 
 .close:hover {
   background: var(--color-raised);
-  color: var(--color-ink);
+  color: var(--color-text);
 }
