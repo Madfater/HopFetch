@@ -9,6 +9,8 @@
     "active": "{{count}} downloading or queued",
     "attention_one": "{{count}} failed task",
     "attention_other": "{{count}} failed tasks"
+,
+    "titleFailed": "{{count}} failed"
   },
   "home": {
     "inputLabel": "Share link",

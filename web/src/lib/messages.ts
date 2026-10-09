@@ -48,3 +48,10 @@ export function taskStatus(t: TFunction, task: Task): StatusText {
       return { text: status, detail: task.message_key === 'messages.downloading' ? '' : message }
   }
 }
+
+// - The tab title: `(n)` for the tasks queued or downloading, then the failed count when any
+//   task failed, then the app name, as in `(2) 1 failed – Hop fetch`.
+export function pageTitle(t: TFunction, active: number, failed: number, name: string): string {
+  const parts = [active > 0 ? `(${active})` : '', failed > 0 ? `${t('nav.titleFailed', { count: failed })} –` : '', name]
+  return parts.filter(Boolean).join(' ')
+}
