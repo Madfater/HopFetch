@@ -259,7 +259,9 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
         <span className={styles.statusText}>
           <StatusLamp status={task.status} text={status.text} unfixable={unfixable} />
         </span>
-        {status.detail && <span className={styles.sub}>{status.detail}</span>}
+        {status.detail && (
+          <span className={styles.sub} title={status.title || undefined}>{status.detail}</span>
+        )}
       </td>
       <td className={styles.cellProvider}>{provider?.name ?? task.provider}</td>
       <td className={styles.cellName}>

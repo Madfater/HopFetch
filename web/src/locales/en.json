@@ -88,6 +88,12 @@
     "preparing": "Preparing",
     "finishing": "Finishing"
   },
+  "stepDetail": {
+    "requesting_key_direct": "Requesting a download key",
+    "requesting_key_proxy": "Requesting a download key",
+    "captcha_attempt": "Reading the captcha",
+    "verifying": "Checking the video"
+  },
   "tasks": {
     "title": "Downloads",
     "filter": {
