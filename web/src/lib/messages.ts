@@ -1,5 +1,6 @@
 import type { TFunction } from 'i18next'
 import type { CodedError, Task } from '../api/types'
+import { isUnfixable } from './tasks'
 
 // - Turns backend translation keys into text, falling back to the backend's own `message` and
 //   then to a generic sentence; raw exception text never reaches the backend's answers.
@@ -24,8 +25,9 @@ export interface StatusText {
 //   such as a restart after the remote file changed, stay as the detail.
 // - A paused task shows its reason as the detail, unless the reason is a plain pause, which
 //   `messages.paused` and `messages.paused_legacy` both are.
+// - A failed task that no retry can fix reads "cannot be downloaded" instead of "failed".
 export function taskStatus(t: TFunction, task: Task): StatusText {
-  const status = t(`status.${task.status}`)
+  const status = t(isUnfixable(task) ? 'status.unfixable' : `status.${task.status}`)
   const message = task.message_key
     ? t(task.message_key, { ...task.message_params, defaultValue: task.message || '' })
     : ''

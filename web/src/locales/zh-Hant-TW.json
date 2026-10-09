@@ -72,7 +72,8 @@
     "paused": "已暫停",
     "completed": "已完成",
     "failed": "失敗",
-    "canceled": "已取消"
+    "canceled": "已取消",
+    "unfixable": "無法下載"
   },
   "phaseState": {
     "preparing": "準備中",
@@ -168,6 +169,7 @@
     "started": "已開始下載「{{name}}」，可以關閉這頁。",
     "completed": "已完成下載「{{name}}」",
     "failed": "「{{name}}」下載失敗：{{reason}}",
+    "unfixable": "「{{name}}」無法下載：{{reason}}",
     "removed": "已刪除任務",
     "cleared_other": "已清除 {{count}} 筆已完成的任務",
     "offline": "連不上伺服器，正在重新連線。",
