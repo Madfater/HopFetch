@@ -1,8 +1,10 @@
 /*
  * - An indicator light: a small circle, solid or hollow, in one of the lamp colors.
- * - `off` shows only a steel ring, for the empty input slot.
- * - A lit lamp casts a soft glow from its `::after`. Only the glow's opacity animates, so the
- *   lamp's own color stays visible while it breathes.
+ * - `off` shows only a muted ring, for the empty input slot.
+ * - A lit lamp shines like a star from its `::after`: a tight bright core and a faint wider
+ *   falloff. Only the glow's opacity animates, so the lamp's own color stays visible while it
+ *   breathes.
+ * - A done lamp is lit but casts no glow, so only work in progress and failures give off light.
  */
 .lamp {
   position: relative;
@@ -23,7 +25,9 @@
   position: absolute;
   inset: -2px;
   border-radius: inherit;
-  box-shadow: 0 0 8px 1px color-mix(in srgb, var(--lamp-color) 70%, transparent);
+  box-shadow:
+    0 0 2px 1px color-mix(in srgb, var(--lamp-color) 85%, transparent),
+    0 0 12px 3px color-mix(in srgb, var(--lamp-color) 30%, transparent);
   opacity: 0;
   pointer-events: none;
 }
@@ -65,24 +69,28 @@
 }
 
 .off {
-  --lamp-color: var(--color-steel);
+  --lamp-color: var(--color-muted);
   background: transparent;
 }
 
-.amber {
-  --lamp-color: var(--color-amber);
+.active {
+  --lamp-color: var(--color-active);
 }
 
-.green {
-  --lamp-color: var(--color-green);
+.done {
+  --lamp-color: var(--color-done);
 }
 
-.red {
-  --lamp-color: var(--color-red);
+.done::after {
+  display: none;
 }
 
-.steel {
-  --lamp-color: var(--color-steel);
+.failed {
+  --lamp-color: var(--color-failed);
+}
+
+.idle {
+  --lamp-color: var(--color-muted);
 }
 
 .status {

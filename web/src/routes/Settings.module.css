@@ -1,7 +1,7 @@
 /*
  * - A 720px column of plates, centered on the same axis as the download page.
  * - A setting is a row: its name and what it does on the left, its control on the right; below
- *   560px the control moves under the text. Rows are parted by a groove in the chassis color.
+ *   560px the control moves under the text. Rows are parted by a groove in the ground color.
  * - While there are unsaved changes or a failed save, the footer of the download settings
  *   sticks to the bottom of the window when the plate runs past it. Its status line and the
  *   Discard button ease in when they change.
@@ -15,7 +15,7 @@
   align-items: center;
   gap: var(--space-2);
   margin-top: var(--space-5);
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .plate {
@@ -38,7 +38,7 @@
 }
 
 .hint {
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
 }
 
@@ -48,7 +48,7 @@
   align-items: center;
   gap: var(--space-2) var(--space-5);
   padding: var(--space-4) var(--space-5);
-  border-top: 1px solid var(--color-chassis);
+  border-top: 1px solid var(--color-ground);
 }
 
 .text {
@@ -63,7 +63,7 @@
 }
 
 .error {
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
   font-size: 0.9rem;
   animation: appear var(--motion-base) var(--ease-out);
 }
@@ -90,20 +90,20 @@
   flex: 1;
   height: 8px;
   overflow: hidden;
-  border-top: 1px solid var(--color-slot-edge-top);
+  border-top: 1px solid var(--color-well-edge-top);
   border-radius: var(--radius-round);
-  background: var(--color-slot);
+  background: var(--color-well);
 }
 
 .meterFill {
   height: 100%;
-  background: var(--color-steel);
+  background: var(--color-muted);
   transform-origin: left;
   transition: transform var(--motion-slow) var(--ease-out);
 }
 
 .free {
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -115,7 +115,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) var(--space-5);
-  border-top: 1px solid var(--color-chassis);
+  border-top: 1px solid var(--color-ground);
   border-radius: 0 0 var(--radius-l) var(--radius-l);
   background: var(--color-panel);
 }
@@ -130,7 +130,7 @@
   flex: 1 1 14rem;
   align-items: center;
   min-width: 0;
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .statusText {
@@ -141,11 +141,11 @@
 }
 
 .dirty {
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .failed {
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .actions {

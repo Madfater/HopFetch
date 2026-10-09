@@ -5,6 +5,8 @@
     "tasks": "下載清單",
     "settings": "設定",
     "storage": "NAS 剩餘",
+    "storageShort": "剩餘",
+    "storageLoading": "正在讀取 NAS 剩餘空間",
     "storageUnknown": "NAS 剩餘空間未知",
     "active": "{{count}} 個下載中或排隊中",
     "attention_other": "{{count}} 個任務失敗",
@@ -84,6 +86,12 @@
     "preparing": "準備中",
     "finishing": "收尾中"
   },
+  "stepDetail": {
+    "requesting_key_direct": "取得下載授權",
+    "requesting_key_proxy": "取得下載授權",
+    "captcha_attempt": "辨識驗證碼",
+    "verifying": "檢查影片"
+  },
   "tasks": {
     "title": "下載清單",
     "filter": {
@@ -108,6 +116,8 @@
     "emptyFiltered": "沒有符合這個篩選的任務",
     "showAll": "顯示全部",
     "progressLabel": "{{name}} 的進度",
+    "progressText": "{{percent}}，已下載 {{done}}，共 {{size}}，{{state}}",
+    "progressTextNoSize": "已下載 {{done}}，{{state}}",
     "fileGone": "已從 NAS 移動或刪除",
     "removeEntry": "從清單移除",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",

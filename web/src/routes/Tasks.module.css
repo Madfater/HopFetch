@@ -4,17 +4,21 @@
  * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
  *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
  *   where its red notes still keep 4.5:1.
- * - Progress fills are scaled, not resized, and glide for 500ms, about the time between two
- *   progress events.
+ * - A progress fill spans the whole track and slides in from the left, so its texture never
+ *   stretches; it glides for 500ms, about the time between two progress events.
+ * - A downloading fill is a strip of a long exposure: teal with an irregular grain of brighter points, one authored 60px tile,
+ *   that slides in with the bytes, and a lit leading edge. A completed fill settles to a solid,
+ *   dimmed green, and a paused one to a dimmed muted tone that keeps 3:1 on the track, so only
+ *   running work is bright.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
- * - An action inside a note is underlined ink text; on a touch screen it grows to a 44px tall
- *   target without moving the text around it.
+ * - An action inside a note is underlined, in the main text color; on a touch screen it grows
+ *   to a 44px tall target without moving the text around it.
  * - Delete stands a little apart from the other actions.
- * - Below 768px each row is a grid: the name with its notes, wrapped to at most two lines; the
- *   status beside the host stacked over the size; the progress beside the actions. The right
- *   column fits three actions, 32px or 44px on a touch screen, so every row's bar ends at the
- *   same place.
+ * - Below 768px each row is a grid of three lines: the name with its notes, wrapped to at most
+ *   two lines; the status, with the percent and size at the right end; the progress bar beside
+ *   the actions. The host is left to screen readers. The right column fits three actions, 32px
+ *   or 44px on a touch screen, so every row's bar ends at the same place.
  */
 .head {
   display: flex;
@@ -44,8 +48,8 @@
 
 .table th {
   padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--color-slot-edge-bottom);
-  color: var(--color-steel);
+  border-bottom: 1px solid var(--color-well-edge-bottom);
+  color: var(--color-muted);
   font-weight: 600;
   font-size: 0.85rem;
   text-align: left;
@@ -108,20 +112,20 @@
 
 .sub {
   display: block;
-  color: var(--color-steel);
+  color: var(--color-muted);
   font-size: 0.85rem;
   white-space: normal;
 }
 
 .subError {
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 .subAction {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-ink);
+  color: var(--color-text);
   font-size: inherit;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -129,7 +133,7 @@
 }
 
 .subAction:disabled {
-  color: var(--color-steel);
+  color: var(--color-muted);
   cursor: default;
 }
 
@@ -160,30 +164,34 @@
   flex: 1;
   height: 6px;
   overflow: hidden;
-  border-top: 1px solid var(--color-slot-edge-top);
+  border-top: 1px solid var(--color-well-edge-top);
   border-radius: var(--radius-round);
-  background: var(--color-slot);
+  background: var(--color-well);
 }
 
 .fill {
   height: 100%;
-  background: var(--color-steel);
-  transform-origin: left;
+  border-radius: var(--radius-round);
+  background-color: color-mix(in oklab, var(--color-muted) 62%, var(--color-well));
   transition:
     transform 500ms linear,
     background-color var(--motion-base) var(--ease-out);
 }
 
 .fillActive {
-  background: var(--color-amber);
+  background-color: var(--color-active);
+  background-image:
+    linear-gradient(to left, color-mix(in oklab, var(--color-active) 30%, white) 0 3px, transparent 3px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='6'%3E%3Ccircle cx='2' cy='1.8' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='7' cy='4.3' r='0.8' fill='white' fill-opacity='0.7'/%3E%3Ccircle cx='12' cy='2.6' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='17' cy='4.8' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='22' cy='1.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='27' cy='3.4' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='32' cy='1.9' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='37' cy='4.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='42' cy='2.8' r='0.8' fill='white' fill-opacity='0.75'/%3E%3Ccircle cx='47' cy='1.3' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='52' cy='4.1' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='57' cy='2.3' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='15' cy='0.8' r='0.6' fill='white' fill-opacity='0.5'/%3E%3Ccircle cx='45' cy='5.1' r='0.6' fill='white' fill-opacity='0.5'/%3E%3C/svg%3E");
+  background-size: auto, 60px 100%;
 }
 
 .fillDone {
-  background: var(--color-green);
+  background-color: color-mix(in oklab, var(--color-done) 60%, var(--color-well));
 }
 
 .fillFailed {
-  background: var(--color-red);
+  background-color: var(--color-failed);
 }
 
 .rate {
@@ -204,7 +212,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  color: var(--color-steel);
+  color: var(--color-muted);
 }
 
 .empty {
@@ -235,6 +243,10 @@
   text-overflow: ellipsis;
 }
 
+.phonePercent {
+  display: none;
+}
+
 @media (max-width: 767px) {
   .table thead {
     position: absolute;
@@ -253,10 +265,9 @@
     display: grid;
     --row-actions: 112px;
 
-    grid-template-columns: minmax(0, 1fr) var(--row-actions);
+    grid-template-columns: minmax(0, 1fr) minmax(var(--row-actions), auto);
     grid-template-areas:
       'name name'
-      'status provider'
       'status size'
       'progress actions';
     align-items: center;
@@ -323,25 +334,41 @@
     min-width: 0;
   }
 
+  .statusText {
+    display: block;
+    white-space: nowrap;
+  }
+
+  .cellStatus,
+  .cellSize {
+    align-self: first baseline;
+  }
+
   .cellProvider {
-    grid-area: provider;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
   .cellSize {
     grid-area: size;
-  }
-
-  .cellProvider,
-  .cellSize {
     white-space: nowrap;
-    color: var(--color-steel);
+    color: var(--color-muted);
     font-size: 0.85rem;
     text-align: right;
   }
 
-  .cellProgress,
-  .cellActions {
-    margin-top: var(--space-1);
+  .phonePercent {
+    display: inline;
+    margin-right: var(--space-2);
+    color: var(--color-text);
+  }
+
+  .percent {
+    display: none;
   }
 
   .cellProgress {

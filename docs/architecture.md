@@ -153,7 +153,7 @@ Stopping the server pauses running jobs the same way, and marks each one with no
 | Path | Responsibility |
 | --- | --- |
 | `app-name.ts` | `APP_NAME`, the only place the product name is written. `vite.config.ts` puts it in `<title>` and preloads the Archivo font |
-| `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the `(n) APP_NAME` tab title |
+| `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the tab title with the active and failed counts |
 | `api/` | Typed client for `/api`. Errors become `ApiError` holding the backend's `{code, key, params, message}` |
 | `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, cancels any task-list fetch in flight, refetches the task list, storage and providers, and replays events that arrived during the refetch. A status change or removal invalidates cached resolve answers |
 | `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |
@@ -177,6 +177,7 @@ The backend sends translation keys, and the frontend translates them.
 - An error's `code` is stable for program logic. Its `key` is usually `errors.<code>`; a variant of the same code has its own key, such as `errors.quota_exceeded_wait`.
 - Every answer also carries `message`, the zh-Hant text rendered from the catalog, for clients without the key.
 - Times and counts are sent as numbers, never as formatted text, so the frontend formats them for its locale. A countdown uses `{{seconds, duration}}`: the `duration` formatter, defined in both `downloader/messages.py` and `web/src/i18n.ts`, shows `m:ss` or `h:mm:ss`. A number that changes the wording is always the `count` param, so English can use i18next's `_one` and `_other` plural keys.
+- A step message that names a mechanic, such as the proxy, the captcha try or ffmpeg, has a short form under `stepDetail.<name>` in `web/src/locales/`. The status cell's detail line shows the short form and keeps the full message as its tooltip; any other step message is shown as it is.
 - `tests/test_messages.py` checks that both catalogs have the same keys and placeholders, and that every key and error code the backend uses exists.
 
 ## Keep2Share flow

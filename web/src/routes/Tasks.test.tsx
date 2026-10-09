@@ -121,12 +121,13 @@ describe('Tasks', () => {
     expect(await screen.findByText('b.rar')).toBeInTheDocument()
   })
 
-  it('shows the state word with the step under it while downloading', async () => {
+  it('shows the state word with the step under it while downloading, the try count only in its tooltip', async () => {
     setup([task({ status: 'downloading', phase: 'captcha', message_key: 'messages.captcha_attempt', message_params: { n: 3 } }),
       task({ id: 'job2', file_name: 'b.rar', status: 'downloading', phase: 'downloading',
         message_key: 'messages.downloading', message_params: { count: 20 } })])
     expect(await screen.findByText('Preparing')).toBeInTheDocument()
-    expect(screen.getByText('Reading the captcha (try 3)')).toBeInTheDocument()
+    expect(screen.getByText('Reading the captcha')).toHaveAttribute('title', 'Reading the captcha (try 3)')
+    expect(screen.queryByText(/try 3/)).not.toBeInTheDocument()
     expect(screen.getByText('Downloading')).toBeInTheDocument()
     expect(screen.queryByText(/connections/)).not.toBeInTheDocument()
   })
@@ -154,6 +155,21 @@ describe('Tasks', () => {
     expect(name.closest('td')).toHaveTextContent(/captcha/i)
     expect(statusCell).toHaveTextContent('Failed')
     expect(statusCell).not.toHaveTextContent(/captcha/i)
+  })
+
+  it('reads the progress bar as percent, bytes of the size, and state', async () => {
+    setup([task(), task({ id: 'job2', file_name: 'b.rar', size: null, status: 'queued', bytes_done: 0 })])
+    expect(await screen.findByRole('progressbar', { name: 'Progress of a.rar' }))
+      .toHaveAttribute('aria-valuetext', '66%, 1.31 GB of 2.00 GB, Paused')
+    expect(screen.getByRole('progressbar', { name: 'Progress of b.rar' }))
+      .toHaveAttribute('aria-valuetext', '0 B downloaded, Queued')
+  })
+
+  it('reads the progress bar in Chinese', async () => {
+    await i18n.changeLanguage('zh-Hant-TW')
+    setup([task()])
+    expect(await screen.findByRole('progressbar', { name: 'a.rar 的進度' }))
+      .toHaveAttribute('aria-valuetext', '66%，已下載 1.31 GB，共 2.00 GB，已暫停')
   })
 
   it('leaves the cost out when deleting a completed task', async () => {
