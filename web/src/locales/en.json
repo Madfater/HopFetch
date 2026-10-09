@@ -109,6 +109,8 @@
     "emptyFiltered": "No tasks match this filter",
     "showAll": "Show all",
     "progressLabel": "Progress of {{name}}",
+    "progressText": "{{percent}}, {{done}} of {{size}}, {{state}}",
+    "progressTextNoSize": "{{done}} downloaded, {{state}}",
     "fileMissing": "File missing",
     "videoCorrupt": "ffmpeg found problems in this video.",
     "loading": "Loading tasks",

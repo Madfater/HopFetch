@@ -102,6 +102,8 @@
     "emptyFiltered": "沒有符合這個篩選的任務",
     "showAll": "顯示全部",
     "progressLabel": "{{name}} 的進度",
+    "progressText": "{{percent}}，已下載 {{done}}，共 {{size}}，{{state}}",
+    "progressTextNoSize": "已下載 {{done}}，{{state}}",
     "fileMissing": "檔案不存在",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",
     "loading": "載入任務中",
