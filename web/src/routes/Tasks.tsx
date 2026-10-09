@@ -26,12 +26,15 @@ import styles from './Tasks.module.css'
 // - A row's status cell holds the state and its step; the task's notes, such as an error or a
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
+// - On a phone the size cell also leads with the percent, so the state, percent and size read
+//   as one line; that copy is hidden from screen readers, which hear the progress bar's text.
+// - The progress bar's text names the percent, the bytes downloaded of the size, and the state.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for canceled ones and failed ones a retry can fix, save for
 //   completed ones whose file exists, delete always. Pause, cancel and delete wait while the file
 //   is being joined or checked, which the backend refuses.
-// - A failed task no retry can fix reads "cannot be downloaded" beside a struck steel lamp, with
+// - A failed task no retry can fix reads "cannot be downloaded" beside a struck idle lamp, with
 //   its reason as a plain note and delete as its only action. Only the All filter shows it.
 // - Cancel and delete open a confirm dialog first; it states the downloaded bytes the action
 //   throws away, which is every byte of a task that is not completed.
@@ -39,8 +42,10 @@ import styles from './Tasks.module.css'
 const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
 
-// - The progress fill's color by status: amber while downloading, green when completed, red when
-//   failed and a retry can fix it; other statuses keep the neutral steel fill.
+// - The progress fill's color by status: active teal while downloading, a quiet done green when
+//   completed, failed red when failed and a retry can fix it; other statuses keep the neutral
+//   muted fill.
+// - An empty fill is hidden, so its edge never shows at the left end of a 0% track.
 const FILL: Partial<Record<Task['status'], string>> = {
   downloading: styles.fillActive,
   completed: styles.fillDone,
@@ -149,7 +154,7 @@ export function Tasks() {
 
       {!all ? (
         <p className={styles.state}>
-          <Lamp color={tasks.isError ? 'red' : 'amber'} pulse={!tasks.isError} />
+          <Lamp color={tasks.isError ? 'failed' : 'active'} pulse={!tasks.isError} />
           {tasks.isError ? t('errors.network') : t('tasks.loading')}
         </p>
       ) : all.length === 0 ? (
@@ -241,6 +246,12 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
   const status = taskStatus(t, task)
   const unfixable = isUnfixable(task)
   const label = (action: string) => t('action.named', { action: t(`action.${action}`), name })
+  const percent = formatPercent(locale, ratio)
+  const progressText = task.size
+    ? t('tasks.progressText', {
+        percent, done: formatBytes(locale, task.bytes_done), size: formatBytes(locale, task.size), state: status.text,
+      })
+    : t('tasks.progressTextNoSize', { done: formatBytes(locale, task.bytes_done), state: status.text })
 
   return (
     <tr id={`task-${task.id}`} className={`${focused ? styles.focused : ''} ${arrived ? styles.arrived : ''}`}>
@@ -262,7 +273,10 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
         )}
         {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
       </td>
-      <td className={`${styles.cellSize} ${styles.right} num`}>{formatBytes(locale, task.size)}</td>
+      <td className={`${styles.cellSize} ${styles.right} num`}>
+        <span className={styles.phonePercent} aria-hidden="true">{percent}</span>
+        {formatBytes(locale, task.size)}
+      </td>
       <td className={styles.cellProgress}>
         <div className={styles.progress}>
           <div
@@ -272,10 +286,11 @@ function TaskRow({ task, provider, focused, arrived, onAction, onConfirm }: RowP
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(ratio * 100)}
+            aria-valuetext={progressText}
           >
-            <div className={`${styles.fill} ${unfixable ? '' : (FILL[task.status] ?? '')}`} style={{ transform: `scaleX(${ratio})` }} />
+            <div className={`${styles.fill} ${unfixable ? '' : (FILL[task.status] ?? '')}`} style={{ transform: `translateX(${(ratio - 1) * 100}%)`, visibility: ratio > 0 ? undefined : 'hidden' }} />
           </div>
-          <span className={`${styles.percent} num`}>{formatPercent(locale, ratio)}</span>
+          <span className={`${styles.percent} num`}>{percent}</span>
         </div>
         {showSpeed && (
           <span className={`${styles.sub} ${styles.rate} num`}>

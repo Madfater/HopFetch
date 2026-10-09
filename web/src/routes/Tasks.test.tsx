@@ -185,6 +185,21 @@ describe('Tasks', () => {
     expect(await screen.findByText('a.rar')).toBeInTheDocument()
   })
 
+  it('reads the progress bar as percent, bytes of the size, and state', async () => {
+    setup([task(), task({ id: 'job2', file_name: 'b.rar', size: null, status: 'queued', bytes_done: 0 })])
+    expect(await screen.findByRole('progressbar', { name: 'Progress of a.rar' }))
+      .toHaveAttribute('aria-valuetext', '66%, 1.31 GB of 2.00 GB, Paused')
+    expect(screen.getByRole('progressbar', { name: 'Progress of b.rar' }))
+      .toHaveAttribute('aria-valuetext', '0 B downloaded, Queued')
+  })
+
+  it('reads the progress bar in Chinese', async () => {
+    await i18n.changeLanguage('zh-Hant-TW')
+    setup([task()])
+    expect(await screen.findByRole('progressbar', { name: 'a.rar 的進度' }))
+      .toHaveAttribute('aria-valuetext', '66%，已下載 1.31 GB，共 2.00 GB，已暫停')
+  })
+
   it('leaves the cost out when deleting a completed task', async () => {
     const { user } = setup([task({ status: 'completed', bytes_done: 2 * GIB, file_exists: true })])
     await user.click(await screen.findByRole('button', { name: 'Delete: a.rar' }))

@@ -3,16 +3,17 @@ import type { Status } from '../api/types'
 import styles from './Lamp.module.css'
 
 // - An indicator light. Color is never the only signal: callers always put text beside it.
-// - A solid amber, green or red lamp is lit and glows; `pulse` makes a lit lamp's glow breathe,
-//   for work in progress.
-// - `struck` draws a bar across a hollow steel lamp: an outcome that has ended and needs nothing,
-//   such as a download no retry can fix. It is never red, which means the lamp needs the user.
+// - A solid active, done or failed lamp is lit; active and failed lamps glow, done lamps do not.
+//   `pulse` makes a lit lamp's glow breathe, for work in progress.
+// - `struck` draws a bar across a hollow idle lamp: an outcome that has ended and needs nothing,
+//   such as a download no retry can fix. It is never the failed color, which means the lamp
+//   needs the user.
 // - A lamp that changes color or fill after its first render blinks once, so the change is
 //   seen. The element is remounted under a new key, which replays the blink animation.
 
-export type LampColor = 'off' | 'amber' | 'green' | 'red' | 'steel'
+export type LampColor = 'off' | 'active' | 'done' | 'failed' | 'idle'
 
-const LIT: LampColor[] = ['amber', 'green', 'red']
+const LIT: LampColor[] = ['active', 'done', 'failed']
 
 interface Props {
   color: LampColor
@@ -36,18 +37,18 @@ export function Lamp({ color, hollow = false, struck = false, pulse = false }: P
 }
 
 const STATUS_LAMP: Record<Status, { color: LampColor; hollow: boolean }> = {
-  queued: { color: 'amber', hollow: true },
-  downloading: { color: 'amber', hollow: false },
-  paused: { color: 'steel', hollow: false },
-  canceled: { color: 'steel', hollow: true },
-  completed: { color: 'green', hollow: false },
-  failed: { color: 'red', hollow: false },
+  queued: { color: 'active', hollow: true },
+  downloading: { color: 'active', hollow: false },
+  paused: { color: 'idle', hollow: false },
+  canceled: { color: 'idle', hollow: true },
+  completed: { color: 'done', hollow: false },
+  failed: { color: 'failed', hollow: false },
 }
 
-const UNFIXABLE_LAMP = { color: 'steel', hollow: true } as const
+const UNFIXABLE_LAMP = { color: 'idle', hollow: true } as const
 
 // - A task status: its lamp followed by `text`. A downloading task's lamp breathes.
-// - `unfixable` marks a failed task no retry can fix: a struck steel lamp instead of red.
+// - `unfixable` marks a failed task no retry can fix: a struck idle lamp instead of the failed one.
 export function StatusLamp({ status, text, unfixable = false }: { status: Status; text: string; unfixable?: boolean }) {
   const lamp = unfixable ? UNFIXABLE_LAMP : STATUS_LAMP[status]
   return (

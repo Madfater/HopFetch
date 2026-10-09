@@ -1,8 +1,12 @@
 /*
  * - The header sticks to the top and has its own view-transition name, so page changes never
  *   move it.
- * - The active tab's underline is its own element, named `nav-indicator` for view
- *   transitions.
+ * - The bar is the indigo shell band. The active tab's underline is gold and is its own
+ *   element, named `nav-indicator` for view transitions.
+ * - The count of active tasks is a teal chip, the color of work in progress.
+ * - Free space shows its long label, or below 421px the amount over a small caption, which
+ *   costs height the bar has spare rather than width. While it loads, a raised block the width
+ *   of an amount breathes in its place.
  */
 .header {
   position: sticky;
@@ -12,7 +16,7 @@
 }
 
 .bar {
-  background: var(--color-panel);
+  background: var(--color-shell);
   border-bottom: 1px solid var(--color-divider);
   box-shadow: var(--shadow-plate);
 }
@@ -37,14 +41,14 @@
   align-items: center;
   gap: var(--space-2);
   min-height: 52px;
-  color: var(--color-steel);
+  color: var(--color-muted);
   text-decoration: none;
   transition: color var(--motion-fast) var(--ease-out);
 }
 
 .tab:hover,
 .current {
-  color: var(--color-ink);
+  color: var(--color-text);
 }
 
 .indicator {
@@ -54,7 +58,7 @@
   left: 0;
   height: 2px;
   border-radius: 2px 2px 0 0;
-  background: var(--color-ink);
+  background: var(--color-accent);
   view-transition-name: nav-indicator;
 }
 
@@ -62,8 +66,8 @@
   min-width: 20px;
   padding: 0 6px;
   border-radius: var(--radius-round);
-  background: var(--color-raised);
-  color: var(--color-ink);
+  background: color-mix(in oklab, var(--color-active) 16%, var(--color-shell));
+  color: var(--color-active);
   font-size: 0.8rem;
   line-height: 20px;
   text-align: center;
@@ -73,7 +77,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
   font-size: 0.8rem;
 }
 
@@ -97,13 +101,13 @@
   display: flex;
   align-items: center;
   margin-left: auto;
-  color: var(--color-steel);
+  color: var(--color-muted);
   white-space: nowrap;
 }
 
 .offline {
   border-bottom: 1px solid var(--color-divider);
-  background: var(--color-chassis);
+  background: var(--color-ground);
   animation: drop-in var(--motion-base) var(--ease-out);
 }
 
@@ -114,7 +118,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: var(--space-2) var(--space-4);
-  color: var(--color-red-text);
+  color: var(--color-failed-text);
 }
 
 @keyframes drop-in {
@@ -135,13 +139,40 @@
   }
 }
 
+.storageShort {
+  display: none;
+}
+
+.pending {
+  border-radius: var(--radius-s);
+  background: var(--color-raised);
+  color: transparent;
+  animation: wait 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes wait {
+  from {
+    opacity: 0.4;
+  }
+}
+
 @media (max-width: 420px) {
-  .storageLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .inner,
+  .tabs {
+    gap: var(--space-3);
+  }
+
+  .storageLong {
+    display: none;
+  }
+
+  .storageShort {
+    display: grid;
+    justify-items: end;
+    line-height: 1.2;
+  }
+
+  .caption {
+    font-size: 0.75rem;
   }
 }

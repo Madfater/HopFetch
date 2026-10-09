@@ -12,7 +12,7 @@
   border: 1px solid transparent;
   border-radius: var(--radius-m);
   background: transparent;
-  color: var(--color-ink);
+  color: var(--color-text);
   cursor: pointer;
   text-decoration: none;
   transition:
@@ -29,7 +29,7 @@
 }
 
 .button:hover:not(:disabled, [aria-disabled='true']) {
-  border-color: var(--color-slot-edge-bottom);
+  border-color: var(--color-well-edge-bottom);
   background: var(--color-raised);
 }
 
@@ -39,7 +39,7 @@
 
 .button:disabled,
 .button[aria-disabled='true'] {
-  color: var(--color-steel);
+  color: var(--color-muted);
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -48,11 +48,11 @@
   --tooltip-from: translateY(4px);
 
   padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--color-slot-edge-bottom);
+  border: 1px solid var(--color-well-edge-bottom);
   border-radius: var(--radius-s);
   background: var(--color-raised);
   box-shadow: var(--shadow-float);
-  color: var(--color-ink);
+  color: var(--color-text);
   font-size: 0.85rem;
   z-index: 20;
   animation: tooltip-in var(--motion-fast) var(--ease-out);

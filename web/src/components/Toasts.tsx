@@ -68,7 +68,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   )
 }
 
-const LAMP = { info: 'steel', success: 'green', error: 'red' } as const
+const LAMP = { info: 'idle', success: 'done', error: 'failed' } as const
 
 function ToastItem({ toast, onClose, closeLabel }: { toast: Toast; onClose: (id: number) => void; closeLabel: string }) {
   return (
