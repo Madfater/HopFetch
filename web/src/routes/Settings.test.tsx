@@ -191,6 +191,25 @@ describe('Settings', () => {
     expect(await screen.findByText('Path copied')).toBeInTheDocument()
   })
 
+  it('keeps the copy check for its full time after the latest copy', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    onTestFinished(() => {
+      vi.useRealTimers()
+      Reflect.deleteProperty(document, 'execCommand')
+    })
+    Object.defineProperty(document, 'execCommand', { value: vi.fn(() => true), configurable: true })
+    setup()
+    const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+    const copy = await screen.findByRole('button', { name: 'Copy path' })
+    await user.click(copy)
+    await act(() => vi.advanceTimersByTime(1000))
+    await user.click(copy)
+    await act(() => vi.advanceTimersByTime(1000))
+    expect(screen.getByText('Path copied')).toBeInTheDocument()
+    await act(() => vi.advanceTimersByTime(700))
+    expect(screen.queryByText('Path copied')).toBeNull()
+  })
+
   it('applies the language at once', async () => {
     const { user } = setup()
     await user.click(await screen.findByRole('radio', { name: '繁體中文' }))

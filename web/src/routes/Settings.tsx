@@ -222,7 +222,8 @@ function Row({ id, label, hint, error, children }: RowProps) {
 //   the navigation bar reads.
 // - The folder is set in monospace and may wrap only after a path separator; a single
 //   segment wider than the line breaks inside itself. Copy puts it on the clipboard, then
-//   shows a check for COPIED_MS and announces it; a failed copy raises an error toast.
+//   shows a check for COPIED_MS from the latest copy and announces it; a failed copy raises an
+//   error toast.
 function StoragePlate({ root }: { root: string }) {
   const { t, i18n } = useTranslation()
   const storage = useQuery({ queryKey: STORAGE_KEY, queryFn: api.storage, staleTime: Infinity }).data
@@ -270,17 +271,22 @@ function StoragePlate({ root }: { root: string }) {
 function CopyButton({ text }: { text: string }) {
   const { t } = useTranslation()
   const toast = useToast()
+  const [copies, setCopies] = useState(0)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!copied) return
     const timer = window.setTimeout(() => setCopied(false), COPIED_MS)
     return () => window.clearTimeout(timer)
-  }, [copied])
+  }, [copied, copies])
 
   const copy = async () => {
-    if (await copyText(text)) setCopied(true)
-    else toast(t('toast.copyFailed'), 'error')
+    if (await copyText(text)) {
+      setCopied(true)
+      setCopies((n) => n + 1)
+    } else {
+      toast(t('toast.copyFailed'), 'error')
+    }
   }
 
   return (
