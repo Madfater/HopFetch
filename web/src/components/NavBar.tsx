@@ -14,8 +14,11 @@ import styles from './NavBar.module.css'
 //   the failed tasks that wait on the user.
 // - The active tab's underline has a view-transition name, so a page change slides it to the
 //   new tab.
-// - Free space is read once and then kept current by `storage` events. On a narrow screen its
-//   label is left to screen readers, so the tabs and the amount fit on one line.
+// - Free space is read once and then kept current by `storage` events. On a narrow screen the
+//   amount sits over a one-word caption, such as "free", so the tabs and the amount fit on one
+//   line.
+// - Until the first answer arrives, a dim placeholder stands in for the amount and screen readers
+//   hear that the free space is being checked; only a failed request says it is unknown.
 // - While the event stream is down, a line under the bar says the app is reconnecting.
 
 const TABS = [
@@ -59,11 +62,8 @@ export function NavBar({ connected }: { connected: boolean }) {
             ))}
           </nav>
           <p className={styles.storage}>
-            {storage.data ? (
-              <span>
-                <span className={styles.storageLabel}>{t('nav.storage')}</span>{' '}
-                <span className="num">{formatStorage(i18n.language, storage.data.free_bytes)}</span>
-              </span>
+            {storage.data || storage.isPending ? (
+              <Storage amount={storage.data ? formatStorage(i18n.language, storage.data.free_bytes) : null} />
             ) : (
               t('nav.storageUnknown')
             )}
@@ -79,6 +79,25 @@ export function NavBar({ connected }: { connected: boolean }) {
         </div>
       )}
     </header>
+  )
+}
+
+// - The free space in its long and short forms; CSS shows one of them. A null `amount` is still
+//   loading: both forms keep their words around a placeholder, hidden from screen readers.
+function Storage({ amount }: { amount: string | null }) {
+  const { t } = useTranslation()
+  const value = <span className={amount ? 'num' : styles.pending}>{amount ?? '00 GB'}</span>
+  return (
+    <>
+      <span aria-hidden={amount ? undefined : true}>
+        <span className={styles.storageLong}>{t('nav.storage')} {value}</span>
+        <span className={styles.storageShort}>
+          {value}
+          <span className={styles.caption}>{t('nav.storageShort')}</span>
+        </span>
+      </span>
+      {!amount && <span className="visually-hidden">{t('nav.storageLoading')}</span>}
+    </>
   )
 }
 

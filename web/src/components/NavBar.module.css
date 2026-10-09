@@ -4,6 +4,9 @@
  * - The bar is the indigo shell band. The active tab's underline is gold and is its own
  *   element, named `nav-indicator` for view transitions.
  * - The count of active tasks is a teal chip, the color of work in progress.
+ * - Free space shows its long label, or below 421px the amount over a small caption, which
+ *   costs height the bar has spare rather than width. While it loads, a raised block the width
+ *   of an amount breathes in its place.
  */
 .header {
   position: sticky;
@@ -136,13 +139,40 @@
   }
 }
 
+.storageShort {
+  display: none;
+}
+
+.pending {
+  border-radius: var(--radius-s);
+  background: var(--color-raised);
+  color: transparent;
+  animation: wait 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes wait {
+  from {
+    opacity: 0.4;
+  }
+}
+
 @media (max-width: 420px) {
-  .storageLabel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+  .inner,
+  .tabs {
+    gap: var(--space-3);
+  }
+
+  .storageLong {
+    display: none;
+  }
+
+  .storageShort {
+    display: grid;
+    justify-items: end;
+    line-height: 1.2;
+  }
+
+  .caption {
+    font-size: 0.75rem;
   }
 }

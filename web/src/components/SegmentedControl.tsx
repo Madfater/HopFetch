@@ -10,8 +10,9 @@ import styles from './SegmentedControl.module.css'
 // - The thumb spans from the track's start to the end of the last segment and is clipped to the
 //   chosen one, so it slides by animating its clip, never its size or place. Its span comes from
 //   the segments, not the track's scroll width, which the thumb itself would widen.
-// - `data-more` marks a track whose segments run past its right edge, measured on resize and
-//   scroll, so the edge can fade to show that the track scrolls.
+// - `data-more` marks a track whose segments run past its right edge, and `data-less` one
+//   scrolled away from its start, measured on resize and scroll, so each edge can fade to show
+//   that the track scrolls that way.
 
 export interface Segment<T extends string> {
   value: T
@@ -32,12 +33,14 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
   const track = useRef<HTMLDivElement>(null)
   const [thumb, setThumb] = useState<{ x: number; width: number; span: number } | null>(null)
   const [more, setMore] = useState(false)
+  const [less, setLess] = useState(false)
 
   useLayoutEffect(() => {
     const root = track.current
     if (!root) return
     const measure = () => {
       setMore(root.scrollLeft + root.clientWidth < root.scrollWidth - 1)
+      setLess(root.scrollLeft > 1)
       const chosen = root.querySelector<HTMLElement>('[role="radio"][data-state="checked"]')
       if (!chosen) return
       const segments = root.querySelectorAll<HTMLElement>('[role="radio"]')
@@ -60,7 +63,7 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
   }, [value, options.length])
 
   return (
-    <RadioGroup.Root ref={track} className={styles.track} data-more={more || undefined} value={value} orientation="horizontal" loop
+    <RadioGroup.Root ref={track} className={styles.track} data-more={more || undefined} data-less={less || undefined} value={value} orientation="horizontal" loop
       aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
       onValueChange={(next) => onChange(next as T)}>
       {thumb && (

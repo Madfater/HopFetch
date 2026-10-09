@@ -153,7 +153,7 @@ Stopping the server pauses running jobs the same way, and marks each one with no
 | Path | Responsibility |
 | --- | --- |
 | `app-name.ts` | `APP_NAME`, the only place the product name is written. `vite.config.ts` puts it in `<title>` and preloads the Archivo font |
-| `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the `(n) APP_NAME` tab title |
+| `App.tsx` | Providers, routes (`/`, `/tasks`, `/settings`), the single event stream, completion toasts, and the tab title with the active and failed counts |
 | `api/` | Typed client for `/api`. Errors become `ApiError` holding the backend's `{code, key, params, message}` |
 | `lib/events.ts` | Opens the `EventSource` and writes `task`, `task_removed` and `storage` events into the query cache. Each open, including reconnects, cancels any task-list fetch in flight, refetches the task list, storage and providers, and replays events that arrived during the refetch. A status change or removal invalidates cached resolve answers |
 | `hooks/useTasks.ts` | The task list and provider queries shared by all pages. They never refetch on mount, since a mount-time fetch could land an older snapshot over a newer event |

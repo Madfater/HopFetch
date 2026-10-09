@@ -2,7 +2,8 @@
  * - A recessed track; the chosen segment sits on the lighter `selected` face, which slides
  *   between segments.
  * - A track wider than its container scrolls sideways inside itself instead of widening the
- *   page, and its right edge fades while more segments lie past it.
+ *   page; its right edge fades while more segments lie past it, and its left edge while it is
+ *   scrolled away from the start.
  * - Below 480px the segments take less padding, so more of them fit on a phone.
  * - The focus ring sits just outside the segment, within the track's padding, so it is drawn
  *   against the slot color rather than the lighter chosen face.
@@ -23,6 +24,14 @@
 
 .track[data-more] {
   mask-image: linear-gradient(to right, #000 calc(100% - 32px), transparent);
+}
+
+.track[data-less] {
+  mask-image: linear-gradient(to left, #000 calc(100% - 32px), transparent);
+}
+
+.track[data-more][data-less] {
+  mask-image: linear-gradient(to right, transparent, #000 32px, #000 calc(100% - 32px), transparent);
 }
 
 .thumb {
