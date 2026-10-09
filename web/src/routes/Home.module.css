@@ -1,6 +1,8 @@
 /*
- * - The home column, centered and at most 560px wide. The product name is small, so the slot
- *   leads the page.
+ * - The home column, centered and at most 560px wide.
+ * - The product name is a nameplate stamped into the chassis: wide Archivo in ink, its letters
+ *   pressed in with a dark upper and lit lower edge, like the slot below it. It stays smaller
+ *   than the slot is tall, so the slot still leads the page.
  * - The input slot is the page's one deep element: a recessed field with a dark top and left
  *   edge, a lit bottom edge and an inset shade. Its focus ring eases out from the edge. While
  *   the lamp is red its whole edge turns red, and a link dragged over it turns the edge to
@@ -21,14 +23,18 @@
 }
 
 .logo {
-  margin-bottom: var(--space-4);
-  color: var(--color-steel);
+  margin-bottom: var(--space-5);
+  color: var(--color-ink);
   font-family: var(--font-numeric);
   font-stretch: 125%;
-  font-weight: 500;
-  font-size: 1.25rem;
-  line-height: 1.2;
+  font-weight: 700;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
   text-align: center;
+  text-shadow:
+    0 -1px 0 var(--color-slot-edge-top),
+    0 1px 0 var(--color-edge-light);
 }
 
 .slot {
