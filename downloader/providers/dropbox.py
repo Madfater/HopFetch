@@ -26,7 +26,7 @@ def download_url(url: str) -> str:
     - Every other query parameter, `rlkey` above all, is kept as given; `rlkey` is what grants
       access to a `/scl/fi/` link.
     - `raw=1` would win over `dl=1` and render the file instead, so it is dropped.
-    - `pwd` is this app's own parameter and never reaches Dropbox.
+    - `pwd`, where share passwords would go, is dropped so it never reaches Dropbox.
     - Raises `ProviderError("invalid_url", "errors.invalid_url_rlkey")` for a `/scl/fi/` link
       without `rlkey`, which Dropbox would answer with its login page.
     """
