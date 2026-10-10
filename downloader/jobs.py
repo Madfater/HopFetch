@@ -156,7 +156,7 @@ class Job:
     resume_on_start: bool = False
 
     def public(self, root: Path) -> dict:
-        """Return the task object the API exposes; links and paths stay private.
+        """Return the task object the API exposes; download links and paths stay private.
 
         - `url` is the share link the task was created from, normalized, so the user can copy it.
         - `eta` is known only while downloading with a measured speed.
