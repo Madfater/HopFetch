@@ -46,6 +46,7 @@ describe('NavBar', () => {
     const tab = await screen.findByRole('link', { name: /Downloads/ })
     expect(await screen.findByText('2 failed tasks')).toBeInTheDocument()
     expect(tab).toHaveTextContent('1 downloading or queued')
+    expect(tab).toHaveAccessibleName(/^Downloads, ?1 downloading or queued, ?2 failed tasks$/)
   })
 
   it('says free space is being checked until the first answer, then shows it', async () => {

@@ -20,6 +20,8 @@ import styles from './NavBar.module.css'
 // - Until the first answer arrives, a dim placeholder stands in for the amount and screen readers
 //   hear that the free space is being checked; only a failed request says it is unknown.
 // - While the event stream is down, a line under the bar says the app is reconnecting.
+// - Each count a screen reader hears in the Downloads tab is set off by a hidden separator, so
+//   the tab's name reads as a list rather than one run-on phrase.
 
 const TABS = [
   { to: '/', key: 'nav.home', end: true, counted: false },
@@ -52,6 +54,7 @@ export function NavBar({ connected }: { connected: boolean }) {
                           <Lamp color="failed" />
                           <span className="num">{failed}</span>
                         </span>
+                        <span className="visually-hidden">{t('a11y.separator')}</span>
                         <span className="visually-hidden">{t('nav.attention', { count: failed })}</span>
                       </>
                     )}
@@ -104,6 +107,7 @@ function Storage({ amount }: { amount: string | null }) {
 // - The count badge, hidden at zero. `value` is null until the task list has loaded, so the
 //   first count shows without a pop; later changes pop it.
 function Count({ value, label }: { value: number | null; label: string }) {
+  const { t } = useTranslation()
   const [shown, setShown] = useState(value)
   const [pops, setPops] = useState(0)
   if (value !== shown) {
@@ -116,6 +120,7 @@ function Count({ value, label }: { value: number | null; label: string }) {
       <span key={pops} className={`${styles.count} ${pops > 0 ? styles.pop : ''} num`} aria-hidden="true">
         {value}
       </span>
+      <span className="visually-hidden">{t('a11y.separator')}</span>
       <span className="visually-hidden">{label}</span>
     </>
   )

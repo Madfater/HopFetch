@@ -214,5 +214,8 @@
   "errors": {
     "network": "Cannot reach the server. Check that the service is running, then try again.",
     "unknown": "The request could not be completed. Try again."
+  },
+  "a11y": {
+    "separator": ", "
   }
 }
