@@ -21,7 +21,7 @@
  * - The supported sites row turns invisible while the input holds text, keeping its height.
  * - A recent task is a full-width link row with a panel hover; one that arrived while the page
  *   is open flashes once. Its percent, or a failed task's reason, is set in the muted tone.
- *   The name keeps at least 9rem or 40% of the row; a reason that no longer fits beside the
+ *   The name keeps at least 9rem or 40% of the row; a reason too wide to sit beside the
  *   status wraps under it.
  */
 .home {
