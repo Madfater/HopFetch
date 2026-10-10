@@ -48,6 +48,24 @@ export function ProviderMark({ icon }: { icon: string }) {
       </svg>
     )
   }
+  if (icon === 'mediafire') {
+    return (
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+        <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M9 13.5c-1.9 0-3.3-1.4-3.3-3.2 0-1.9 1.6-2.9 2.2-4.8.9.9 1.2 1.9 1.1 2.7.6-.4 1-1 1.2-1.8 1.2 1 2.1 2.3 2.1 3.9 0 1.8-1.4 3.2-3.3 3.2z"
+          fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
+  if (icon === 'dropbox') {
+    return (
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+        <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M5 7.2 9 4.8l4 2.4-4 2.4zM5 7.2v3.6l4 2.4 4-2.4V7.2M9 9.6v3.6" fill="none" stroke="currentColor"
+          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
       <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
