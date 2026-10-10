@@ -150,7 +150,7 @@ components:
 
 A download is an astrophotography exposure: many short sub-exposures stacked into one image while nobody watches, the way byte ranges stack into one file on the NAS. The dashboard is the night sky around that exposure. The ground is blue-black, the navigation is a deeper indigo band, text is star-white, and color only appears where the narrowband lines of a long exposure would: teal for light still being collected, pale green for a finished frame, red for a failure. Star gold is not a state at all. It is the operator's hand, and it marks only the places the operator acts.
 
-The interface is dark only, by product commitment. Surfaces are flat and quiet; the input slot on the Download page is the one deep element, and the active progress fill is the one signature texture. The operator should be able to glance at the task list, see which rows are still collecting light, which are done and which need them, and leave.
+The interface is dark only, by product commitment. Surfaces are flat and quiet; the input slot on the Download page is the one deep element, and the star grain of the progress fill is the one signature texture: bright on running work, faint and still on finished work, so the sky never goes empty when nothing is downloading. The operator should be able to glance at the task list, see which rows are still collecting light, which are done and which need them, and leave.
 
 The palette is defined as role-named CSS custom properties in `web/src/styles/tokens.css`, derived from OKLCH with hue 264 for the neutrals and written as hex. A light theme is not part of the product, so the token set holds one dark set of values.
 
@@ -159,7 +159,7 @@ The palette is defined as role-named CSS custom properties in `web/src/styles/to
 - Three state colors (teal, green, red), each always paired with a text label.
 - Star gold reserved for the operator's own actions and keyboard focus.
 - Flat plates; depth only where it encodes elevation.
-- A star-grain progress fill that slides in with the bytes.
+- A star-grain progress fill that slides in with the bytes, and stays faintly in finished frames.
 - Archivo with a width axis for the name, page titles and every number; system text everywhere else, including Chinese.
 
 ## Colors
@@ -171,7 +171,7 @@ A cold night sky with three narrowband state lines and one warm gold for the hum
 
 ### Secondary
 - **OIII Teal** (#4dd4db, oklch(80% 0.115 200)): work in progress. Lamps for checking, queued, downloading and unsaved settings, the active progress fill, the 1px ring of a queued progress track, and the count chip on the Downloads tab (teal text on teal mixed 16% into the shell).
-- **Pale Green** (#9cdd76, oklch(83% 0.15 135)): finished work and links that can be downloaded. Completed progress fills use it mixed 60% into the well, so finished rows sit quieter than running ones.
+- **Pale Green** (#9cdd76, oklch(83% 0.15 135)): finished work and links that can be downloaded. Completed progress fills use it mixed 60% into the well, with the star grain showing through a 75% wash of that mix, so finished rows sit quieter than running ones.
 - **H-Alpha Red** (#f35863, oklch(67% 0.19 20)): failure. Failed lamps, failed progress fills, the ring and 28% tint of a failed progress track, and the danger button's hover face.
 - **H-Alpha Red Text** (#f8767a): every error text, the danger button outline, the invalid slot edge and the offline banner. It is lighter than H-Alpha Red so it keeps 4.5:1 on the raised face.
 
@@ -194,7 +194,7 @@ A cold night sky with three narrowband state lines and one warm gold for the hum
 
 **The Label Beside Every Light Rule.** A state color always appears next to its text label. Color is never the only carrier of status.
 
-**The Only Running Work Is Bright Rule.** Full-strength teal and red are for work in progress and failures. Finished and paused work is drawn in dimmed mixes so the eye lands on what is still moving or needs a decision.
+**The Only Running Work Is Bright Rule.** Full-strength teal and red are for work in progress and failures. Finished and paused work is drawn in dimmed mixes so the eye lands on what is still moving or needs a decision. A finished fill may keep the star grain only at a fraction of its strength, still, with no lit edge and no glow.
 
 ## Typography
 
@@ -276,7 +276,7 @@ Corners are gentle and consistent: 4px for tooltips and keys, 8px for buttons, i
 - **Segmented control:** a recessed well track with 3px padding; the chosen segment is a Selected Indigo face that slides between segments. An overflowing track scrolls inside itself and fades its right edge.
 
 ### Progress fill (signature)
-A 6px pill track in the deep well with a dark top edge. The fill always spans the full track width and slides in from the left by transform over 500ms linear, so its texture never stretches. A downloading fill is teal carrying an irregular grain of brighter points from one authored 60px SVG tile, with a 3px leading edge lit 30% toward white: a strip of the stack, still collecting light. Completed fills settle to green mixed 60% into the well, paused fills to mist mixed 62% into the well, failed fills to solid red. The track repeats the status lamp so empty bars still differ: a queued track carries a 1px teal inner ring, a canceled one a mist ring, and a failed one a red ring over the well tinted 28% red.
+A 6px pill track in the deep well with a dark top edge. The fill always spans the full track width and slides in from the left by transform over 500ms linear, so its texture never stretches. A downloading fill is teal carrying an irregular grain of brighter points from one authored 60px SVG tile, with a 3px leading edge lit 30% toward white: a strip of the stack, still collecting light. Completed fills settle to green mixed 60% into the well and keep the same grain tile, static, under a 75% wash of that green, so a finished frame keeps faint stars without an edge or glow; paused fills to mist mixed 62% into the well, failed fills to solid red. The track repeats the status lamp so empty bars still differ: a queued track carries a 1px teal inner ring, a canceled one a mist ring, and a failed one a red ring over the well tinted 28% red.
 
 ### Motion
 Fast (120ms) for hover, press and tooltips; base (200ms) for toggles and small entrances; slow (320ms) for the preview sliding out from under the slot and for page-level pops. Everything that enters or moves decelerates on `cubic-bezier(0.2, 0.8, 0.2, 1)` with no overshoot; exits use a short ease-in. Pages crossfade on opacity while the header and toasts hold still. Under reduced motion every animation completes at once.

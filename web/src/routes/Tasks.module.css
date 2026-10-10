@@ -9,9 +9,10 @@
  * - A progress fill spans the whole track and slides in from the left, so its texture never
  *   stretches; it glides for 500ms, about the time between two progress events.
  * - A downloading fill is a strip of a long exposure: teal with an irregular grain of brighter points, one authored 60px tile,
- *   that slides in with the bytes, and a lit leading edge. A completed fill settles to a solid,
- *   dimmed green, and a paused one to a dimmed muted tone that keeps 3:1 on the track, so only
- *   running work is bright.
+ *   that slides in with the bytes, and a lit leading edge. A completed fill settles to dimmed
+ *   green that keeps the same grain under a 75% wash of that green, so a finished frame keeps
+ *   faint, still stars with no edge and no glow. A paused fill settles to a dimmed muted tone
+ *   that keeps 3:1 on the track, so only running work is bright.
  * - The name cell carries the task's notes under the name, and the progress cell carries the
  *   speed under the bar, so the wide name column holds the long text.
  * - An action inside a note is underlined, in the main text color; on a touch screen it grows
@@ -185,6 +186,7 @@
 }
 
 .fill {
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='6'%3E%3Ccircle cx='2' cy='1.8' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='7' cy='4.3' r='0.8' fill='white' fill-opacity='0.7'/%3E%3Ccircle cx='12' cy='2.6' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='17' cy='4.8' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='22' cy='1.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='27' cy='3.4' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='32' cy='1.9' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='37' cy='4.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='42' cy='2.8' r='0.8' fill='white' fill-opacity='0.75'/%3E%3Ccircle cx='47' cy='1.3' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='52' cy='4.1' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='57' cy='2.3' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='15' cy='0.8' r='0.6' fill='white' fill-opacity='0.5'/%3E%3Ccircle cx='45' cy='5.1' r='0.6' fill='white' fill-opacity='0.5'/%3E%3C/svg%3E");
   height: 100%;
   border-radius: var(--radius-round);
   background-color: color-mix(in oklab, var(--color-muted) 62%, var(--color-well));
@@ -197,12 +199,17 @@
   background-color: var(--color-active);
   background-image:
     linear-gradient(to left, color-mix(in oklab, var(--color-active) 30%, white) 0 3px, transparent 3px),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='60' height='6'%3E%3Ccircle cx='2' cy='1.8' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='7' cy='4.3' r='0.8' fill='white' fill-opacity='0.7'/%3E%3Ccircle cx='12' cy='2.6' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='17' cy='4.8' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='22' cy='1.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='27' cy='3.4' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='32' cy='1.9' r='0.7' fill='white' fill-opacity='0.6'/%3E%3Ccircle cx='37' cy='4.4' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='42' cy='2.8' r='0.8' fill='white' fill-opacity='0.75'/%3E%3Ccircle cx='47' cy='1.3' r='0.9' fill='white' fill-opacity='0.9'/%3E%3Ccircle cx='52' cy='4.1' r='0.8' fill='white' fill-opacity='0.8'/%3E%3Ccircle cx='57' cy='2.3' r='1.0' fill='white' fill-opacity='1'/%3E%3Ccircle cx='15' cy='0.8' r='0.6' fill='white' fill-opacity='0.5'/%3E%3Ccircle cx='45' cy='5.1' r='0.6' fill='white' fill-opacity='0.5'/%3E%3C/svg%3E");
+    var(--grain);
   background-size: auto, 60px 100%;
 }
 
 .fillDone {
-  background-color: color-mix(in oklab, var(--color-done) 60%, var(--color-well));
+  --done: color-mix(in oklab, var(--color-done) 60%, var(--color-well));
+  background-color: var(--done);
+  background-image:
+    linear-gradient(color-mix(in oklab, var(--done) 75%, transparent) 0 0),
+    var(--grain);
+  background-size: auto, 60px 100%;
 }
 
 .fillFailed {
