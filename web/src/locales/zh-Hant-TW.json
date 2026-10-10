@@ -241,7 +241,10 @@
     "interrupted": "服務重新啟動",
     "integrity_failed": "檢查未通過",
     "invalid_url_key": "金鑰錯誤",
-    "file_missing": "NAS 上找不到"
+    "file_missing": "NAS 上找不到",
+    "upstream_error_captcha_wall": "真人驗證",
+    "invalid_url_rlkey": "連結不完整",
+    "private_password": "設有密碼"
   },
   "a11y": {
     "separator": "，"

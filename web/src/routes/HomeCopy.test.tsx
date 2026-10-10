@@ -84,14 +84,14 @@ describe('Home copy', () => {
   it('names the supported sites in the empty input', async () => {
     setup()
     await vi.waitFor(() =>
-      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Paste a Keep2Share or MEGA link'),
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Paste a Keep2Share, MEGA, MediaFire, or Dropbox link'),
     )
   })
 
   it('names the supported sites when a link is from another site', async () => {
     const user = setup()
     await paste(user, 'https://example.com/file/abc')
-    await screen.findByText('Only Keep2Share and MEGA links are supported.')
+    await screen.findByText('Only Keep2Share, MEGA, MediaFire, and Dropbox links are supported.')
   })
 
   it('says where a downloadable file goes, and the start toast says the page can be closed', async () => {
@@ -143,10 +143,10 @@ describe('Home copy in Traditional Chinese', () => {
   it('names the supported sites in the empty input and for a link from another site', async () => {
     const user = setup()
     await vi.waitFor(() =>
-      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', '貼上 Keep2Share 或 MEGA 的分享連結'),
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', '貼上 Keep2Share、MEGA、MediaFire 或 Dropbox 的分享連結'),
     )
     await paste(user, 'https://example.com/file/abc')
-    await screen.findByText('目前只支援 Keep2Share 和 MEGA 的連結。')
+    await screen.findByText('目前只支援 Keep2Share、MEGA、MediaFire 和 Dropbox 的連結。')
   })
 
   it('says 檢查 while a link is being checked', async () => {

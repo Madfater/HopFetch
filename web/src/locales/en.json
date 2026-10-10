@@ -258,7 +258,10 @@
     "interrupted": "Server restarted",
     "integrity_failed": "Integrity check failed",
     "invalid_url_key": "Wrong key",
-    "file_missing": "Missing on NAS"
+    "file_missing": "Missing on NAS",
+    "upstream_error_captcha_wall": "Human check",
+    "invalid_url_rlkey": "Link incomplete",
+    "private_password": "Password set"
   },
   "a11y": {
     "separator": ", "

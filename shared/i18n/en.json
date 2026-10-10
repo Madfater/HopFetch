@@ -73,6 +73,9 @@
     "interrupted": "The server restarted and the download stopped. Retry to try again.",
     "invalid_state_not_resumable": "This task cannot be paused because the host does not support resuming.",
     "integrity_failed": "The downloaded file failed its integrity check. Retry to download it again.",
-    "invalid_url_key": "The decryption key in this link is wrong. Copy the full link again, including the part after #."
+    "invalid_url_key": "The decryption key in this link is wrong. Copy the full link again, including the part after #.",
+    "upstream_error_captcha_wall": "{{provider}} asked for a human check that this downloader cannot pass. Try again later.",
+    "invalid_url_rlkey": "This Dropbox link is missing its rlkey part. Copy the full link again.",
+    "private_password": "This file is protected by a password, which this downloader cannot enter yet."
   }
 }

@@ -15,5 +15,23 @@
       "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/file/([A-Za-z0-9_-]{8})#[A-Za-z0-9_-]{43}$",
       "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/#!([A-Za-z0-9_-]{8})![A-Za-z0-9_-]{43}$"
     ]
+  },
+  {
+    "id": "mediafire",
+    "name": "MediaFire",
+    "icon": "mediafire",
+    "patterns": [
+      "^https?://(?:www\\.)?mediafire\\.com/(?:file|download)/([A-Za-z0-9]+)(?:[/?#].*)?$",
+      "^https?://(?:www\\.)?mediafire\\.com/\\?([A-Za-z0-9]+)(?:[&#].*)?$"
+    ]
+  },
+  {
+    "id": "dropbox",
+    "name": "Dropbox",
+    "icon": "dropbox",
+    "patterns": [
+      "^https?://(?:www\\.|dl\\.)?dropbox\\.com/scl/fi/([A-Za-z0-9]+)(?:[/?#].*)?$",
+      "^https?://(?:www\\.|dl\\.)?dropbox\\.com/s/([A-Za-z0-9]+)(?:[/?#].*)?$"
+    ]
   }
 ]
