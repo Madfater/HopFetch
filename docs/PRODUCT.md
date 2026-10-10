@@ -18,7 +18,7 @@ Success means the file shows up complete and correct under its real name, and th
 
 ## Positioning
 
-Free Keep2Share links normally give one rate-limited connection, sit behind an image captcha, and make an IP wait between downloads. Hop fetch solves the captcha with offline OCR. It turns one free download key into many links and fetches byte ranges over them in parallel into resumable part files. It waits out cooldowns with a visible countdown. MEGA public links get the same multi-connection engine, with decryption and an integrity check at assembly. All of this runs headless on the user's own NAS, with nothing to install on the client.
+Free Keep2Share links normally give one rate-limited connection, sit behind an image captcha, and make an IP wait between downloads. Hop fetch solves the captcha with offline OCR. It turns one free download key into many links and fetches byte ranges over them in parallel into resumable part files. It waits out cooldowns with a visible countdown. MEGA public links get the same multi-connection engine, with decryption and an integrity check at assembly. MediaFire and Dropbox links get it too, with a hash check for MediaFire. All of this runs headless on the user's own NAS, with nothing to install on the client.
 
 ## Operating Context
 
@@ -29,7 +29,7 @@ Free Keep2Share links normally give one rate-limited connection, sit behind an i
 
 ## Capabilities and Constraints
 
-- Providers: Keep2Share (`k2s.cc`, `keep2share.cc`) free links and MEGA (`mega.nz`) public file links. Every other URL is rejected by the backend allowlist.
+- Providers: Keep2Share (`k2s.cc`, `keep2share.cc`) free links, MEGA (`mega.nz`) public file links, MediaFire (`mediafire.com`) public file links and Dropbox (`dropbox.com`) shared file links. Every other URL is rejected by the backend allowlist.
 - Task statuses: `queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`. While downloading, the phases are `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` and `verifying`.
 - Pause, cancel and delete are refused during `assembling` and `verifying`.
 - Editable settings: connections (1 to 64), split size (at least 20 MiB), public proxies on or off, and max active jobs. The download root is shown read-only.

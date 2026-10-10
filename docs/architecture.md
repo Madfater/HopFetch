@@ -6,9 +6,11 @@ Navigation map of the codebase. When this file and the code disagree, the code w
 
 A web app, meant for a NAS on a LAN, that downloads files from file hosting platforms over many connections at once. A FastAPI backend runs download jobs in background threads, pushes changes to the browser over server-sent events, and serves a React dashboard. Each platform is a provider: it turns a user's URL into file info and a list of direct links. A shared engine then fetches byte ranges over those links in parallel into resumable part files.
 
-There are two providers:
+There are four providers:
 - **Keep2Share (k2s.cc):** its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR and turns one free download key into many links.
 - **MEGA (mega.nz):** public file links. Content is encrypted with the key in the link, so the app decrypts it while assembling.
+- **MediaFire (mediafire.com):** public file links. The direct link is read from the file page, and the file is checked against the SHA-256 the public API reports.
+- **Dropbox (dropbox.com):** shared file links. The share link, forced to download, is the download link itself.
 
 The provider patterns are the allowlist: any other URL is rejected, so the backend never fetches addresses a user picks.
 
@@ -32,6 +34,8 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/providers/__init__.py` | `ProviderRegistry`, the URL allowlist, and `default_registry()` |
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
 | `downloader/providers/mega.py` | MEGA public file links over the `cs` API, and `MegaDecoder` for decryption and the MAC check |
+| `downloader/providers/mediafire.py` | MediaFire public file links: the `file/get_info` API, the file page's download button, and `Sha256Decoder` for the hash check |
+| `downloader/providers/dropbox.py` | Dropbox shared file links, forced to `dl=1`, with errors read from page titles |
 | `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
 | `shared/provider-test-cases.json` | URL matching cases run by both pytest and the frontend tests |
 | `shared/i18n/` | Catalogs of backend messages and errors, `zh-Hant-TW.json` and `en.json`, shared with the frontend |
@@ -199,6 +203,32 @@ The backend sends translation keys, and the frontend translates them.
 3. `generate_links` asks for the same node with `"g": 1` and hands its download URL to the engine once per connection. That URL answers Range requests on many connections at once and sends no ETag or Last-Modified. MEGA sets `proxy_downloads`, so a task that uses proxies fetches each connection through its own IP from the pool.
 4. Part files hold the ciphertext. While assembling, `MegaDecoder` decrypts with AES-128-CTR from counter `nonce + 0` and computes MEGA's MAC: a CBC-MAC per chunk (128 KiB, 256 KiB and so on up to 1 MiB, then 1 MiB each) chained into one file MAC, condensed to 8 bytes and compared with the key's.
 5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which drops that link; the other links, on other IPs, carry on. When every link is dropped, links are regenerated once, with a new sample of public proxies, before the job fails with `links_expired`.
+
+## MediaFire flow
+
+1. A link is `https://www.mediafire.com/file/<key>/<name>/file`, `/file/<key>`, `/download/<key>` or the older `/?<key>`. The quick key is the file id.
+2. `get_info` asks `https://www.mediafire.com/api/1.5/file/get_info.php?quick_key=<key>&response_format=json`, which needs no login. It gives the name `filename`, the exact `size`, `privacy`, `password_protected` and `hash`, the SHA-256 of the content.
+   - Error `110` is `not_found`.
+   - `privacy: private` is `private`.
+   - A password is `private` with `errors.private_password`; passwords are not entered yet.
+3. `generate_links` loads `https://www.mediafire.com/file/<key>` and takes the `href` of `<a id="downloadButton">`, or its base64 `data-scrambled-url`, when it points at `https://download<n>.mediafire.com/`.
+   - A removed or invalid file redirects to `error.php?errno=<n>`. `320`, `378`, `380`, `386` and `388` are `not_found`; other numbers are `upstream_error`.
+   - A page without the button but with reCAPTCHA, hCaptcha or Turnstile markup is MediaFire's human check. It fails with `upstream_error` and `errors.upstream_error_captcha_wall`, and nothing is downloaded.
+   - A page with the password form is `private` with `errors.private_password`.
+4. The direct link answers Range requests on many connections at once and serves repeated requests, so it is handed to the engine once per connection. It is bound to the IP that loaded the page. `link_ttl` is 30 minutes. A broken link redirects to `download_repair.php`, an HTML page that the engine counts as a failed request and never writes.
+5. While assembling, `Sha256Decoder` passes the bytes through and hashes them. At the end it asks the API for the hash again and fails with `integrity_failed` on a mismatch. When the API cannot be reached or has no SHA-256, the check is skipped with a log line.
+
+## Dropbox flow
+
+1. A link is `https://www.dropbox.com/scl/fi/<id>/<name>?rlkey=<key>` or the older `https://www.dropbox.com/s/<id>/<name>`, also on `dropbox.com` and `dl.dropbox.com`. The id is the file id. Folder links, `/scl/fo/`, are rejected.
+2. `download_url` rewrites the link to host `www.dropbox.com` with `dl=1`. It keeps `rlkey` and every other parameter, and drops `raw`, which would win over `dl`, `pwd` and the fragment. A `/scl/fi/` link without `rlkey` is `invalid_url` with `errors.invalid_url_rlkey`, since `rlkey` is what grants access.
+3. `get_info` requests `bytes=0-0` of that URL. The size comes from `Content-Range`, or from `Content-Length` on a `200`. The name comes from `Content-Disposition`, preferring `filename*`, then from the link's last path segment.
+4. Errors arrive as `200` HTML pages that render in JavaScript, so only the `<title>` tells them apart:
+   - a login page is `private`, as for a restricted link or a wrong `rlkey`;
+   - a password page is `private` with `errors.private_password`;
+   - "Invalid Link" or "Error" is `not_found`.
+   `429` is `quota_exceeded`, `404` and `410` are `not_found`, and anything else is `upstream_error`.
+5. The redirect target on `dl.dropboxusercontent.com` answers exactly one request, then `403`. So `generate_links` hands the engine the share URL itself, once per connection. Every chunk request follows its own redirect, and the share URL stays valid as long as the share does, so `link_ttl` is unlimited. Dropbox ignores `If-Range` but sends a stable ETag, which the engine compares on every answer.
 
 ## Adding a provider
 
