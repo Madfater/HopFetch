@@ -5,7 +5,7 @@ import { ApiError, api } from '../api/client'
 import { CopyButton } from '../components/CopyButton'
 import { Lamp } from '../components/Lamp'
 import { NumberStepper } from '../components/NumberStepper'
-import { SegmentedControl } from '../components/SegmentedControl'
+import { Select } from '../components/Select'
 import { Switch } from '../components/Switch'
 import { chooseLanguage, LANGUAGES, toSupported } from '../i18n'
 import { formatStorage, pathSegments } from '../lib/format'
@@ -269,11 +269,11 @@ function LanguageRow() {
   return (
     <div className={styles.row}>
       <div className={styles.text}>
-        <span id="language-label" className={styles.label}>{t('settings.language')}</span>
+        <label htmlFor="language" className={styles.label}>{t('settings.language')}</label>
         <span id="language-hint" className={styles.hint}>{t('settings.languageHint')}</span>
       </div>
       <div className={styles.control}>
-        <SegmentedControl labelledBy="language-label" describedBy="language-hint" value={toSupported(i18n.language)} onChange={chooseLanguage}
+        <Select id="language" describedBy="language-hint" value={toSupported(i18n.language)} onChange={chooseLanguage}
           options={LANGUAGES.map((language) => ({ value: language, label: t(`language.${language}`), lang: language }))} />
       </div>
     </div>
