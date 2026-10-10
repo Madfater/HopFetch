@@ -69,6 +69,22 @@ export function matchesFilter(task: Task, filter: Filter): boolean {
   }
 }
 
+// - The toolbar's bulk action for a filter: resume every paused task under Unfinished, retry
+//   every failed task a retry can fix under Failed. Other filters, and a filter with no such
+//   task, have none.
+// - A task that cannot be downloaded is never a target: it is failed without `retryable`.
+export type Bulk = { action: 'resume' | 'retry'; ids: string[] }
+
+export function bulkFor(list: Task[], filter: Filter): Bulk | null {
+  const pick = (action: Bulk['action'], test: (task: Task) => boolean): Bulk | null => {
+    const ids = list.filter(test).map((task) => task.id)
+    return ids.length > 0 ? { action, ids } : null
+  }
+  if (filter === 'active') return pick('resume', (task) => task.status === 'paused')
+  if (filter === 'failed') return pick('retry', needsAttention)
+  return null
+}
+
 // - What a check-in needs to know, each part with the filter that lists its tasks.
 // - `finished` counts tasks completed after `seen`, a `completed_at` mark from the server clock;
 //   with no mark it is zero. The other parts count the current state.

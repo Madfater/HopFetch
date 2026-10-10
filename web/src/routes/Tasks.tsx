@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router'
 import { ApiError, api } from '../api/client'
 import type { Provider, Task } from '../api/types'
 import { ConfirmDialog, type ConfirmKind } from '../components/ConfirmDialog'
+import { CopyButton } from '../components/CopyButton'
 import { useNewIds } from '../hooks/useNewIds'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { IconButton } from '../components/IconButton'
@@ -14,12 +15,19 @@ import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
 import { formatBytes, formatDuration, formatPercent, formatSpeed } from '../lib/format'
 import { errorText, taskStatus } from '../lib/messages'
-import { FILTERS, isUnfixable, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Filter } from '../lib/tasks'
+import { bulkFor, FILTERS, isUnfixable, matchesFilter, parseFilter, RESOLVE_KEY, removeTask, TASKS_KEY, upsertTask, type Bulk, type Filter } from '../lib/tasks'
 import controls from '../styles/controls.module.css'
 import styles from './Tasks.module.css'
 
 // - The files page: a status filter that counts its tasks, "clear completed", and a table of
 //   every task.
+// - Under Unfinished with paused tasks the toolbar adds "resume all (n)", and under Failed with
+//   failed tasks a retry can fix it adds "retry all (n)"; see `bulkFor`. No dialog asks first,
+//   since both keep every byte.
+// - A bulk action sends one request per task, in list order, through the same endpoints as the
+//   row actions, and stores each answer as it arrives. One toast reports the outcome: how many
+//   went through, or how many went through and how many were refused, with the reason when
+//   every refusal shares one.
 // - `?focus=<id>` scrolls to that task and marks its row for FOCUS_MS; the mark fades when it
 //   ends. A task that arrives while the page is open flashes once.
 // - `?filter=<filter>` opens the page on that filter; choosing another filter drops it.
@@ -40,6 +48,7 @@ import styles from './Tasks.module.css'
 // - The progress bar's text names the percent, the bytes downloaded of the size, and the state.
 // - Progress bars glide between the progress events, which come at most twice a second.
 // - A size not known yet reads as a dash, which screen readers hear as "size unknown".
+// - Every row starts with a button that copies the task's source link.
 // - Actions follow the task's state: pause for active resumable tasks, resume for paused ones,
 //   cancel for unfinished ones, retry for canceled ones and failed ones a retry can fix, save for
 //   completed ones whose file exists, delete always. Pause, cancel and delete wait while the file
@@ -54,6 +63,11 @@ import styles from './Tasks.module.css'
 //   throws away, which is every byte of a task that is not completed.
 
 const FOCUS_MS = 2500
+
+const BULK_TEXT = {
+  resume: { button: 'tasks.resumeAll', done: 'toast.resumedAll', partial: 'toast.resumePartial', none: 'toast.resumeNone' },
+  retry: { button: 'tasks.retryAll', done: 'toast.retriedAll', partial: 'toast.retryPartial', none: 'toast.retryNone' },
+} as const
 const FINISHING = new Set(['assembling', 'verifying'])
 const DASH = '\u2014'
 const STATE_WORDS = [
@@ -111,6 +125,34 @@ export function Tasks() {
     onError: fail,
   })
 
+  const bulk = useMutation({
+    mutationFn: async ({ action, ids }: Bulk) => {
+      const refusals: unknown[] = []
+      for (const id of ids) {
+        try {
+          const task = await api[action](id)
+          client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
+        } catch (err) {
+          refusals.push(err)
+        }
+      }
+      return { action, done: ids.length - refusals.length, refusals }
+    },
+    onSuccess: ({ action, done, refusals }) => {
+      client.removeQueries({ queryKey: RESOLVE_KEY })
+      const text = BULK_TEXT[action]
+      if (refusals.length === 0) {
+        toast(t(text.done, { count: done }))
+        return
+      }
+      const summary = done === 0
+        ? t(text.none, { count: refusals.length })
+        : t(text.partial, { done, failed: refusals.length })
+      const reasons = new Set(refusals.map((err) => (err instanceof ApiError ? errorText(t, err.error) : t('errors.unknown'))))
+      toast(reasons.size === 1 ? t('toast.withReason', { text: summary, reason: [...reasons][0] }) : summary, 'error')
+    },
+  })
+
   const remove = useMutation({
     mutationFn: ({ id, deleteFile }: { id: string; deleteFile: boolean; entryOnly?: boolean }) =>
       api.remove(id, deleteFile),
@@ -151,6 +193,7 @@ export function Tasks() {
   // - `confirming` outlives the open state, so the closing dialog keeps its words.
   const target = all?.find((task) => task.id === confirming?.id) ?? null
   const hasCompleted = (all ?? []).some((task) => task.status === 'completed')
+  const bulkTarget = all ? bulkFor(all, filter) : null
   const isNew = useNewIds(all?.map((task) => task.id))
 
   return (
@@ -173,6 +216,12 @@ export function Tasks() {
                   </span>
                 ),
               }))} />
+            {bulkTarget && (
+              <button type="button" className={`${controls.button} ${styles.bulk}`} disabled={bulk.isPending}
+                onClick={() => bulk.mutate(bulkTarget)}>
+                {t(BULK_TEXT[bulkTarget.action].button)} <span className="num">({bulkTarget.ids.length})</span>
+              </button>
+            )}
             <button type="button" className={`${controls.button} ${styles.clear}`} disabled={!hasCompleted || clear.isPending}
               onClick={() => clear.mutate()}>
               {t('tasks.clearCompleted')}
@@ -359,6 +408,8 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
       </td>
       <td className={styles.cellActions}>
         <div className={styles.actions}>
+          <CopyButton text={task.url} label={label('copyLink')} tooltip={t('action.copyLink')}
+            copied={t('tasks.linkCopied')} failed={t('toast.copyLinkFailed')} />
           {(task.status === 'queued' || task.status === 'downloading') && task.resumable && !finishing && (
             <IconButton icon="pause" label={label('pause')} tooltip={t('action.pause')} onClick={() => onAction('pause')} />
           )}

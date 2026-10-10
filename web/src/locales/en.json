@@ -113,6 +113,8 @@
       "failed": "Failed"
     },
     "clearCompleted": "Clear completed",
+    "resumeAll": "Resume all",
+    "retryAll": "Retry all",
     "column": {
       "status": "Status",
       "provider": "Host",
@@ -134,7 +136,8 @@
     "removeEntry": "Remove from list",
     "videoCorrupt": "ffmpeg found problems in this video.",
     "loading": "Loading tasks",
-    "unnamed": "Unnamed file"
+    "unnamed": "Unnamed file",
+    "linkCopied": "Link copied"
   },
   "action": {
     "pause": "Pause",
@@ -143,6 +146,7 @@
     "retry": "Retry",
     "save": "Save to computer",
     "delete": "Delete",
+    "copyLink": "Copy link",
     "named": "{{action}}: {{name}}"
   },
   "confirmDialog": {
@@ -210,7 +214,19 @@
     "close": "Close notification",
     "batchStarted_one": "Started {{count}} download. You can close this page.",
     "batchStarted_other": "Started {{count}} downloads. You can close this page.",
-    "batchPartial": "Started {{started}}, {{failed}} could not start"
+    "batchPartial": "Started {{started}}, {{failed}} could not start",
+    "copyLinkFailed": "Could not copy the link: the browser blocked the clipboard.",
+    "resumedAll_one": "Resumed {{count}} task",
+    "resumedAll_other": "Resumed {{count}} tasks",
+    "retriedAll_one": "Retrying {{count}} task",
+    "retriedAll_other": "Retrying {{count}} tasks",
+    "resumePartial": "Resumed {{done}}, {{failed}} could not resume",
+    "retryPartial": "Retrying {{done}}, {{failed}} could not be retried",
+    "resumeNone_one": "The task could not resume",
+    "resumeNone_other": "None of the {{count}} tasks could resume",
+    "retryNone_one": "The task could not be retried",
+    "retryNone_other": "None of the {{count}} tasks could be retried",
+    "withReason": "{{text}}: {{reason}}"
   },
   "errors": {
     "network": "Cannot reach the server. Check that the service is running, then try again.",

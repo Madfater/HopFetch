@@ -107,11 +107,18 @@ def test_invalid_body(client):
     assert (resp.status_code, resp.json()["code"]) == (422, "invalid_request")
 
 
+def test_task_carries_its_normalized_source_url(client):
+    task = client.post("/api/tasks", json={"url": "  HTTPS://FAKE.TEST/f/link "}).json()
+    assert task["url"] == URL.format("link")
+    assert client.get(f"/api/tasks/{task['id']}").json()["url"] == URL.format("link")
+    assert [t["url"] for t in client.get("/api/tasks").json()] == [URL.format("link")]
+
+
 def test_task_lifecycle(client, content, tmp_path):
     created = client.post("/api/tasks", json={"url": URL.format("one")})
     assert created.status_code == 201
     task = created.json()
-    assert set(task) >= {"id", "provider", "file_id", "file_name", "size", "bytes_done", "speed", "eta",
+    assert set(task) >= {"id", "url", "provider", "file_id", "file_name", "size", "bytes_done", "speed", "eta",
                          "status", "resumable", "file_exists", "error", "retryable", "created_at",
                          "completed_at"}
 

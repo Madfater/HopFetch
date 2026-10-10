@@ -8,7 +8,7 @@ import { pageTitle, taskStatus } from './messages'
 
 function task(change: Partial<Task> = {}): Task {
   return {
-    id: 'job1', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 100, bytes_done: 10,
+    id: 'job1', url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 100, bytes_done: 10,
     speed: 0, eta: null, status: 'downloading', phase: null, message_key: null, message_params: {}, message: '',
     resumable: true, notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,

@@ -26,11 +26,12 @@
  * - An action inside a note is underlined, in the main text color; on a touch screen it grows
  *   to a 44px tall target without moving the text around it.
  * - Cancel and delete, the actions that throw work away, stand a little apart from the others.
- * - Below 768px the title shares its line with "clear completed", and the filter takes the
- *   line below, filling it below 480px. Each row is a grid of three lines: the host mark and the
- *   name with its notes, wrapped to at most two lines; the status, with the percent and size at
- *   the right end; the progress bar beside the actions. The right column fits three actions,
- *   32px or 44px on a touch screen, so every row's bar ends at the same place.
+ * - Below 768px the title shares its line with "clear completed", the filter takes the line
+ *   below, and a bulk resume or retry button, when shown, the line under the filter; both fill
+ *   their line below 480px. Each row is a grid of three lines: the host mark and the name with
+ *   its notes, wrapped to at most two lines; the status, with the percent and size at the right
+ *   end; the progress bar beside the actions. The right column fits four actions, 32px or 44px
+ *   on a touch screen, so every row's bar ends at the same place.
  */
 .head {
   display: flex;
@@ -131,7 +132,7 @@
 }
 
 .colActions {
-  width: 132px;
+  width: 172px;
 }
 
 .nameRow {
@@ -351,6 +352,12 @@
     grid-row: 1;
   }
 
+  .bulk {
+    grid-column: 1 / -1;
+    grid-row: 3;
+    justify-self: start;
+  }
+
   .table thead {
     position: absolute;
     width: 1px;
@@ -366,7 +373,7 @@
 
   .table tr {
     display: grid;
-    --row-actions: 112px;
+    --row-actions: 148px;
 
     grid-template-columns: minmax(0, 1fr) minmax(var(--row-actions), auto);
     grid-template-areas:
@@ -410,7 +417,7 @@
 
   @media (hover: none) and (pointer: coarse) {
     .table tr {
-      --row-actions: 148px;
+      --row-actions: 196px;
     }
   }
 
@@ -477,7 +484,8 @@
 }
 
 @media (max-width: 479px) {
-  .toolbar > :first-child {
+  .toolbar > :first-child,
+  .bulk {
     justify-self: stretch;
   }
 }

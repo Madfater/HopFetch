@@ -6,7 +6,7 @@ import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY } from './tasks'
 
 function task(id: string, change: Partial<Task> = {}): Task {
   return {
-    id, provider: 'k2s', file_id: id, file_name: `${id}.bin`, size: 100, bytes_done: 0, speed: 0, eta: null,
+    id, url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: id, file_name: `${id}.bin`, size: 100, bytes_done: 0, speed: 0, eta: null,
     status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true,
     notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,
