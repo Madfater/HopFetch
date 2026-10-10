@@ -10,6 +10,16 @@ export function errorText(t: TFunction, error: CodedError | null | undefined): s
   return t(error.key, { ...error.params, defaultValue: error.message || t('errors.unknown') })
 }
 
+// - A failure's reason in a few words, for places with room for only a word or two, such as
+//   the recent list on the download page. The key's own short form comes first, then the short
+//   form of its code, so a variant such as `errors.quota_exceeded_wait` reads as its code;
+//   empty when neither exists.
+export function errorShort(t: TFunction, error: CodedError | null | undefined): string {
+  if (!error) return ''
+  const name = error.key.replace(/^errors\./, '')
+  return t(`errorShort.${name}`, { defaultValue: t(`errorShort.${error.code}`, { defaultValue: '' }) })
+}
+
 export interface StatusText {
   text: string
   detail: string

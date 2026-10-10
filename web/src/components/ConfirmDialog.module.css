@@ -2,6 +2,8 @@
  * - The scrim fades, and the dialog grows in from 96% while fading; both leave faster than
  *   they arrive. Radix keeps them mounted until the closing animation ends.
  * - The dialog is centered with `translate`, so its animations are free to use `transform`.
+ * - The file name is set in the title weight and clamped to two lines; the name may break
+ *   anywhere, since file names often have no spaces.
  * - The cost line sits under the body in error red, one step apart from it.
  * - The checkbox is a recessed box that fills with the text color when checked, and its check mark is
  *   drawn in.
@@ -76,6 +78,16 @@
 
 .body {
   overflow-wrap: anywhere;
+}
+
+.name {
+  display: -webkit-box;
+  overflow: hidden;
+  margin-bottom: var(--space-2);
+  font-weight: 600;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .cost {

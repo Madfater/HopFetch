@@ -16,7 +16,7 @@ import { useTouchScreen } from '../hooks/useTouchScreen'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/format'
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
-import { errorText, statusWord } from '../lib/messages'
+import { errorShort, errorText, statusWord } from '../lib/messages'
 import { withViewTransition } from '../lib/motion'
 import { isUnfixable, RESOLVE_KEY, STORAGE_KEY, summarize, TASKS_KEY, upsertTask, type SummaryPart } from '../lib/tasks'
 import { extractBatch, extractSingleUrl } from '../lib/url'
@@ -48,7 +48,8 @@ import styles from './Home.module.css'
 //   keeps its space, so the recent list stays put; a preview or a batch takes its place.
 // - The input is described by the lamp's state, the status line and, while it shows, the hint.
 // - Recent tasks are links to their row on the files page; downloading and paused ones show
-//   their percent, or the bytes so far when the size is unknown.
+//   their percent, or the bytes so far when the size is unknown, and failed ones the reason in
+//   a word or two.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
@@ -414,6 +415,7 @@ export function Home() {
                       <span className={`${styles.percent} num`}>{recentProgress(i18n.language, task)}</span>
                     )}
                     <StatusLamp status={task.status} text={statusWord(t, task)} unfixable={isUnfixable(task)} />
+                    {task.status === 'failed' && <Reason text={errorShort(t, task.error)} />}
                   </span>
                 </Link>
               </li>
@@ -430,6 +432,19 @@ const SUMMARY_LAMP: Record<SummaryPart['kind'], { color: LampColor; hollow: bool
   attention: { color: 'failed', hollow: false },
   active: { color: 'active', hollow: false },
   paused: { color: 'idle', hollow: false },
+}
+
+// - A failure's short reason after its status word, dimmed; screen readers hear a separator
+//   between the two. Nothing when the error has no short form.
+function Reason({ text }: { text: string }) {
+  const { t } = useTranslation()
+  if (!text) return null
+  return (
+    <span className={styles.reason}>
+      <span className="visually-hidden">{t('a11y.separator')}</span>
+      {text}
+    </span>
+  )
 }
 
 // - The percent done, or the bytes so far when the size is unknown; nothing before any byte.

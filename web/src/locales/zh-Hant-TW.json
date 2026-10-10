@@ -138,12 +138,12 @@
   "confirmDialog": {
     "cancel": {
       "title": "停止並捨棄下載",
-      "body": "停止「{{name}}」。任務會以「已取消」留在清單中，重試時會從頭下載。",
+      "body": "停止這個下載。任務會以「已取消」留在清單中，重試時會從頭下載。",
       "confirm": "停止並捨棄"
     },
     "delete": {
       "title": "刪除任務",
-      "body": "從清單移除「{{name}}」。",
+      "body": "從清單移除這個任務。",
       "confirm": "刪除"
     },
     "discards": "已下載的 {{size}} 會被捨棄。",
@@ -202,5 +202,34 @@
   "errors": {
     "network": "連不上伺服器。確認服務正在執行後再試一次。",
     "unknown": "要求無法完成。再試一次。"
+  },
+  "errorShort": {
+    "not_found": "找不到檔案",
+    "private": "私人檔案",
+    "premium_only": "限付費會員",
+    "quota_exceeded": "免費額度用完",
+    "upstream_error": "雲端連不上",
+    "upstream_error_refused": "雲端拒絕",
+    "upstream_error_no_key": "未取得授權",
+    "upstream_error_captcha": "取不到驗證碼",
+    "upstream_error_no_size": "大小不明",
+    "upstream_error_no_links": "沒有下載連結",
+    "captcha_failed": "驗證碼辨識失敗",
+    "captcha_failed_ocr": "辨識元件故障",
+    "links_expired": "連結失效",
+    "stalled": "下載停滯",
+    "disk_full": "空間不足",
+    "insufficient_space": "空間不足",
+    "internal_error": "內部錯誤",
+    "internal_error_legacy": "更新前失敗",
+    "remote_changed": "遠端檔案變更",
+    "range_unsupported": "不支援分段",
+    "interrupted": "服務重新啟動",
+    "integrity_failed": "檢查未通過",
+    "invalid_url_key": "金鑰錯誤",
+    "file_missing": "NAS 上找不到"
+  },
+  "a11y": {
+    "separator": "，"
   }
 }
