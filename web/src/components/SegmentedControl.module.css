@@ -4,7 +4,9 @@
  * - A track wider than its container scrolls sideways inside itself instead of widening the
  *   page; its right edge fades while more segments lie past it, and its left edge while it is
  *   scrolled away from the start.
- * - Below 480px the segments take less padding, so more of them fit on a phone.
+ * - Below 480px the segments take less padding, so more of them fit on a phone, and below 400px
+ *   less again. A `stretch` track there fills its container's width, its segments sharing the
+ *   room and centering their labels.
  * - The focus ring sits just outside the segment, within the track's padding, so it is drawn
  *   against the slot color rather than the lighter chosen face.
  */
@@ -75,5 +77,20 @@
 @media (max-width: 479px) {
   .segment {
     padding: 0 var(--space-2);
+  }
+
+  .stretch {
+    display: flex;
+  }
+
+  .stretch .segment {
+    flex: 1 0 auto;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 399px) {
+  .segment {
+    padding: 0 6px;
   }
 }
