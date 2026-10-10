@@ -95,9 +95,9 @@ API 路徑由 `/api/jobs` 改為 `/api/tasks`；後端內部名稱維持 `Job`�
 - `GET /api/tasks`：任務清單，新的在前。每筆欄位：
   - 識別：`id`、`url`（建立任務時的分享連結，已正規化）、`provider`、`file_id`、`file_name`
   - 進度：`size`、`bytes_done`、`speed`（bytes/s，移動平均）、`eta`（秒，未知時為 null）
-  - 狀態：`status`、`phase`、`message_key`、`message_params`、`message`、`resumable`、`file_exists`、`error`（`{ code, key, params, message }` 或 null）、`retryable`（已取消，或失敗且重試可能成功時為 true）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
+  - 狀態：`status`、`phase`、`message_key`、`message_params`、`message`、`resumable`、`use_proxy`（任務是否經過代理）、`file_exists`、`error`（`{ code, key, params, message }` 或 null）、`retryable`（已取消，或失敗且重試可能成功時為 true）、`verified`（影片檢查結果 `ok`、`corrupt` 或 null）
   - 時間：`created_at`、`completed_at`
-- `POST /api/tasks`，body `{ url, force }`：建立任務。
+- `POST /api/tasks`，body `{ url, force, use_proxy }`：建立任務。`use_proxy` 預設 true；false 時任務的所有請求都直接連線。
   - 同一檔案已有 `queued`、`downloading`、`paused`、`failed` 或 `canceled` 的任務時，一律以 409 `duplicate_active` 拒絕，並附上既有任務 ID（前端提供「查看任務」或「重試」）。
   - 已完成過的檔案，需要 `force: true` 才建立，否則回 409 `duplicate_completed`。
   - 已知大小時，建立前再檢查一次剩餘空間，不足就以 `insufficient_space` 拒絕。`DATA_DIR` 與 `DOWNLOAD_DIR` 在同一個檔案系統時，組合期間需要兩倍空間，以 `2 x size` 檢查；不同檔案系統時分別檢查。

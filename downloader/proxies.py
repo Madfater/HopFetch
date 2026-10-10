@@ -1,4 +1,4 @@
-"""Shared pool of proxies, used to request download keys from different IPs.
+"""Shared pool of proxies, so key requests and, on some platforms, downloads use other IPs.
 
 - User proxies come from the `PROXIES` setting and `proxies.user.txt`, as full URLs with any of
   the http, https, socks5 and socks5h schemes and optional credentials.
