@@ -15,6 +15,7 @@ export interface CodedError {
 
 export interface Task {
   id: string
+  url: string
   provider: string
   file_id: string
   file_name: string | null

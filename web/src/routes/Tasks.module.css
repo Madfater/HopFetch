@@ -102,7 +102,7 @@
 }
 
 .colActions {
-  width: 132px;
+  width: 172px;
 }
 
 .name {
@@ -278,7 +278,7 @@
 
   .table tr {
     display: grid;
-    --row-actions: 112px;
+    --row-actions: 148px;
 
     grid-template-columns: minmax(0, 1fr) minmax(var(--row-actions), auto);
     grid-template-areas:
@@ -322,7 +322,7 @@
 
   @media (hover: none) and (pointer: coarse) {
     .table tr {
-      --row-actions: 148px;
+      --row-actions: 196px;
     }
   }
 

@@ -103,6 +103,8 @@
       "failed": "失敗"
     },
     "clearCompleted": "清除已完成",
+    "resumeAll": "全部繼續",
+    "retryAll": "全部重試",
     "column": {
       "status": "狀態",
       "provider": "雲端",
@@ -123,7 +125,8 @@
     "removeEntry": "從清單移除",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",
     "loading": "載入任務中",
-    "unnamed": "未命名檔案"
+    "unnamed": "未命名檔案",
+    "linkCopied": "已複製連結"
   },
   "action": {
     "pause": "暫停",
@@ -132,6 +135,7 @@
     "retry": "重試",
     "save": "下載到電腦",
     "delete": "刪除",
+    "copyLink": "複製連結",
     "named": "{{action}}：{{name}}"
   },
   "confirmDialog": {
@@ -196,7 +200,15 @@
     "offline": "連不上伺服器，正在重新連線。",
     "close": "關閉通知",
     "batchStarted_other": "已開始下載 {{count}} 個檔案，可以關閉這頁。",
-    "batchPartial": "已開始 {{started}} 個，{{failed}} 個無法開始"
+    "batchPartial": "已開始 {{started}} 個，{{failed}} 個無法開始",
+    "copyLinkFailed": "無法複製連結，瀏覽器拒絕存取剪貼簿。",
+    "resumedAll_other": "已繼續 {{count}} 個任務",
+    "retriedAll_other": "已重試 {{count}} 個任務",
+    "resumePartial": "已繼續 {{done}} 個，{{failed}} 個無法繼續",
+    "retryPartial": "已重試 {{done}} 個，{{failed}} 個無法重試",
+    "resumeNone_other": "{{count}} 個任務無法繼續",
+    "retryNone_other": "{{count}} 個任務無法重試",
+    "withReason": "{{text}}：{{reason}}"
   },
   "errors": {
     "network": "連不上伺服器。確認服務正在執行後再試一次。",

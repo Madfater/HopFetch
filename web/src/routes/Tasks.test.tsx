@@ -5,19 +5,24 @@ import { Tooltip } from 'radix-ui'
 import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import providers from '../../../shared/providers.json'
-import { api } from '../api/client'
+import { ApiError, api } from '../api/client'
 import type { Task } from '../api/types'
+import { ToastContext } from '../components/toast-context'
 import i18n from '../i18n'
+import { copyText } from '../lib/clipboard'
 import { Tasks } from './Tasks'
 import styles from './Tasks.module.css'
 
 // - Renders the files page over a faked API with the tasks given, and fakes cancel and delete.
+// - Toasts go to a spy, and the clipboard is a mock.
+
+vi.mock('../lib/clipboard', () => ({ copyText: vi.fn() }))
 
 const GIB = 2 ** 30
 
 function task(change: Partial<Task> = {}): Task {
   return {
-    id: 'job1', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 * GIB, bytes_done: 1.31 * GIB,
+    id: 'job1', url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 * GIB, bytes_done: 1.31 * GIB,
     speed: 0, eta: null, status: 'paused', phase: null, message_key: null, message_params: {}, message: '',
     resumable: true, notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,
@@ -29,17 +34,20 @@ function setup(tasks: Task[], path = '/tasks') {
   vi.spyOn(api, 'tasks').mockResolvedValue(tasks)
   const cancel = vi.spyOn(api, 'cancel').mockResolvedValue(task({ status: 'canceled', bytes_done: 0 }))
   const remove = vi.spyOn(api, 'remove').mockResolvedValue(undefined)
+  const toast = vi.fn()
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={client}>
-      <Tooltip.Provider>
-        <MemoryRouter initialEntries={[path]}>
-          <Tasks />
-        </MemoryRouter>
-      </Tooltip.Provider>
+      <ToastContext.Provider value={toast}>
+        <Tooltip.Provider>
+          <MemoryRouter initialEntries={[path]}>
+            <Tasks />
+          </MemoryRouter>
+        </Tooltip.Provider>
+      </ToastContext.Provider>
     </QueryClientProvider>,
   )
-  return { cancel, remove, user: userEvent.setup() }
+  return { cancel, remove, toast, user: userEvent.setup() }
 }
 
 beforeEach(async () => {
@@ -48,7 +56,10 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  vi.mocked(copyText).mockReset()
 })
+
+const REFUSED = new ApiError(409, { code: 'invalid_state', key: 'errors.invalid_state_retry', params: {}, message: '' })
 
 describe('Tasks', () => {
   it('asks before canceling and states the bytes it discards', async () => {
@@ -227,5 +238,67 @@ describe('Tasks', () => {
     expect(button).toBeDisabled()
     await user.click(button)
     expect(remove).toHaveBeenCalledTimes(1)
+  })
+
+  it('resumes every paused task from Unfinished, one request each, and reports it', async () => {
+    const { toast, user } = setup([
+      task({ id: 'a', file_name: 'a.rar' }),
+      task({ id: 'b', file_name: 'b.rar', status: 'downloading' }),
+      task({ id: 'c', file_name: 'c.rar' }),
+    ], '/tasks?filter=active')
+    const resume = vi.spyOn(api, 'resume').mockImplementation(async (id) => task({ id, status: 'queued', updated_at: 2 }))
+    await user.click(await screen.findByRole('button', { name: 'Resume all (2)' }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('Resumed 2 tasks'))
+    expect(resume.mock.calls).toEqual([['a'], ['c']])
+    expect(screen.queryByRole('button', { name: /Resume all/ })).not.toBeInTheDocument()
+  })
+
+  it('offers resume all only under Unfinished and only with paused tasks', async () => {
+    const { user } = setup([task({ id: 'a', status: 'downloading' }), task({ id: 'b', status: 'failed' })])
+    await screen.findByRole('radio', { name: /All/ })
+    expect(screen.queryByRole('button', { name: /all \(/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('radio', { name: /Unfinished/ }))
+    expect(screen.queryByRole('button', { name: /Resume all/ })).not.toBeInTheDocument()
+  })
+
+  it('counts only failures a retry can fix and reports the ones refused', async () => {
+    const { toast, user } = setup([
+      task({ id: 'a', file_name: 'a.rar', status: 'failed' }),
+      task({ id: 'b', file_name: 'b.rar', status: 'failed', retryable: false }),
+      task({ id: 'c', file_name: 'c.rar', status: 'failed' }),
+      task({ id: 'd', file_name: 'd.rar', status: 'canceled' }),
+    ], '/tasks?filter=failed')
+    const retry = vi.spyOn(api, 'retry').mockImplementation(async (id) => {
+      if (id === 'c') throw REFUSED
+      return task({ id, status: 'queued', updated_at: 2 })
+    })
+    await user.click(await screen.findByRole('button', { name: 'Retry all (2)' }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith(
+      'Retrying 1, 1 could not be retried: Only failed or canceled tasks can be retried.', 'error'))
+    expect(retry.mock.calls).toEqual([['a'], ['c']])
+  })
+
+  it('says when no task of the batch went through', async () => {
+    const { toast, user } = setup([task({ id: 'a', status: 'failed' }), task({ id: 'b', status: 'failed' })],
+      '/tasks?filter=failed')
+    vi.spyOn(api, 'retry').mockRejectedValueOnce(REFUSED).mockRejectedValueOnce(new Error('boom'))
+    await user.click(await screen.findByRole('button', { name: 'Retry all (2)' }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('None of the 2 tasks could be retried', 'error'))
+  })
+
+  it('copies a task\'s source link and confirms it', async () => {
+    vi.mocked(copyText).mockResolvedValue(true)
+    const { toast, user } = setup([task()])
+    await user.click(await screen.findByRole('button', { name: 'Copy link: a.rar' }))
+    expect(copyText).toHaveBeenCalledWith('https://k2s.cc/file/aaa111')
+    expect(await screen.findByRole('status')).toHaveTextContent('Link copied')
+    expect(toast).not.toHaveBeenCalled()
+  })
+
+  it('raises an error when the link cannot be copied', async () => {
+    vi.mocked(copyText).mockResolvedValue(false)
+    const { toast, user } = setup([task()])
+    await user.click(await screen.findByRole('button', { name: 'Copy link: a.rar' }))
+    await waitFor(() => expect(toast).toHaveBeenCalledWith('Could not copy the link: the browser blocked the clipboard.', 'error'))
   })
 })
