@@ -394,3 +394,25 @@ def test_a_failing_direct_link_is_never_dropped(server, tmp_path, monkeypatch):
     download = make(server, tmp_path, links=1)
     download.run()
     assert finish(download, tmp_path) == server.content and len(failures) == 4
+
+
+def test_a_proxy_answering_with_its_own_error_is_dropped(server, tmp_path, monkeypatch):
+    import downloader.engine as engine
+
+    monkeypatch.setattr(engine, "RETRY_DELAY", 0.01)
+    real_get = engine.requests.get
+
+    class BadGateway(QuotaReply):
+        status_code = 502
+
+    def get(url, proxies=None, **kwargs):
+        return BadGateway() if proxies else real_get(url, **kwargs)
+
+    monkeypatch.setattr(engine.requests, "get", get)
+    download = SegmentedDownload(
+        links=[server.url, server.url], size=len(server.content), part_dir=tmp_path / "parts",
+        split_size=20_000, headers={}, cancelled=threading.Event(), proxies=[None, "http://p:1"],
+    )
+    download.run()
+    assert finish(download, tmp_path) == server.content
+    assert download._strikes == [0, 3]

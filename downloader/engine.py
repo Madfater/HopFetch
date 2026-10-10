@@ -275,14 +275,15 @@ class SegmentedDownload:
 
         - After a failed request the link stays busy for RETRY_DELAY seconds before the part
           is requeued, so a refusing server is not hammered.
-        - A failed request through a proxy strikes the link only when it brought no byte.
+        - A request through a proxy that brings no byte strikes the link, whether it raised or
+          answered with anything other than 206, such as a proxy's own 407 or 502.
         """
         try:
             before = self._on_disk(part)
             status = self._fetch(part, link)
             with self._lock:
                 have = self._on_disk(part)
-                failed_proxy = status is None and self.proxies[link] is not None and have == before
+                failed_proxy = status != 206 and self.proxies[link] is not None and have == before
                 if status in DEAD_LINK_STATUSES or failed_proxy:
                     self._strikes[link] += 1
                 elif status == 206:
