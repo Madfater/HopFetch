@@ -119,6 +119,7 @@
     "progressLabel": "{{name}} 的進度",
     "progressText": "{{percent}}，已下載 {{done}}，共 {{size}}，{{state}}",
     "progressTextNoSize": "已下載 {{done}}，{{state}}",
+    "sizeUnknown": "大小未知",
     "fileGone": "已從 NAS 移動或刪除",
     "removeEntry": "從清單移除",
     "videoCorrupt": "ffmpeg 檢查到這部影片有問題。",

@@ -5,6 +5,7 @@ const PATHS = {
   pause: 'M5.5 3.5v9M10.5 3.5v9',
   resume: 'M5 3.2v9.6L12.5 8z',
   cancel: 'M4 4l8 8M12 4l-8 8',
+  stop: 'M4.5 4.5h7v7h-7z',
   retry: 'M12.5 8a4.5 4.5 0 1 1-1.3-3.2M12.5 2.8v2.4h-2.4',
   save: 'M8 2.5v8M4.8 7.6 8 10.8l3.2-3.2M3 13.5h10',
   delete: 'M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.6 8.5h5.8l.6-8.5',
