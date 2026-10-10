@@ -158,6 +158,7 @@ class Job:
     def public(self, root: Path) -> dict:
         """Return the task object the API exposes; links and paths stay private.
 
+        - `url` is the share link the task was created from, normalized, so the user can copy it.
         - `eta` is known only while downloading with a measured speed.
         - `file_exists` is checked on disk for completed jobs, inside `root` only.
         - `retryable` says whether a retry can help: true for a canceled job and for a failed
@@ -173,6 +174,7 @@ class Job:
             self.status == Status.FAILED and not is_permanent((self.error or {}).get("key")))
         return {
             "id": self.id,
+            "url": self.url,
             "provider": self.provider,
             "file_id": self.file_id,
             "file_name": self.file_name,
