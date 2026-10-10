@@ -200,6 +200,15 @@ The backend sends translation keys, and the frontend translates them.
 4. Part files hold the ciphertext. While assembling, `MegaDecoder` decrypts with AES-128-CTR from counter `nonce + 0` and computes MEGA's MAC: a CBC-MAC per chunk (128 KiB, 256 KiB and so on up to 1 MiB, then 1 MiB each) chained into one file MAC, condensed to 8 bytes and compared with the key's.
 5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which drops that link; the other links, on other IPs, carry on. When every link is dropped, links are regenerated once, with a new sample of public proxies, before the job fails with `links_expired`.
 
+## Google Drive flow
+
+1. A link is `https://drive.google.com/file/d/<id>/...`, `https://drive.google.com/open?id=<id>`, `https://drive.google.com/uc?id=<id>`, or `https://drive.usercontent.google.com/download?id=<id>`, with an id of at least 25 characters. Folders and Docs, Sheets or Slides links match no pattern. Drive has no share passwords.
+2. Every request goes to `https://drive.usercontent.google.com/download?id=<id>&export=download` with `Range: bytes=0-0`, adding the `resourcekey` from the user's URL when there is one. Redirects are followed by hand, at most three, and only between `drive.google.com` and `drive.usercontent.google.com`.
+3. A 206 is the file. The name comes from `Content-Disposition`, preferring `filename*=UTF-8''`, and the size from the `Content-Range` total.
+4. A file too large for the virus scan answers with an HTML warning page. The hidden inputs of its `download-form` (`id`, `export`, `confirm=t`, `uuid`) give the URL that serves the file. That form is followed once, and only to a Drive host.
+5. Errors: 404 is `not_found`. A redirect to `accounts.google.com`, a 401 or 403, or an access-denied or sign-in page is `private`. The "Too many users have viewed or downloaded this file recently" page is `quota_exceeded`. Any other page or status is `upstream_error`.
+6. `generate_links` hands the confirmed URL to the engine once per connection. It serves Range requests on many connections at once and sends `Last-Modified` but no ETag. The URL is not signed, but `link_ttl` is one hour, so a fresh `uuid` is fetched.
+
 ## Adding a provider
 
 1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label`, `icon` and `patterns`, and implement `get_info` and `generate_links`. Raise `ProviderError` with one of the error codes in [refactor-spec.md](refactor-spec.md). Override `headers` and `link_ttl` when needed, and set `proxy_downloads` when the platform limits the IP that fetches the bytes.

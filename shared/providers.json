@@ -15,5 +15,15 @@
       "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/file/([A-Za-z0-9_-]{8})#[A-Za-z0-9_-]{43}$",
       "^https?://(?:www\\.)?mega\\.(?:nz|co\\.nz)/#!([A-Za-z0-9_-]{8})![A-Za-z0-9_-]{43}$"
     ]
+  },
+  {
+    "id": "gdrive",
+    "name": "Google Drive",
+    "icon": "gdrive",
+    "patterns": [
+      "^https?://drive\\.google\\.com/file/d/([A-Za-z0-9_-]{25,})(?:[/?#].*)?$",
+      "^https?://drive\\.google\\.com/(?:open|uc)\\?(?:[^#]*&)?id=([A-Za-z0-9_-]{25,})(?:[&#].*)?$",
+      "^https?://drive\\.usercontent\\.google\\.com/download\\?(?:[^#]*&)?id=([A-Za-z0-9_-]{25,})(?:[&#].*)?$"
+    ]
   }
 ]

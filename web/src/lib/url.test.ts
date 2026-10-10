@@ -65,6 +65,15 @@ describe('extracting a batch from pasted text', () => {
     expect(batch.dropped).toBe(0)
   })
 
+  it('keeps the query of a Google Drive link and counts its link forms as one file', () => {
+    const id = '1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ'
+    const text = `a https://drive.google.com/uc?export=download&id=${id} b https://drive.google.com/file/d/${id}/view`
+    const batch = extractBatch(text, providers)
+    expect(batch.links.map((link) => [link.key, link.url])).toEqual([
+      [`gdrive:${id}`, `https://drive.google.com/uc?export=download&id=${id}`],
+    ])
+  })
+
   it('counts one file once across host aliases', () => {
     const batch = extractBatch('https://k2s.cc/file/aaa111/x.rar https://KEEP2SHARE.CC/file/aaa111', providers)
     expect(batch.links.map((link) => link.key)).toEqual(['k2s:aaa111'])
