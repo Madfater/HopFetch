@@ -24,5 +24,21 @@
   {"url": "https://mega.nz/file/C1ZESCBI", "provider": null, "file_id": null},
   {"url": "https://mega.nz/file/C1ZESCBI#short", "provider": null, "file_id": null},
   {"url": "https://mega.nz.evil.test/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null},
-  {"url": "https://evil.test/?u=https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null}
+  {"url": "https://evil.test/?u=https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null},
+  {"url": "https://www.mediafire.com/file/ipnyzofjcwri357/test-10mb.bin/file", "provider": "mediafire", "file_id": "ipnyzofjcwri357"},
+  {"url": "https://www.mediafire.com/file/ipnyzofjcwri357", "provider": "mediafire", "file_id": "ipnyzofjcwri357"},
+  {"url": "https://mediafire.com/file/ipnyzofjcwri357/test-10mb.bin?pwd=secret", "provider": "mediafire", "file_id": "ipnyzofjcwri357"},
+  {"url": "HTTPS://WWW.MEDIAFIRE.COM/download/ipnyzofjcwri357", "provider": "mediafire", "file_id": "ipnyzofjcwri357"},
+  {"url": "https://www.mediafire.com/?ipnyzofjcwri357", "provider": "mediafire", "file_id": "ipnyzofjcwri357"},
+  {"url": "https://www.mediafire.com/folder/ipnyzofjcwri357/stuff", "provider": null, "file_id": null},
+  {"url": "https://www.mediafire.com/file/", "provider": null, "file_id": null},
+  {"url": "https://mediafire.com.evil.test/file/ipnyzofjcwri357", "provider": null, "file_id": null},
+  {"url": "https://www.dropbox.com/scl/fi/r2jlil9lj0ypo2fpl3fxa/massw_metadata_v1.jsonl?rlkey=ohnriak63x4ekyli25naajp0q&dl=0", "provider": "dropbox", "file_id": "r2jlil9lj0ypo2fpl3fxa"},
+  {"url": "https://dropbox.com/scl/fi/r2jlil9lj0ypo2fpl3fxa/a%20b.zip?rlkey=ohnriak63x4ekyli25naajp0q&st=x1y2&dl=1", "provider": "dropbox", "file_id": "r2jlil9lj0ypo2fpl3fxa"},
+  {"url": "https://www.dropbox.com/s/d1kjpkqklf0uw77/celeba.zip?dl=0", "provider": "dropbox", "file_id": "d1kjpkqklf0uw77"},
+  {"url": "  HTTPS://DL.DROPBOX.COM/s/d1kjpkqklf0uw77/celeba.zip  ", "provider": "dropbox", "file_id": "d1kjpkqklf0uw77"},
+  {"url": "https://www.dropbox.com/scl/fo/r2jlil9lj0ypo2fpl3fxa/folder?rlkey=ohnriak63x4ekyli25naajp0q", "provider": null, "file_id": null},
+  {"url": "https://www.dropbox.com/home/file.zip", "provider": null, "file_id": null},
+  {"url": "https://dropbox.com.evil.test/s/d1kjpkqklf0uw77/celeba.zip", "provider": null, "file_id": null},
+  {"url": "https://evil.test/?u=https://www.dropbox.com/s/d1kjpkqklf0uw77/celeba.zip", "provider": null, "file_id": null}
 ]

@@ -228,7 +228,7 @@ describe('Home batch paste', () => {
   it('names the supported sites when no link is supported', async () => {
     const { user } = setup({})
     await paste(user, 'https://img.example.com/a.jpg https://forum.example.com/t/1')
-    await screen.findByText('None of these links are from a supported site: Keep2Share and MEGA.')
+    await screen.findByText('None of these links are from a supported site: Keep2Share, MEGA, MediaFire, and Dropbox.')
   })
 })
 

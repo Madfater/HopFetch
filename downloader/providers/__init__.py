@@ -10,7 +10,9 @@ from __future__ import annotations
 from urllib.parse import urlsplit
 
 from .base import FileRef, Provider, ProviderError, normalize_url
+from .dropbox import DropboxProvider
 from .k2s import K2SProvider
+from .mediafire import MediaFireProvider
 from .mega import MegaProvider
 
 
@@ -54,4 +56,4 @@ class ProviderRegistry:
 
 def default_registry() -> ProviderRegistry:
     """Return the registry used by the app."""
-    return ProviderRegistry([K2SProvider(), MegaProvider()])
+    return ProviderRegistry([K2SProvider(), MegaProvider(), MediaFireProvider(), DropboxProvider()])
