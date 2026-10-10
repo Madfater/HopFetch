@@ -24,5 +24,19 @@
   {"url": "https://mega.nz/file/C1ZESCBI", "provider": null, "file_id": null},
   {"url": "https://mega.nz/file/C1ZESCBI#short", "provider": null, "file_id": null},
   {"url": "https://mega.nz.evil.test/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null},
-  {"url": "https://evil.test/?u=https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null}
+  {"url": "https://evil.test/?u=https://mega.nz/file/C1ZESCBI#jqGukumcAMamH_xx-wixpcafBTBUP9M6Io02akC9ZmE", "provider": null, "file_id": null},
+  {"url": "https://drive.google.com/file/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ/view?usp=sharing", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.google.com/file/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.google.com/file/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ/view?usp=drive_link&resourcekey=0-abc", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "  HTTPS://DRIVE.GOOGLE.COM/file/d/0B9P1L--7Wd2vU3VUVlFnbTgtS2c/edit  ", "provider": "gdrive", "file_id": "0B9P1L--7Wd2vU3VUVlFnbTgtS2c"},
+  {"url": "https://drive.google.com/open?id=1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.google.com/uc?id=1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ&export=download", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.google.com/uc?export=download&id=1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.usercontent.google.com/download?id=1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ&export=download&confirm=t", "provider": "gdrive", "file_id": "1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ"},
+  {"url": "https://drive.google.com/drive/folders/1AbCdEfGhIjKlMnOpQrStUvWxYz012345", "provider": null, "file_id": null},
+  {"url": "https://docs.google.com/document/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ/edit", "provider": null, "file_id": null},
+  {"url": "https://drive.google.com/file/d/short/view", "provider": null, "file_id": null},
+  {"url": "https://drive.google.com/uc?xid=1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ", "provider": null, "file_id": null},
+  {"url": "https://drive.google.com.evil.test/file/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ/view", "provider": null, "file_id": null},
+  {"url": "https://evil.test/?u=https://drive.google.com/file/d/1l_5RK28JRL19wpT22B-DY9We3TVXnnQQ/view", "provider": null, "file_id": null}
 ]

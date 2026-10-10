@@ -79,7 +79,7 @@ def test_providers_snapshot_matches_the_endpoint(tmp_path):
 
 def test_only_mega_decodes_while_assembling():
     registry = default_registry()
-    for name, decodes in (("k2s", False), ("mega", True)):
+    for name, decodes in (("k2s", False), ("mega", True), ("gdrive", False)):
         case = next(c for c in CASES if c["provider"] == name)
         ref = registry.resolve(case["url"])[1]
         assert (registry.get(name).decoder(ref) is not None) == decodes
