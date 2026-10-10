@@ -17,6 +17,16 @@
     ]
   },
   {
+    "id": "gdrive",
+    "name": "Google Drive",
+    "icon": "gdrive",
+    "patterns": [
+      "^https?://drive\\.google\\.com/file/d/([A-Za-z0-9_-]{25,})(?:[/?#].*)?$",
+      "^https?://drive\\.google\\.com/(?:open|uc)\\?(?:[^#]*&)?id=([A-Za-z0-9_-]{25,})(?:[&#].*)?$",
+      "^https?://drive\\.usercontent\\.google\\.com/download\\?(?:[^#]*&)?id=([A-Za-z0-9_-]{25,})(?:[&#].*)?$"
+    ]
+  },
+  {
     "id": "mediafire",
     "name": "MediaFire",
     "icon": "mediafire",

@@ -79,7 +79,8 @@ def test_providers_snapshot_matches_the_endpoint(tmp_path):
 
 def test_mega_and_mediafire_decode_while_assembling():
     registry = default_registry()
-    for name, decodes in (("k2s", False), ("mega", True), ("mediafire", True), ("dropbox", False)):
+    for name, decodes in (("k2s", False), ("mega", True), ("gdrive", False), ("mediafire", True),
+                          ("dropbox", False)):
         case = next(c for c in CASES if c["provider"] == name)
         ref = registry.resolve(case["url"])[1]
         assert (registry.get(name).decoder(ref) is not None) == decodes

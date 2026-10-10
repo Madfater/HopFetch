@@ -6,9 +6,10 @@ Navigation map of the codebase. When this file and the code disagree, the code w
 
 A web app, meant for a NAS on a LAN, that downloads files from file hosting platforms over many connections at once. A FastAPI backend runs download jobs in background threads, pushes changes to the browser over server-sent events, and serves a React dashboard. Each platform is a provider: it turns a user's URL into file info and a list of direct links. A shared engine then fetches byte ranges over those links in parallel into resumable part files.
 
-There are four providers:
+There are five providers:
 - **Keep2Share (k2s.cc):** its free tier gives each link one rate-limited connection after an image captcha. The app solves the captcha with offline OCR and turns one free download key into many links.
 - **MEGA (mega.nz):** public file links. Content is encrypted with the key in the link, so the app decrypts it while assembling.
+- **Google Drive (drive.google.com):** public file links. Large files are fetched past the virus-scan warning page.
 - **MediaFire (mediafire.com):** public file links. The direct link is read from the file page, and the file is checked against the SHA-256 the public API reports.
 - **Dropbox (dropbox.com):** shared file links. The share link, forced to download, is the download link itself.
 
@@ -34,6 +35,7 @@ The agreed spec for the current refactor, stage by stage, is [refactor-spec.md](
 | `downloader/providers/__init__.py` | `ProviderRegistry`, the URL allowlist, and `default_registry()` |
 | `downloader/providers/k2s.py` | Keep2Share free tier over `api/v2` |
 | `downloader/providers/mega.py` | MEGA public file links over the `cs` API, and `MegaDecoder` for decryption and the MAC check |
+| `downloader/providers/gdrive.py` | Google Drive public file links over `drive.usercontent.google.com`, including the virus-scan confirm form |
 | `downloader/providers/mediafire.py` | MediaFire public file links: the `file/get_info` API, the file page's download button, and `Sha256Decoder` for the hash check |
 | `downloader/providers/dropbox.py` | Dropbox shared file links, forced to `dl=1`, with errors read from page titles |
 | `downloader/config.py`, `downloader/util.py` | `Settings` from environment variables; file lock, size parsing, safe file names, symlink-safe file creation and root checks |
@@ -203,6 +205,15 @@ The backend sends translation keys, and the frontend translates them.
 3. `generate_links` asks for the same node with `"g": 1` and hands its download URL to the engine once per connection. That URL answers Range requests on many connections at once and sends no ETag or Last-Modified. MEGA sets `proxy_downloads`, so a task that uses proxies fetches each connection through its own IP from the pool.
 4. Part files hold the ciphertext. While assembling, `MegaDecoder` decrypts with AES-128-CTR from counter `nonce + 0` and computes MEGA's MAC: a CBC-MAC per chunk (128 KiB, 256 KiB and so on up to 1 MiB, then 1 MiB each) chained into one file MAC, condensed to 8 bytes and compared with the key's.
 5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which drops that link; the other links, on other IPs, carry on. When every link is dropped, links are regenerated once, with a new sample of public proxies, before the job fails with `links_expired`.
+
+## Google Drive flow
+
+1. A link is `https://drive.google.com/file/d/<id>/...`, `https://drive.google.com/open?id=<id>`, `https://drive.google.com/uc?id=<id>`, or `https://drive.usercontent.google.com/download?id=<id>`, with an id of at least 25 characters. Folders and Docs, Sheets or Slides links match no pattern. Drive has no share passwords.
+2. Every request goes to `https://drive.usercontent.google.com/download?id=<id>&export=download` with `Range: bytes=0-0`, adding the `resourcekey` from the user's URL when there is one. Redirects are followed by hand, at most three, and only between `drive.google.com` and `drive.usercontent.google.com`.
+3. A 206 is the file. The name comes from `Content-Disposition`, preferring `filename*=UTF-8''`, and the size from the `Content-Range` total.
+4. A file too large for the virus scan answers with an HTML warning page. The hidden inputs of its `download-form` (`id`, `export`, `confirm=t`, `uuid`) give the URL that serves the file. That form is followed once, and only to a Drive host.
+5. Errors: 404 is `not_found`. A redirect to `accounts.google.com`, a 401 or 403, or an access-denied or sign-in page is `private`. The "Too many users have viewed or downloaded this file recently" page is `quota_exceeded`. Any other page or status is `upstream_error`.
+6. `generate_links` hands the confirmed URL to the engine once per connection. It serves Range requests on many connections at once and sends `Last-Modified` but no ETag. The URL is not signed, but `link_ttl` is one hour, so a fresh `uuid` is fetched.
 
 ## MediaFire flow
 

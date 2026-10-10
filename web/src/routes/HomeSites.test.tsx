@@ -73,7 +73,8 @@ describe('Home supported sites', () => {
   it('lists every supported site under an empty slot', async () => {
     await setup()
     const sites = await screen.findByRole('list', { name: 'Supported sites' })
-    expect(within(sites).getAllByRole('listitem').map((item) => item.textContent)).toEqual(['Keep2Share', 'MEGA', 'MediaFire', 'Dropbox'])
+    expect(within(sites).getAllByRole('listitem').map((item) => item.textContent))
+      .toEqual(['Keep2Share', 'MEGA', 'Google Drive', 'MediaFire', 'Dropbox'])
   })
 
   it('names the list in Chinese', async () => {
