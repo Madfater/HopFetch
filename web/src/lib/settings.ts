@@ -7,6 +7,8 @@ import type { Settings, SettingsChange } from '../api/types'
 //   out-of-range field gets the backend's own message for that setting.
 // - The part size is edited in MiB and sent in bytes. A save sends only the settings that
 //   changed, so it never overwrites another user's change to a setting left alone here.
+// - NUMBER_FIELDS follow LIMITS, in the order the form shows them: the two that shape one task,
+//   connections and part size, then simultaneous downloads.
 
 export const MIB = 2 ** 20
 
@@ -27,8 +29,8 @@ export interface Problem {
 
 export const LIMITS: Record<NumberField, { min: number; max?: number }> = {
   connections: { min: 1, max: 64 },
-  maxActive: { min: 1, max: 10 },
   splitMib: { min: 20 },
+  maxActive: { min: 1, max: 10 },
 }
 
 const PROBLEMS: Record<NumberField, Problem> = {
