@@ -47,6 +47,15 @@ export function ProviderMark({ icon }: { icon: string }) {
       </svg>
     )
   }
+  if (icon === 'gdrive') {
+    return (
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
+        <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
+        <path d="M7.5 5h3l3 5.2-1.6 2.8H6.1L4.5 10.2zM10.5 5 7.5 10.2h6" fill="none" stroke="currentColor"
+          strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    )
+  }
   return (
     <svg aria-hidden="true" width="18" height="18" viewBox="0 0 18 18">
       <rect x="1" y="1" width="16" height="16" rx="3" fill="none" stroke="currentColor" strokeWidth="1.5" />
