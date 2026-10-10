@@ -88,6 +88,24 @@ describe('Home copy', () => {
     )
   })
 
+  it('asks only for a share link when the site names would not fit the input', async () => {
+    vi.stubGlobal('ResizeObserver', class {
+      observe() {}
+      disconnect() {}
+    })
+    vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
+      { font: '', measureText: (text: string) => ({ width: text.length * 8 }) } as unknown as CanvasRenderingContext2D,
+    )
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(300)
+    setup()
+    try {
+      await screen.findByText('Dropbox')
+      expect(screen.getByRole('textbox')).toHaveAttribute('placeholder', 'Paste a share link')
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
   it('names the supported sites when a link is from another site', async () => {
     const user = setup()
     await paste(user, 'https://example.com/file/abc')
