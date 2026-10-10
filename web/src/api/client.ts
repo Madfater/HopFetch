@@ -57,7 +57,8 @@ export const api = {
   providers: () => call<Provider[]>('/providers'),
   resolve: (url: string, signal?: AbortSignal) => call<Resolved>('/resolve', post({ url }, signal)),
   tasks: (signal?: AbortSignal) => call<Task[]>('/tasks', { signal }),
-  create: (url: string, force = false) => call<Task>('/tasks', post({ url, force })),
+  create: (url: string, force = false, useProxy = true) =>
+    call<Task>('/tasks', post({ url, force, use_proxy: useProxy })),
   pause: (id: string) => call<Task>(`/tasks/${id}/pause`, post()),
   resume: (id: string) => call<Task>(`/tasks/${id}/resume`, post()),
   cancel: (id: string) => call<Task>(`/tasks/${id}/cancel`, post()),

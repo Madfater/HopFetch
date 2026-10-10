@@ -24,7 +24,7 @@ function task(change: Partial<Task> = {}): Task {
   return {
     id: 'job1', url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 * GIB, bytes_done: 1.31 * GIB,
     speed: 0, eta: null, status: 'paused', phase: null, message_key: null, message_params: {}, message: '',
-    resumable: true, notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
+    resumable: true, use_proxy: true, notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null, ...change,
   }
 }

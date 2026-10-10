@@ -14,11 +14,12 @@ from typing import BinaryIO, Callable
 import requests
 
 from .providers.base import Cancelled, Decoder
+from .proxies import proxy_dict
 
 log = logging.getLogger(__name__)
 
 BLOCK_SIZE = 32 * 1024
-DEAD_LINK_STATUSES = {401, 403, 404, 410}
+DEAD_LINK_STATUSES = {401, 403, 404, 410, 509}
 DEAD_LINK_STRIKES = 3
 RETRY_DELAY = 2.0
 
@@ -161,8 +162,11 @@ class SegmentedDownload:
     - Each part file holds exactly the bytes already received for its range, so a later run
       resumes every range where it stopped. Bytes are only appended, never rewritten.
     - Each link carries at most one connection at a time.
-    - A link answering 401/403/404/410 three times in a row is dropped; when every link is
-      dropped, `run` raises `LinksExpired`.
+    - `proxies`, when given, holds one entry per link: the proxy that link is fetched through,
+      or None for a direct connection.
+    - A link answering 401/403/404/410/509 three times in a row is dropped; so is a link through
+      a proxy whose requests fail three times in a row. When every link is dropped, `run` raises
+      `LinksExpired`.
     - `run` raises `Cancelled` when `cancelled` is set, and `DownloadStalled` when no byte arrives
       for `stall_timeout` seconds.
     - Every request carries `If-Range` once `validator` knows the file version; the first 206
@@ -179,8 +183,10 @@ class SegmentedDownload:
                  on_progress: Callable[[Progress], None] | None = None,
                  read_timeout: float = 20, stall_timeout: float = 600,
                  progress_interval: float = 0.5, validator: Validator | None = None,
-                 on_validator: Callable[[Validator], None] | None = None):
+                 on_validator: Callable[[Validator], None] | None = None,
+                 proxies: list[str | None] | None = None):
         self.links = list(links)
+        self.proxies = list(proxies) if proxies else [None] * len(self.links)
         self.size = size
         self.part_dir = part_dir
         self.parts = build_parts(size, split_size)
@@ -269,15 +275,20 @@ class SegmentedDownload:
 
         - After a failed request the link stays busy for RETRY_DELAY seconds before the part
           is requeued, so a refusing server is not hammered.
+        - A request through a proxy that brings no byte strikes the link, whether it raised or
+          answered with anything other than 206, such as a proxy's own 407 or 502.
         """
         try:
+            before = self._on_disk(part)
             status = self._fetch(part, link)
             with self._lock:
-                if status in DEAD_LINK_STATUSES:
+                have = self._on_disk(part)
+                failed_proxy = status != 206 and self.proxies[link] is not None and have == before
+                if status in DEAD_LINK_STATUSES or failed_proxy:
                     self._strikes[link] += 1
                 elif status == 206:
                     self._strikes[link] = 0
-                incomplete = self._on_disk(part) < part.size
+                incomplete = have < part.size
             if incomplete:
                 if status != 206:
                     self._stop.wait(RETRY_DELAY)
@@ -301,6 +312,7 @@ class SegmentedDownload:
             headers["If-Range"] = if_range
         try:
             resp = requests.get(self.links[link], headers=headers, stream=True,
+                                proxies=proxy_dict(self.proxies[link]),
                                 timeout=(10, self.read_timeout))
             with resp:
                 if resp.status_code == 200:

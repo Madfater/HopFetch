@@ -1,0 +1,23 @@
+/*
+ * - Sits at the end of a wrapping action row; the auto start margin keeps it on the right,
+ *   also when it wraps onto its own line.
+ * - The label is set like the key hint, muted and small, and brightens on hover since a click
+ *   on it flips the switch.
+ */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-left: auto;
+}
+
+.label {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color var(--motion-fast) var(--ease-out);
+}
+
+.label:hover {
+  color: var(--color-text);
+}

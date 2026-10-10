@@ -719,3 +719,41 @@ def test_a_failed_integrity_check_drops_the_download(tmp_path, provider, content
     manager.retry(job.id)
     wait_for(lambda: job.status == Status.COMPLETED)
     assert (tmp_path / "downloads" / "broken.bin").read_bytes() == bytes(b ^ 0x5A for b in content)
+
+
+def test_proxy_download_links_are_spread_over_the_pool(tmp_path, provider, monkeypatch, content):
+    import downloader.engine as engine
+    from downloader.config import Settings
+    from downloader.jobs import JobManager
+    from downloader.providers import ProviderRegistry
+    from downloader.proxies import ProxyPool
+
+    monkeypatch.setattr(engine, "RETRY_DELAY", 0.01)
+    real_get = engine.requests.get
+
+    def get(url, proxies=None, **kwargs):
+        if proxies:
+            raise engine.requests.exceptions.ProxyError("refused")
+        return real_get(url, **kwargs)
+
+    monkeypatch.setattr(engine.requests, "get", get)
+    provider.proxy_downloads = True
+    settings = Settings(data_dir=tmp_path / "data", download_dir=tmp_path / "downloads",
+                        use_proxies=False, connections=4)
+    pool = ProxyPool(settings.data_dir / "proxies.txt", enabled=False,
+                     user_proxies=["http://127.0.0.1:1"])
+    manager = JobManager(settings, ProviderRegistry([provider]), proxies=pool, ocr=FakeOcr())
+    manager.start()
+    routed = manager.create(URL.format("routed"))
+    direct = manager.create(URL.format("direct"), use_proxy=False)
+    wait_for(lambda: routed.status == direct.status == Status.COMPLETED)
+    assert routed.link_proxies == [None, "http://127.0.0.1:1", None, "http://127.0.0.1:1"]
+    assert direct.link_proxies == [] and direct.use_proxy is False
+    assert (tmp_path / "downloads" / "routed.bin").read_bytes() == content
+    assert manager.public(direct)["use_proxy"] is False and "link_proxies" not in manager.public(routed)
+
+
+def test_jobs_stored_without_a_proxy_choice_use_proxies():
+    job = Job.load({"id": "abcdef012345", "url": "u", "provider": "k2s", "file_id": "f",
+                    "connections": 2, "split_size": 20})
+    assert job.use_proxy is True and job.link_proxies == []

@@ -147,6 +147,8 @@ class MegaProvider(Provider):
       and the content in `MegaDecoder`.
     - One download URL serves HTTP Range requests over many connections, so it is handed to
       the engine once per connection.
+    - MEGA counts a transfer quota per IP fetching the bytes, so with proxies each connection
+      is fetched through its own IP; see `Provider.proxy_downloads`.
     """
 
     name = "mega"
@@ -154,6 +156,7 @@ class MegaProvider(Provider):
     icon = "mega"
     patterns = (FILE_PATTERN, LEGACY_PATTERN)
     link_ttl = 3600
+    proxy_downloads = True
 
     def _node(self, ref: FileRef, download: bool) -> dict:
         """Ask the API for a public node; map MEGA's negative error numbers to error codes."""

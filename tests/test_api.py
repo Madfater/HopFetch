@@ -347,3 +347,10 @@ def test_unknown_api_paths_answer_json(client, method, path, key):
     resp = client.request(method, path)
     assert resp.status_code == 404
     assert (resp.json()["code"], resp.json()["key"]) == ("not_found", key)
+
+
+def test_a_task_keeps_its_proxy_choice(client):
+    task = client.post("/api/tasks", json={"url": URL.format("noproxy"), "use_proxy": False}).json()
+    assert task["use_proxy"] is False
+    assert client.get(f"/api/tasks/{task['id']}").json()["use_proxy"] is False
+    assert client.post("/api/tasks", json={"url": URL.format("proxy")}).json()["use_proxy"] is True

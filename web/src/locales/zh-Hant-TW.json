@@ -52,7 +52,9 @@
     "duplicateFailed": "這個檔案先前下載失敗或已取消。",
     "duplicateCompleted": "這個檔案已經下載過。",
     "keys": "按 <key>Enter</key> 下載，按 <key>Esc</key> 清除",
-    "keysClear": "按 <key>Esc</key> 清除"
+    "keysClear": "按 <key>Esc</key> 清除",
+    "useProxy": "使用代理",
+    "useProxyHint": "關閉時，下載直接連線，不經過任何代理。"
   },
   "batch": {
     "label": "{{count}} 個連結的批次",
@@ -167,7 +169,7 @@
     "splitSizeHint": "檔案依這個大小分段下載，每一段都能各自續傳。至少 20 MiB。",
     "mib": "MiB",
     "useProxies": "使用公開代理",
-    "useProxiesHint": "免費下載需要等待時，改用公開代理取得下載授權。自備代理一律使用。",
+    "useProxiesHint": "開啟「使用代理」的下載，除了自備代理，也會經過公開代理。自備代理一律使用。",
     "decrease": "減少",
     "increase": "增加",
     "unsaved": "{{count}} 項變更尚未儲存",

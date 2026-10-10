@@ -61,8 +61,8 @@ npm --prefix web run dev                  # optional: Vite dev server, proxies /
 | `CAPTCHA_MAX_ATTEMPTS` | `50` | OCR tries per run, across link regenerations, before the job fails with `captcha_failed`; a retry starts a new count. A value below 1 is logged and replaced by 50 |
 | `CONNECTIONS` | `20` | Initial connections per job |
 | `SPLIT_SIZE` | `20MB` | Initial part size, at least 20 MiB |
-| `USE_PROXIES` | `1` | Initial public proxy switch; `0` requests download keys over the direct connection and user proxies only |
-| `PROXIES` | empty | User proxy URLs (http, https, socks5, socks5h, with optional credentials), separated by newlines, commas or spaces. Tried after the direct connection and before public proxies, whatever `USE_PROXIES` says |
+| `USE_PROXIES` | `1` | Initial public proxy switch; `0` leaves public proxies out of the pool, so tasks that use proxies go over the direct connection and user proxies only |
+| `PROXIES` | empty | User proxy URLs (http, https, socks5, socks5h, with optional credentials), separated by newlines, commas or spaces. Tried after the direct connection and before public proxies, whatever `USE_PROXIES` says, by every task that uses proxies |
 | `MAX_ACTIVE_JOBS` | `2` | Initial number of jobs running at once; others wait in `queued` |
 
 `CONNECTIONS`, `SPLIT_SIZE`, `USE_PROXIES` and `MAX_ACTIVE_JOBS` are only initial values: once `settings.json` exists, the settings page owns them. An out-of-range value is logged and replaced by the built-in default.
@@ -120,15 +120,15 @@ One-time setup:
 
 A job's `status` is one of `queued`, `downloading`, `paused`, `completed`, `failed` and `canceled`. While `downloading`, `phase` names the step: `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` or `verifying`, and `message_key` with `message_params` describe the step, such as a countdown in seconds. Failures are `{code, key, params, message}`. See [Messages](#messages).
 
-1. `POST /api/tasks` checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component of at most 200 UTF-8 bytes, so ` (N)` and `.part` still fit the filesystem's limit.
-2. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the phase follows: `captcha`, `waiting` and `links`.
-3. `downloading`: `SegmentedDownload` splits the size into ranges of the split size. It then runs one thread per link, each streaming one pending range into its part file in append mode.
+1. `POST /api/tasks` takes `url`, `force` and `use_proxy`, the task's proxy choice from the Download page (default true; a task with `use_proxy` false makes every request over the direct connection). It checks the URL against the allowlist, refuses a duplicate (an unfinished job of the same file, or a completed one without `force`), reads name and size with `get_info`, checks free space, and starts a worker thread. At most `max_active_jobs` workers download at once. Names are reduced to one safe path component of at most 200 UTF-8 bytes, so ` (N)` and `.part` still fit the filesystem's limit.
+2. Link generation runs when the job has no links, or they are older than the provider's `link_ttl`. The provider reports through `LinkContext`, and the phase follows: `captcha`, `waiting` and `links`. `LinkContext.connections()` is the proxy pool for a task that uses proxies, and the direct connection alone otherwise. For a provider with `proxy_downloads`, a task that uses proxies also gets one connection per link from `ProxyPool.spread`: the direct connection and user proxies first, then randomly sampled public proxies, repeated when the pool is smaller. They are stored in the job's `link_proxies`.
+3. `downloading`: `SegmentedDownload` splits the size into ranges of the split size. It then runs one thread per link, each streaming one pending range into its part file in append mode, through the link's proxy when it has one.
    - The first 206 answer records the file version, a strong ETag or else Last-Modified, in the job's `etag` and `last_modified`. Every later request sends it as `If-Range`.
    - The remote file changed when a 206 answer names another ETag or Last-Modified than the recorded one, or reports a total size in `Content-Range` other than the job's size. That also catches parallel first requests served by different versions and servers that ignore `If-Range`. A non-HTML 200 answer to a request with `If-Range` means the same.
    - On a change the job drops its part files, reads the file info again for the new size, checks free space, starts over once, and keeps the notice `messages.remote_changed`. A second change in the same run fails it with `remote_changed`. The recorded version is saved to `jobs.json` as soon as it is first seen.
    - A 200 answer to a plain range request with the file's size, or no length, means the upstream ignores ranges. The job fails with `range_unsupported` and `resumable` turns false until a retry judges it again.
    - An HTML 200 answer, or a plain one of another length, is an error page and counts as a failed request. Nothing of a 200 body is ever written.
-4. When every link is refused (401, 403, 404 or 410, three times in a row each), the job regenerates links once and continues from the bytes on disk.
+4. A link is dropped after three refusals in a row (401, 403, 404, 410 or 509). A link through a proxy is also dropped after three requests in a row that brought no byte, whether they raised or got any answer other than 206. When every link is dropped, the job regenerates links once and continues from the bytes on disk.
 5. `assembling`: a free final name is chosen and `<name>.part` is created exclusively, never through a symlink. Parts are joined into it in order, through the provider's `Decoder` when it has one. A decoder that fails its integrity check fails the job with `integrity_failed` and drops the part files and staging file, so a retry downloads again. It is then hard-linked to the final name, which never replaces an existing file, and unlinked; a name taken meanwhile moves to the next ` (N)`. On filesystems without hard links the final name is first reserved by creating an empty file exclusively, and the staging file is renamed over that reservation. The final name is persisted at once, then the part directory is removed.
 6. `verifying`: for video extensions, when `ffmpeg` is on PATH, the result is recorded in `verified` as `ok` or `corrupt`.
 
@@ -186,7 +186,7 @@ The backend sends translation keys, and the frontend translates them.
 ## Keep2Share flow
 
 1. `requestCaptcha` gives a challenge and a PNG. `CaptchaSession.solve` runs OCR. An answer that is not 6 lowercase letters or digits is dropped without being submitted, and a fresh image is fetched. After `CAPTCHA_MAX_ATTEMPTS` tries the job fails with `captcha_failed`.
-2. `getUrl` with the captcha is tried from each IP in the proxy pool, starting with the direct connection.
+2. `getUrl` with the captcha is tried from each IP in `LinkContext.connections()`, starting with the direct connection; a task without proxies tries the direct connection only.
    - A wait up to 30 seconds is sat out, and yields a `free_download_key`.
    - A longer wait is the IP's cooldown between free downloads. When every IP is cooling down, the job waits for the shortest cooldown, up to one hour, then tries that IP again.
 3. The key is exchanged for links with parallel `getUrl` calls, up to three rounds per IP.
@@ -196,13 +196,13 @@ The backend sends translation keys, and the frontend translates them.
 
 1. A link is `https://mega.nz/file/<handle>#<key>` or the older `https://mega.nz/#!<handle>!<key>`, also on `mega.co.nz`. The handle is the file id. The 256-bit key stays in the fragment, which MEGA never sees: its halves XORed give the AES key, bytes 16 to 24 the CTR nonce, bytes 24 to 32 the expected MAC.
 2. `get_info` posts `{"a": "g", "p": <handle>, "ssl": 2}` to `https://g.api.mega.co.nz/cs`. The size is `s`. The name is `n` in the attributes `at`, which are decrypted with AES-CBC and a zero IV. Attributes that do not decrypt to `MEGA{...}` mean a wrong key: `invalid_url` with `errors.invalid_url_key`. A negative number in the reply is a MEGA error: `-2`, `-9`, `-11` and `-16` are `not_found`, `-17` is `quota_exceeded`, others are `upstream_error`.
-3. `generate_links` asks for the same node with `"g": 1` and hands its download URL to the engine once per connection. That URL answers Range requests on many connections at once and sends no ETag or Last-Modified.
+3. `generate_links` asks for the same node with `"g": 1` and hands its download URL to the engine once per connection. That URL answers Range requests on many connections at once and sends no ETag or Last-Modified. MEGA sets `proxy_downloads`, so a task that uses proxies fetches each connection through its own IP from the pool.
 4. Part files hold the ciphertext. While assembling, `MegaDecoder` decrypts with AES-128-CTR from counter `nonce + 0` and computes MEGA's MAC: a CBC-MAC per chunk (128 KiB, 256 KiB and so on up to 1 MiB, then 1 MiB each) chained into one file MAC, condensed to 8 bytes and compared with the key's.
-5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which the engine counts as a failed request, so the job ends with `stalled`.
+5. MEGA limits anonymous transfer per IP. Over the limit the download server answers `509`, which drops that link; the other links, on other IPs, carry on. When every link is dropped, links are regenerated once, with a new sample of public proxies, before the job fails with `links_expired`.
 
 ## Adding a provider
 
-1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label`, `icon` and `patterns`, and implement `get_info` and `generate_links`. Raise `ProviderError` with one of the error codes in [refactor-spec.md](refactor-spec.md). Override `headers` and `link_ttl` when needed.
+1. Subclass `Provider` in a new module under `downloader/providers/`. Set `name`, `label`, `icon` and `patterns`, and implement `get_info` and `generate_links`. Raise `ProviderError` with one of the error codes in [refactor-spec.md](refactor-spec.md). Override `headers` and `link_ttl` when needed, and set `proxy_downloads` when the platform limits the IP that fetches the bytes.
 2. Patterns match the normalized URL and hold the file id in group 1. They use only regex syntax that Python and JavaScript share: no named groups, no lookbehind, no inline flags.
 3. Add an instance to `default_registry()`, and add URLs to `shared/provider-test-cases.json`.
 4. Add tests in the style of `tests/test_k2s.py`.

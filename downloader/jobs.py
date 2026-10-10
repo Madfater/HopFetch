@@ -121,6 +121,9 @@ class Job:
       after the remote file changed, or `messages.resumed_restart` until the job completes.
     - `resume_on_start` marks a job the server paused while shutting down, or one a crash left
       active; it stays set until the job is queued again on start.
+    - `use_proxy` is the user's choice for this job; when false every request goes direct.
+    - `link_proxies` holds the proxy each link is fetched through, None for direct; it is empty
+      when every link goes direct.
     """
 
     id: str
@@ -141,6 +144,7 @@ class Job:
     updated_at: float = field(default_factory=time.time)
     completed_at: float | None = None
     links: list[str] = field(default_factory=list)
+    link_proxies: list[str | None] = field(default_factory=list)
     links_created_at: float | None = None
     bytes_done: int = 0
     parts_total: int = 0
@@ -154,6 +158,7 @@ class Job:
     last_modified: str | None = None
     notice_key: str | None = None
     resume_on_start: bool = False
+    use_proxy: bool = True
 
     def public(self, root: Path) -> dict:
         """Return the task object the API exposes; download links and paths stay private.
@@ -188,6 +193,7 @@ class Job:
             "message_params": self.message_params,
             "message": self.message,
             "resumable": self.resumable,
+            "use_proxy": self.use_proxy,
             "notice_key": self.notice_key,
             "file_exists": file_exists,
             "error": self.error,
@@ -450,7 +456,7 @@ class JobManager:
             "required_bytes": self.required_bytes(info.size),
         }
 
-    def create(self, url: str, force: bool = False) -> Job:
+    def create(self, url: str, force: bool = False, use_proxy: bool = True) -> Job:
         """Validate the link, check duplicates and space, then add a job and start it."""
         provider, ref = self.registry.resolve(url)
         self._check_duplicate(provider.name, ref.file_id, force)
@@ -462,7 +468,7 @@ class JobManager:
             job = Job(
                 id=uuid.uuid4().hex[:12], url=ref.url, provider=provider.name, file_id=ref.file_id,
                 connections=prefs.connections, split_size=prefs.split_size,
-                file_name=safe_filename(info.name), size=info.size,
+                file_name=safe_filename(info.name), size=info.size, use_proxy=use_proxy,
             )
             self._apply(job, Status.QUEUED, None, "messages.waiting_slot")
             self.jobs[job.id] = job
@@ -776,6 +782,7 @@ class JobManager:
                     raise
                 retried = True
                 job.links = []
+                job.link_proxies = []
                 self._set(job, Status.DOWNLOADING, Phase.LINKS, "messages.links_regenerating")
             except RemoteChanged:
                 self._start_over(job, run)
@@ -847,7 +854,11 @@ class JobManager:
         return time.time() - job.links_created_at < provider.link_ttl
 
     def _generate_links(self, job: Job, run: _Run, provider: Provider, ref: FileRef) -> None:
-        """Ask the provider for links, wiring captcha and status reporting to the job."""
+        """Ask the provider for links, wiring captcha and status reporting to the job.
+
+        - For a provider with `proxy_downloads`, a job that uses proxies spreads its links over
+          the pool, one connection per link.
+        """
 
         def on_attempt(attempt: int) -> None:
             self._set(job, Status.DOWNLOADING, Phase.CAPTCHA, "messages.captcha_attempt", n=attempt)
@@ -859,10 +870,15 @@ class JobManager:
             set_status=lambda phase, key, **params: self._set(job, Status.DOWNLOADING, Phase(phase), key, **params),
             proxies=self.proxies,
             cancelled=run.cancelled,
+            use_proxy=job.use_proxy,
         )
         links = provider.generate_links(ref, job.connections, ctx)
         if not links:
             raise ProviderError("upstream_error", "errors.upstream_error_no_links")
+        job.link_proxies = []
+        if provider.proxy_downloads and job.use_proxy:
+            self._set(job, Status.DOWNLOADING, Phase.LINKS, "messages.loading_proxies")
+            job.link_proxies = self.proxies.spread(len(links))
         job.links = links
         job.links_created_at = time.time()
         self._persist(force=True)
@@ -897,6 +913,7 @@ class JobManager:
                 links=job.links, size=job.size, part_dir=self._part_dir(job),
                 split_size=job.split_size, headers=provider.headers(), cancelled=run.cancelled,
                 on_progress=on_progress, validator=validator, on_validator=on_validator,
+                proxies=job.link_proxies or None,
             ).run()
         finally:
             job.etag, job.last_modified = validator.etag, validator.last_modified

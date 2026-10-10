@@ -1,5 +1,6 @@
 import { Trans, useTranslation } from 'react-i18next'
 import { Lamp, type LampColor } from '../components/Lamp'
+import { ProxyToggle } from '../components/ProxyToggle'
 import { useTouchScreen } from '../hooks/useTouchScreen'
 import type { BatchView, RowState } from '../lib/batch'
 import { formatBytes, formatStorage } from '../lib/format'
@@ -15,6 +16,7 @@ import styles from './Home.module.css'
 // - The button stays disabled while a link is being checked or the set does not fit. While it
 //   can start, a line under the facts says where the files go and that the page can be closed.
 // - The key hint is left out on a touch screen.
+// - While the button shows, the proxy choice for every file it starts sits at the row's end.
 
 interface Props {
   batch: Batch
@@ -22,6 +24,8 @@ interface Props {
   free: number
   locale: string
   starting: boolean
+  useProxy: boolean
+  onUseProxy: (on: boolean) => void
   onStart: () => void
 }
 
@@ -32,7 +36,7 @@ function lampOf(state: RowState): LampColor {
   return 'failed'
 }
 
-export function BatchPreview({ batch, view, free, locale, starting, onStart }: Props) {
+export function BatchPreview({ batch, view, free, locale, starting, useProxy, onUseProxy, onStart }: Props) {
   const { t } = useTranslation()
   const touch = useTouchScreen()
 
@@ -106,6 +110,9 @@ export function BatchPreview({ batch, view, free, locale, starting, onStart }: P
           <span className={styles.keys}>
             <Trans i18nKey={view.enterStarts ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
           </span>
+        )}
+        {view.ready.length > 0 && !view.started && (
+          <ProxyToggle checked={useProxy} onCheckedChange={onUseProxy} />
         )}
       </div>
     </section>

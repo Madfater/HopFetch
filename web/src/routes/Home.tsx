@@ -14,6 +14,8 @@ import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
 import { useTouchScreen } from '../hooks/useTouchScreen'
 import { useProviders, useTasks } from '../hooks/useTasks'
+import { useProxyChoice } from '../hooks/useProxyChoice'
+import { ProxyToggle } from '../components/ProxyToggle'
 import { formatBytes, formatList, formatPercent, formatStorage } from '../lib/format'
 import { batchView, UNFINISHED, type BatchView, type Outcome } from '../lib/batch'
 import { errorShort, errorText, statusWord } from '../lib/messages'
@@ -52,6 +54,8 @@ import styles from './Home.module.css'
 //   a word or two.
 // - A preview that can download says where the file goes and that the page can be closed; the
 //   toast after a start repeats that the page can be closed.
+// - Beside its download button, a preview offers the proxy choice, remembered per browser;
+//   every download it starts carries it. A retry keeps the earlier task's own choice.
 // - Starting a download and clearing with Esc run in a view transition: the preview fades out
 //   and the recent list slides up into its place. A task that arrives while the page is open
 //   flashes in the recent list.
@@ -102,6 +106,7 @@ export function Home() {
   const [submitError, setSubmitError] = useState<ApiError | null>(null)
   const [dragging, setDragging] = useState(false)
   const dragDepth = useRef(0)
+  const [useProxy, setUseProxy] = useProxyChoice()
 
   const providers = useProviders()
   const tasks = useTasks()
@@ -173,7 +178,7 @@ export function Home() {
   }, [setFromPaste])
 
   const create = useMutation({
-    mutationFn: ({ url, force }: { url: string; force: boolean }) => api.create(url, force),
+    mutationFn: ({ url, force }: { url: string; force: boolean }) => api.create(url, force, useProxy),
     onSuccess: (task) => {
       withViewTransition(() => {
         client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
@@ -210,7 +215,7 @@ export function Home() {
     const done = new Map<string, Outcome>()
     for (const item of current.ready) {
       try {
-        const task = await api.create(item.link.url, false)
+        const task = await api.create(item.link.url, false, useProxy)
         client.setQueryData<Task[]>(TASKS_KEY, (list) => upsertTask(list, task))
         done.set(item.link.key, { kind: 'started' })
       } catch (err) {
@@ -386,6 +391,8 @@ export function Home() {
           locale={i18n.language}
           busy={create.isPending || retry.isPending}
           submitError={submitError}
+          useProxy={useProxy}
+          onUseProxy={setUseProxy}
           onDownload={download}
           onRetry={(id) => retry.mutate(id)}
         />
@@ -393,7 +400,7 @@ export function Home() {
 
       {view && listed && (
         <BatchPreview batch={listed} view={view} free={free} locale={i18n.language} starting={starting}
-          onStart={() => void startBatch(view)} />
+          useProxy={useProxy} onUseProxy={setUseProxy} onStart={() => void startBatch(view)} />
       )}
 
       {recent.length > 0 && (
@@ -523,6 +530,8 @@ interface PreviewProps {
   locale: string
   busy: boolean
   submitError: ApiError | null
+  useProxy: boolean
+  onUseProxy: (on: boolean) => void
   onDownload: () => void
   onRetry: (id: string) => void
 }
@@ -531,7 +540,9 @@ interface PreviewProps {
 //   `download` ignores presses until the request ends.
 // - Retry is offered only while the file fits in the free space.
 // - The key hint names Enter only when Enter downloads; otherwise it names Esc alone.
-function Preview({ data, provider, free, short, plan, locale, busy, submitError, onDownload, onRetry }: PreviewProps) {
+function Preview({
+  data, provider, free, short, plan, locale, busy, submitError, useProxy, onUseProxy, onDownload, onRetry,
+}: PreviewProps) {
   const { t } = useTranslation()
   const duplicate = data.duplicate
   const retryable = duplicate != null && (duplicate.status === 'failed' || duplicate.status === 'canceled') && short === 0
@@ -597,6 +608,7 @@ function Preview({ data, provider, free, short, plan, locale, busy, submitError,
             <Trans i18nKey={enterDownloads ? 'preview.keys' : 'preview.keysClear'} components={{ key: <kbd /> }} />
           </span>
         )}
+        {plan.kind === 'download' && <ProxyToggle checked={useProxy} onCheckedChange={onUseProxy} />}
       </div>
     </section>
   )

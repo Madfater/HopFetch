@@ -27,7 +27,7 @@ function file(id: string, change: Partial<Resolved> = {}): Resolved {
 function task(id: string): Task {
   return {
     id, url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: id, file_name: `${id}.rar`, size: SIZE, bytes_done: 0, speed: 0, eta: null,
-    status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true,
+    status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true, use_proxy: true,
     notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null,
   }
@@ -229,5 +229,21 @@ describe('Home batch paste', () => {
     const { user } = setup({})
     await paste(user, 'https://img.example.com/a.jpg https://forum.example.com/t/1')
     await screen.findByText('None of these links are from a supported site: Keep2Share and MEGA.')
+  })
+})
+
+describe('Home batch proxy choice', () => {
+  beforeEach(() => localStorage.clear())
+
+  it('starts every file of the batch with the proxy choice', async () => {
+    const { create, user } = setup({ x1: file('x1'), x2: file('x2') })
+    await paste(user, ['x1', 'x2'].map(link).join('\n'))
+    const button = await within(card()).findByRole('button', { name: 'Download 2 files' })
+    const proxy = within(card()).getByRole('switch', { name: 'Use proxy' })
+    expect(proxy).toHaveAttribute('aria-checked', 'true')
+    await user.click(proxy)
+    await user.click(button)
+    await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(2))
+    expect(create.mock.calls.map((call) => call[2])).toEqual([false, false])
   })
 })

@@ -29,6 +29,7 @@ export interface Task {
   message_params: Params
   message: string
   resumable: boolean
+  use_proxy: boolean
   notice_key: string | null
   file_exists: boolean
   error: CodedError | null

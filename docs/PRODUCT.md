@@ -33,6 +33,7 @@ Free Keep2Share links normally give one rate-limited connection, sit behind an i
 - Task statuses: `queued`, `downloading`, `paused`, `completed`, `failed`, `canceled`. While downloading, the phases are `resolving`, `captcha`, `waiting`, `links`, `downloading`, `assembling` and `verifying`.
 - Pause, cancel and delete are refused during `assembling` and `verifying`.
 - Editable settings: connections (1 to 64), split size (at least 20 MiB), public proxies on or off, and max active jobs. The download root is shown read-only.
+- Each download carries a proxy choice, a switch in the Download page's preview that the browser remembers. Off, the task connects directly.
 - Errors reach the UI as translation keys with parameters. Raw exception text never does.
 - A single uvicorn worker. There is no authentication and no per-user state.
 - The backend is FastAPI. The frontend is Vite, React 19 and TypeScript with Radix primitives and CSS modules.

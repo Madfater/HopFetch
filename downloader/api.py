@@ -53,6 +53,7 @@ class CreateTask(BaseModel):
 
     url: str
     force: bool = False
+    use_proxy: bool = True
 
 
 class SettingsBody(BaseModel):
@@ -126,7 +127,7 @@ def create_task(body: CreateTask, request: Request) -> dict:
     """Create and start a task."""
     manager = _manager(request)
     try:
-        return manager.public(manager.create(body.url, body.force))
+        return manager.public(manager.create(body.url, body.force, body.use_proxy))
     except ProviderError as exc:
         raise _provider_error(exc) from None
     except TaskError as exc:
