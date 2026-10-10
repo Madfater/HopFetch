@@ -8,6 +8,7 @@ import { ConfirmDialog, type ConfirmKind } from '../components/ConfirmDialog'
 import { useNewIds } from '../hooks/useNewIds'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { IconButton } from '../components/IconButton'
+import { ProviderMark } from '../components/icons'
 import { Lamp, StatusLamp } from '../components/Lamp'
 import { SegmentedControl } from '../components/SegmentedControl'
 import { useToast } from '../components/toast-context'
@@ -26,6 +27,11 @@ import styles from './Tasks.module.css'
 // - A row's status cell holds the state and its step; the task's notes, such as an error or a
 //   restart notice, sit under the file name, and speed and time left sit under the progress bar
 //   while the task downloads.
+// - The file host is a small mark before the file name, named by its tooltip and for screen
+//   readers, so it takes no column of its own.
+// - The status column is as wide as the longest state word in the current language: every word
+//   sits stacked and invisible in its header, as generated content that is no text of the page,
+//   so the width holds still while states change.
 // - A completed task whose file is no longer on the NAS says so in a neutral note, with an
 //   action that removes the task from the list without a dialog, since no file or byte is lost;
 //   the action waits while its request runs.
@@ -50,6 +56,10 @@ import styles from './Tasks.module.css'
 const FOCUS_MS = 2500
 const FINISHING = new Set(['assembling', 'verifying'])
 const DASH = '\u2014'
+const STATE_WORDS = [
+  'status.queued', 'status.downloading', 'status.paused', 'status.completed', 'status.failed', 'status.canceled',
+  'status.unfixable', 'phaseState.preparing', 'phaseState.finishing',
+] as const
 
 // - The progress fill's color by status: active teal while downloading, a quiet done green when
 //   completed, failed red when failed and a retry can fix it; other statuses keep the neutral
@@ -149,7 +159,7 @@ export function Tasks() {
         <h1 className="page-title">{t('tasks.title')}</h1>
         {all && all.length > 0 && (
           <div className={styles.toolbar}>
-            <SegmentedControl label={t('tasks.filter.label')} value={filter}
+            <SegmentedControl stretch label={t('tasks.filter.label')} value={filter}
               onChange={(value) => {
                 setFilter(value)
                 if (focused || params.has('filter')) setParams({}, { replace: true })
@@ -163,7 +173,7 @@ export function Tasks() {
                   </span>
                 ),
               }))} />
-            <button type="button" className={controls.button} disabled={!hasCompleted || clear.isPending}
+            <button type="button" className={`${controls.button} ${styles.clear}`} disabled={!hasCompleted || clear.isPending}
               onClick={() => clear.mutate()}>
               {t('tasks.clearCompleted')}
             </button>
@@ -185,8 +195,12 @@ export function Tasks() {
         <table className={styles.table}>
           <thead>
             <tr>
-              <th scope="col" className={styles.colStatus}>{t('tasks.column.status')}</th>
-              <th scope="col" className={styles.colProvider}>{t('tasks.column.provider')}</th>
+              <th scope="col" className={styles.colStatus}>
+                {t('tasks.column.status')}
+                <span className={styles.statusSizer} aria-hidden="true">
+                  {STATE_WORDS.map((key) => <span key={key} data-word={t(key)} />)}
+                </span>
+              </th>
               <th scope="col">{t('tasks.column.name')}</th>
               <th scope="col" className={`${styles.colSize} ${styles.right}`}>{t('tasks.column.size')}</th>
               <th scope="col" className={styles.colProgress}>{t('tasks.column.progress')}</th>
@@ -196,7 +210,7 @@ export function Tasks() {
           <tbody>
             {visible.length === 0 && (
               <tr className={styles.emptyRow}>
-                <td colSpan={6}>
+                <td colSpan={5}>
                   <div className={styles.empty}>
                     <p className={styles.emptyTitle}>{t('tasks.emptyFiltered')}</p>
                     <button type="button" className={controls.button}
@@ -262,6 +276,7 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const name = task.file_name ?? t('tasks.unnamed')
+  const hostName = provider?.name ?? task.provider
   const ratio = task.size ? Math.min(1, task.bytes_done / task.size) : task.status === 'completed' ? 1 : 0
   const unfinished = task.status === 'queued' || task.status === 'downloading' || task.status === 'paused'
   const finishing = task.phase !== null && FINISHING.has(task.phase)
@@ -288,21 +303,27 @@ function TaskRow({ task, provider, focused, arrived, onAction, onRemoveEntry, re
           <span className={styles.sub} title={status.title || undefined}>{status.detail}</span>
         )}
       </td>
-      <td className={styles.cellProvider}>{provider?.name ?? task.provider}</td>
       <td className={styles.cellName}>
-        <span className={styles.name} title={name}>{name}</span>
-        {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
-        {task.status === 'failed' && task.error && (
-          <span className={unfixable ? styles.sub : `${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
-        )}
-        {task.status === 'completed' && !task.file_exists && (
-          <span className={styles.sub}>
-            {t('tasks.fileGone')}{' '}
-            <button type="button" className={styles.subAction} onClick={onRemoveEntry} disabled={removing}
-              aria-label={t('action.named', { action: t('tasks.removeEntry'), name })}>{t('tasks.removeEntry')}</button>
+        <div className={styles.nameRow}>
+          <span className={styles.host} role="img" aria-label={hostName} title={hostName}>
+            <ProviderMark icon={provider?.icon ?? task.provider} />
           </span>
-        )}
-        {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
+          <span className={styles.file}>
+            <span className={styles.name} title={name}>{name}</span>
+            {task.notice_key && <span className={styles.sub}>{t(task.notice_key)}</span>}
+            {task.status === 'failed' && task.error && (
+              <span className={unfixable ? styles.sub : `${styles.sub} ${styles.subError}`}>{errorText(t, task.error)}</span>
+            )}
+            {task.status === 'completed' && !task.file_exists && (
+              <span className={styles.sub}>
+                {t('tasks.fileGone')}{' '}
+                <button type="button" className={styles.subAction} onClick={onRemoveEntry} disabled={removing}
+                  aria-label={t('action.named', { action: t('tasks.removeEntry'), name })}>{t('tasks.removeEntry')}</button>
+              </span>
+            )}
+            {task.verified === 'corrupt' && <span className={`${styles.sub} ${styles.subError}`}>{t('tasks.videoCorrupt')}</span>}
+          </span>
+        </div>
       </td>
       <td className={`${styles.cellSize} ${styles.right} num`}>
         {!unfixable && <span className={styles.phonePercent} aria-hidden="true">{percent}</span>}

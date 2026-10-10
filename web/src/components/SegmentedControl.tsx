@@ -13,6 +13,7 @@ import styles from './SegmentedControl.module.css'
 // - `data-more` marks a track whose segments run past its right edge, and `data-less` one
 //   scrolled away from its start, measured on resize and scroll, so each edge can fade to show
 //   that the track scrolls that way.
+// - `stretch` lets the track fill its container on a phone, sharing the room among the segments.
 
 export interface Segment<T extends string> {
   value: T
@@ -27,9 +28,10 @@ interface Props<T extends string> {
   label?: string
   labelledBy?: string
   describedBy?: string
+  stretch?: boolean
 }
 
-export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy, describedBy }: Props<T>) {
+export function SegmentedControl<T extends string>({ value, options, onChange, label, labelledBy, describedBy, stretch }: Props<T>) {
   const track = useRef<HTMLDivElement>(null)
   const [thumb, setThumb] = useState<{ x: number; width: number; span: number } | null>(null)
   const [more, setMore] = useState(false)
@@ -63,7 +65,7 @@ export function SegmentedControl<T extends string>({ value, options, onChange, l
   }, [value, options.length])
 
   return (
-    <RadioGroup.Root ref={track} className={styles.track} data-more={more || undefined} data-less={less || undefined} value={value} orientation="horizontal" loop
+    <RadioGroup.Root ref={track} className={`${styles.track} ${stretch ? styles.stretch : ''}`} data-more={more || undefined} data-less={less || undefined} value={value} orientation="horizontal" loop
       aria-label={labelledBy ? undefined : label} aria-labelledby={labelledBy} aria-describedby={describedBy}
       onValueChange={(next) => onChange(next as T)}>
       {thumb && (
