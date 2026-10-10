@@ -182,6 +182,30 @@ describe('Tasks', () => {
     expect(screen.queryByRole('button', { name: 'Retry: a.rar' })).not.toBeInTheDocument()
   })
 
+  it('draws a failure no retry can fix on a neutral track with a dash for its percent', async () => {
+    setup([task({ id: 'a', file_name: 'a.rar', status: 'failed', retryable: false, size: null, bytes_done: 0 }),
+      task({ id: 'b', file_name: 'b.rar', status: 'failed', bytes_done: 0 })])
+    const plain = await screen.findByRole('progressbar', { name: 'Progress of a.rar' })
+    expect(plain.className).not.toContain(styles.trackFailed)
+    expect(plain).toHaveAttribute('aria-valuetext', 'Cannot be downloaded')
+    expect(plain.closest('tr')!.querySelector(`.${styles.percent}`)).toHaveTextContent('—')
+    expect(plain.closest('tr')!.querySelector(`.${styles.cellSize}`)).toHaveTextContent('—Size unknown')
+    const red = screen.getByRole('progressbar', { name: 'Progress of b.rar' })
+    expect(red.className).toContain(styles.trackFailed)
+    expect(red.closest('tr')!.querySelector(`.${styles.percent}`)).toHaveTextContent('0%')
+  })
+
+  it('groups cancel with delete as a stop action, apart from resume', async () => {
+    setup([task()])
+    const cancel = await screen.findByRole('button', { name: 'Cancel: a.rar' })
+    const resume = screen.getByRole('button', { name: 'Resume: a.rar' })
+    const remove = screen.getByRole('button', { name: 'Delete: a.rar' })
+    expect(cancel.parentElement).toBe(remove.parentElement)
+    expect(cancel.parentElement).toHaveClass(styles.discard)
+    expect(resume.parentElement).not.toBe(cancel.parentElement)
+    expect(cancel.querySelector('path')).toHaveAttribute('d', 'M4.5 4.5h7v7h-7z')
+  })
+
   it('offers retry on a failure a retry can fix and on a canceled task', async () => {
     setup([task({ id: 'a', file_name: 'a.rar', status: 'failed' }), task({ id: 'b', file_name: 'b.rar', status: 'canceled' })])
     expect(await screen.findByRole('button', { name: 'Retry: a.rar' })).toBeInTheDocument()

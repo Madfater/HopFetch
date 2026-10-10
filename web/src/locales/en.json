@@ -131,6 +131,7 @@
     "progressLabel": "Progress of {{name}}",
     "progressText": "{{percent}}, {{done}} of {{size}}, {{state}}",
     "progressTextNoSize": "{{done}} downloaded, {{state}}",
+    "sizeUnknown": "Size unknown",
     "fileGone": "Moved or deleted from the NAS",
     "removeEntry": "Remove from list",
     "videoCorrupt": "ffmpeg found problems in this video.",
