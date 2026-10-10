@@ -16,7 +16,7 @@ import { Home } from './Home'
 function task(id: string, status: Status, change: Partial<Task> = {}): Task {
   return {
     id, url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: id, file_name: `${id}.rar`, size: 100, bytes_done: 0, speed: 0, eta: null,
-    status, phase: null, message_key: null, message_params: {}, message: '', resumable: true, notice_key: null,
+    status, phase: null, message_key: null, message_params: {}, message: '', resumable: true, use_proxy: true, notice_key: null,
     file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1, completed_at: null, ...change,
   }
 }

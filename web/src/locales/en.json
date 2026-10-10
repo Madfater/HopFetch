@@ -57,7 +57,9 @@
     "duplicateFailed": "This file failed or was canceled before.",
     "duplicateCompleted": "This file was downloaded before.",
     "keys": "<key>Enter</key> to download, <key>Esc</key> to clear",
-    "keysClear": "<key>Esc</key> to clear"
+    "keysClear": "<key>Esc</key> to clear",
+    "useProxy": "Use proxy",
+    "useProxyHint": "Off: the download connects directly, without any proxy."
   },
   "batch": {
     "label": "Batch of {{count}} links",
@@ -177,7 +179,7 @@
     "splitSizeHint": "Files are fetched in parts of this size, and each part resumes on its own. At least 20 MiB.",
     "mib": "MiB",
     "useProxies": "Use public proxies",
-    "useProxiesHint": "When a free download has to wait, request the download key through public proxies. Your own proxies are always used.",
+    "useProxiesHint": "Add public proxies to the ones downloads go through while Use proxy is on. Your own proxies are always used.",
     "decrease": "Decrease",
     "increase": "Increase",
     "unsaved_one": "{{count}} unsaved change",

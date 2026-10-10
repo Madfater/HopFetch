@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import providers from '../../../shared/providers.json'
 import { api } from '../api/client'
+import { PROXY_CHOICE_STORAGE_KEY } from '../hooks/useProxyChoice'
 import type { Resolved, Task } from '../api/types'
 import i18n from '../i18n'
 import controls from '../styles/controls.module.css'
@@ -27,7 +28,7 @@ function resolved(change: Partial<Resolved> = {}): Resolved {
 function task(id: string): Task {
   return {
     id, url: 'https://k2s.cc/file/aaa111', provider: 'k2s', file_id: 'aaa111', file_name: 'a.rar', size: 2 ** 30, bytes_done: 0, speed: 0, eta: null,
-    status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true,
+    status: 'queued', phase: null, message_key: null, message_params: {}, message: '', resumable: true, use_proxy: true,
     notice_key: null, file_exists: false, error: null, retryable: true, verified: null, created_at: 1, updated_at: 1,
     completed_at: null,
   }
@@ -71,7 +72,7 @@ describe('Home preview keys', () => {
     const { create, user } = await setup(resolved())
     expect(keyHint()).toBe('Enter to download, Esc to clear')
     await user.keyboard('{Enter}')
-    expect(create).toHaveBeenCalledWith(LINK, false)
+    expect(create).toHaveBeenCalledWith(LINK, false, true)
   })
 
   it('needs a click to download a completed file again', async () => {
@@ -80,7 +81,7 @@ describe('Home preview keys', () => {
     await user.keyboard('{Enter}')
     expect(create).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Download again' }))
-    expect(create).toHaveBeenCalledWith(LINK, true)
+    expect(create).toHaveBeenCalledWith(LINK, true, true)
   })
 
   it('needs a click to retry a failed earlier task', async () => {
@@ -194,5 +195,35 @@ describe('Home recent list', () => {
     )
     expect(await screen.findByRole('link', { name: /a\.rar/ })).toHaveAccessibleName(/Failed, ?Disk full$/)
     expect(screen.getByRole('link', { name: /b\.rar/ })).toHaveAccessibleName(/Failed, ?Quota used up$/)
+  })
+})
+
+describe('Home proxy choice', () => {
+  beforeEach(() => localStorage.clear())
+
+  const proxySwitch = () => screen.getByRole('switch', { name: 'Use proxy' })
+
+  it('starts with proxies on and sends the choice with the download', async () => {
+    const { create, user } = await setup(resolved())
+    expect(proxySwitch()).toHaveAttribute('aria-checked', 'true')
+    expect(proxySwitch()).toHaveAccessibleDescription('Off: the download connects directly, without any proxy.')
+    await user.click(screen.getByText('Use proxy'))
+    expect(proxySwitch()).toHaveAttribute('aria-checked', 'false')
+    await user.click(screen.getByRole('button', { name: 'Download' }))
+    expect(create).toHaveBeenCalledWith(LINK, false, false)
+    expect(localStorage.getItem(PROXY_CHOICE_STORAGE_KEY)).toBe('off')
+  })
+
+  it('remembers a choice turned off in this browser', async () => {
+    localStorage.setItem(PROXY_CHOICE_STORAGE_KEY, 'off')
+    const { create, user } = await setup(resolved())
+    expect(proxySwitch()).toHaveAttribute('aria-checked', 'false')
+    await user.keyboard('{Enter}')
+    expect(create).toHaveBeenCalledWith(LINK, false, false)
+  })
+
+  it('leaves the choice out when the preview only offers a retry', async () => {
+    await setup(resolved({ duplicate: { task_id: 'old1', status: 'failed' } }))
+    expect(screen.queryByRole('switch', { name: 'Use proxy' })).toBeNull()
   })
 })
