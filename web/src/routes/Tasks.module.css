@@ -22,7 +22,7 @@
  *   speed under the bar, so the wide name column holds the long text.
  * - An action inside a note is underlined, in the main text color; on a touch screen it grows
  *   to a 44px tall target without moving the text around it.
- * - Delete stands a little apart from the other actions.
+ * - Cancel and delete, the actions that throw work away, stand a little apart from the others.
  * - Below 768px the title shares its line with "clear completed", and the filter takes the
  *   line below, filling it below 480px. Each row is a grid of three lines: the host mark and the
  *   name with its notes, wrapped to at most two lines; the status, with the percent and size at
@@ -269,7 +269,9 @@
   gap: var(--space-1);
 }
 
-.actions > :last-child {
+.discard {
+  display: flex;
+  gap: var(--space-1);
   margin-left: var(--space-2);
 }
 
