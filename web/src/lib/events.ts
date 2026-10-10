@@ -9,8 +9,11 @@ import { finishedSince, PROVIDERS_KEY, removeTask, RESOLVE_KEY, STORAGE_KEY, TAS
 //   never undoes them.
 // - A browser reconnects by itself after a network error. When the stream is closed for good,
 //   for example after an HTTP error, it is reopened after RECONNECT_MS.
+// - A drop is reported as offline only once the stream has stayed down for OFFLINE_DELAY_MS, so
+//   a reconnect within that time, such as after a brief VPN drop, never reports offline at all.
 
 export const RECONNECT_MS = 3000
+export const OFFLINE_DELAY_MS = 2000
 
 export interface EventHandlers {
   onFinished?: (finished: Finished) => void
@@ -66,12 +69,15 @@ export function connectEvents(
 ): () => void {
   let source: EventSource | null = null
   let timer: ReturnType<typeof setTimeout> | undefined
+  let offlineTimer: ReturnType<typeof setTimeout> | undefined
   let stopped = false
   let buffer: [string, unknown][] | null = null
 
   const open = () => {
     source = new EventSource(url)
     source.onopen = () => {
+      clearTimeout(offlineTimer)
+      offlineTimer = undefined
       handlers.onConnection?.(true)
       const pending: [string, unknown][] = []
       buffer = pending
@@ -82,7 +88,9 @@ export function connectEvents(
       void client.invalidateQueries({ queryKey: PROVIDERS_KEY })
     }
     source.onerror = () => {
-      handlers.onConnection?.(false)
+      if (offlineTimer === undefined) {
+        offlineTimer = setTimeout(() => handlers.onConnection?.(false), OFFLINE_DELAY_MS)
+      }
       if (source?.readyState === EventSource.CLOSED && !stopped) {
         source.close()
         timer = setTimeout(open, RECONNECT_MS)
@@ -101,6 +109,7 @@ export function connectEvents(
   return () => {
     stopped = true
     clearTimeout(timer)
+    clearTimeout(offlineTimer)
     source?.close()
   }
 }

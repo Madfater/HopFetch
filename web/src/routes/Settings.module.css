@@ -4,6 +4,8 @@
  *   560px the control moves under the text. Rows are parted by a groove in the ground color.
  * - The download folder is monospace data. Each path segment is an inline block, so a line
  *   breaks only between segments, after a separator, unless one segment alone is too wide.
+ *   The copy button sits at the top, with the path's first line centered on it, however many
+ *   lines the path takes; `--copy-size` is the button's height, 44px on a touch screen.
  * - While there are unsaved changes or a failed save, the footer of the download settings
  *   sticks to the bottom of the window when the plate runs past it. Its status line and the
  *   Discard button ease in when they change.
@@ -77,11 +79,20 @@
 }
 
 .pathControl {
-  align-items: center;
+  --copy-size: 32px;
+
+  align-items: flex-start;
   gap: var(--space-2);
 }
 
+@media (hover: none) and (pointer: coarse) {
+  .pathControl {
+    --copy-size: 44px;
+  }
+}
+
 .path {
+  padding-top: calc((var(--copy-size) - 1lh) / 2);
   max-width: 22rem;
   font-family: var(--font-mono);
   font-size: 0.9rem;

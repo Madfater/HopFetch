@@ -152,12 +152,12 @@
   "confirmDialog": {
     "cancel": {
       "title": "Cancel download",
-      "body": "Stop \"{{name}}\". It stays in the list as canceled, and Retry starts it again from the beginning.",
+      "body": "Stop this download. It stays in the list as canceled, and Retry starts it again from the beginning.",
       "confirm": "Cancel download"
     },
     "delete": {
       "title": "Delete task",
-      "body": "Remove \"{{name}}\" from the list.",
+      "body": "Remove this task from the list.",
       "confirm": "Delete"
     },
     "discards": "This discards the {{size}} downloaded so far.",
@@ -231,5 +231,34 @@
   "errors": {
     "network": "Cannot reach the server. Check that the service is running, then try again.",
     "unknown": "The request could not be completed. Try again."
+  },
+  "errorShort": {
+    "not_found": "File not found",
+    "private": "Private file",
+    "premium_only": "Premium only",
+    "quota_exceeded": "Quota used up",
+    "upstream_error": "Host unreachable",
+    "upstream_error_refused": "Host refused",
+    "upstream_error_no_key": "No download key",
+    "upstream_error_captcha": "No captcha",
+    "upstream_error_no_size": "Size unknown",
+    "upstream_error_no_links": "No download links",
+    "captcha_failed": "Captcha unread",
+    "captcha_failed_ocr": "Captcha reader down",
+    "links_expired": "Links expired",
+    "stalled": "Stalled",
+    "disk_full": "Disk full",
+    "insufficient_space": "Not enough space",
+    "internal_error": "Internal error",
+    "internal_error_legacy": "Failed before update",
+    "remote_changed": "Remote file changed",
+    "range_unsupported": "No range support",
+    "interrupted": "Server restarted",
+    "integrity_failed": "Integrity check failed",
+    "invalid_url_key": "Wrong key",
+    "file_missing": "Missing on NAS"
+  },
+  "a11y": {
+    "separator": ", "
   }
 }

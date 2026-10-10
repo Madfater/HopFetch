@@ -33,8 +33,8 @@ const SAVED_MS = 2500
 
 const NUMBER_ROWS: { field: NumberField; id: string; label: string; hint: string; unit?: string }[] = [
   { field: 'connections', id: 'connections', label: 'settings.connections', hint: 'settings.connectionsHint' },
-  { field: 'maxActive', id: 'max-active', label: 'settings.maxActive', hint: 'settings.maxActiveHint' },
   { field: 'splitMib', id: 'split-size', label: 'settings.splitSize', hint: 'settings.splitSizeHint', unit: 'settings.mib' },
+  { field: 'maxActive', id: 'max-active', label: 'settings.maxActive', hint: 'settings.maxActiveHint' },
 ]
 
 const rowId = (field: NumberField) => NUMBER_ROWS.find((row) => row.field === field)?.id ?? field

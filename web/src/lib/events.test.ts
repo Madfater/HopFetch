@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '../api/types'
-import { applyEvent, resync } from './events'
+import { applyEvent, connectEvents, OFFLINE_DELAY_MS, resync } from './events'
 import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY } from './tasks'
 
 function task(id: string, change: Partial<Task> = {}): Task {
@@ -151,5 +151,48 @@ describe('resync retries', () => {
     }
     await resync(client, fetchTasks, [], () => stop, 1)
     expect(calls).toBe(1)
+  })
+})
+
+// - A scripted EventSource: the test calls `onopen` and `onerror` by hand.
+class FakeSource {
+  static CLOSED = 2
+  static last: FakeSource | null = null
+  readyState = 1
+  onopen: (() => void) | null = null
+  onerror: (() => void) | null = null
+  constructor() {
+    FakeSource.last = this
+  }
+  addEventListener() {}
+  close() {}
+}
+
+describe('connectEvents', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
+  it('reports offline only after the stream stays down for OFFLINE_DELAY_MS', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('EventSource', FakeSource)
+    const onConnection = vi.fn()
+    const client = new QueryClient()
+    const close = connectEvents(client, () => new Promise<Task[]>(() => {}), { onConnection })
+    const source = FakeSource.last!
+
+    source.onerror!()
+    vi.advanceTimersByTime(OFFLINE_DELAY_MS - 1)
+    source.onopen!()
+    vi.advanceTimersByTime(OFFLINE_DELAY_MS)
+    expect(onConnection.mock.calls.map(([connected]) => connected)).toEqual([true])
+
+    source.onerror!()
+    source.onerror!()
+    vi.advanceTimersByTime(OFFLINE_DELAY_MS)
+    expect(onConnection.mock.calls.map(([connected]) => connected)).toEqual([true, false])
+
+    close()
   })
 })

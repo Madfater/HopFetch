@@ -20,7 +20,9 @@
  *   about eight; under 480px the size moves under the name.
  * - The supported sites row turns invisible while the input holds text, keeping its height.
  * - A recent task is a full-width link row with a panel hover; one that arrived while the page
- *   is open flashes once.
+ *   is open flashes once. Its percent, or a failed task's reason, is set in the muted tone.
+ *   The name keeps at least 9rem or 40% of the row; a reason too wide to sit beside the
+ *   status wraps under it.
  */
 .home {
   max-width: 560px;
@@ -347,7 +349,7 @@
 
 .recentItem {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(min(9rem, 40%), 1fr) auto;
   align-items: center;
   gap: var(--space-3);
   width: calc(100% + 2 * var(--space-3));
@@ -380,10 +382,13 @@
 
 .recentStatus {
   display: inline-flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-3);
+  justify-content: flex-end;
+  gap: 0 var(--space-3);
 }
 
-.percent {
+.percent,
+.reason {
   color: var(--color-muted);
 }

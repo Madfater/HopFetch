@@ -174,3 +174,25 @@ describe('Home typed input', () => {
     expect(input).toHaveAttribute('aria-invalid', 'true')
   })
 })
+
+describe('Home recent list', () => {
+  it('names a failed task\'s reason in a word or two after its status', async () => {
+    const error = { code: 'disk_full', key: 'errors.disk_full', params: {}, message: '' }
+    const failed = { ...task('t1'), status: 'failed' as const, error }
+    const variant = { ...task('t2'), file_name: 'b.rar', status: 'failed' as const,
+      error: { code: 'quota_exceeded', key: 'errors.quota_exceeded_wait', params: { count: 5 }, message: '' } }
+    vi.spyOn(api, 'providers').mockResolvedValue(providers)
+    vi.spyOn(api, 'tasks').mockResolvedValue([failed, variant])
+    vi.spyOn(api, 'storage').mockResolvedValue({ free_bytes: FREE, total_bytes: 4 * FREE })
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <Home />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    )
+    expect(await screen.findByRole('link', { name: /a\.rar/ })).toHaveAccessibleName(/Failed, ?Disk full$/)
+    expect(screen.getByRole('link', { name: /b\.rar/ })).toHaveAccessibleName(/Failed, ?Quota used up$/)
+  })
+})
