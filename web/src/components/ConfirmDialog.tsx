@@ -7,6 +7,9 @@ import styles from './ConfirmDialog.module.css'
 
 // - Confirms canceling or deleting a task. Both are offered from the files page and both are
 //   asked first, because both throw away the part files of an unfinished task.
+// - The task's file name stands on its own line under the title, cut to two lines with the full
+//   name in its tooltip, so a long name never pushes the cost line down; screen readers hear it
+//   whole.
 // - `discards` is the number of downloaded bytes the action deletes; when it is above zero the
 //   dialog states it in red, so the cost is read before the red button.
 // - "Also delete the file on the NAS" starts unchecked and is only offered for deleting a
@@ -61,7 +64,8 @@ export function ConfirmDialog({ kind, name, discards, canDeleteFile, open, onOpe
           <Dialog.Title className={styles.title}>{t(`confirmDialog.${kind}.title`)}</Dialog.Title>
           <Dialog.Description asChild>
             <div className={styles.body}>
-              <p>{t(`confirmDialog.${kind}.body`, { name })}</p>
+              <p className={styles.name} title={name}>{name}</p>
+              <p>{t(`confirmDialog.${kind}.body`)}</p>
               {discards > 0 && (
                 <p className={styles.cost}>{t('confirmDialog.discards', { size: formatBytes(i18n.language, discards) })}</p>
               )}

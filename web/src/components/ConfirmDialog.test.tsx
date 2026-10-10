@@ -67,6 +67,7 @@ describe('ConfirmDialog', () => {
     await user.click(screen.getByRole('button', { name: 'Open: a.rar' }))
     const dialog = await screen.findByRole('dialog', { name: 'Cancel download' })
     expect(dialog).toHaveAccessibleDescription(expect.stringContaining('This discards the 1.31 GB downloaded so far.'))
+    expect(dialog).toHaveAccessibleDescription(expect.stringMatching(/^a\.rar\s*Stop this download\./))
     expect(screen.getByRole('button', { name: 'Keep' })).toHaveFocus()
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
   })

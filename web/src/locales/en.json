@@ -147,12 +147,12 @@
   "confirmDialog": {
     "cancel": {
       "title": "Cancel download",
-      "body": "Stop \"{{name}}\". It stays in the list as canceled, and Retry starts it again from the beginning.",
+      "body": "Stop this download. It stays in the list as canceled, and Retry starts it again from the beginning.",
       "confirm": "Cancel download"
     },
     "delete": {
       "title": "Delete task",
-      "body": "Remove \"{{name}}\" from the list.",
+      "body": "Remove this task from the list.",
       "confirm": "Delete"
     },
     "discards": "This discards the {{size}} downloaded so far.",
