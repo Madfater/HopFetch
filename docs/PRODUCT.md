@@ -40,7 +40,7 @@ Free Keep2Share links normally give one rate-limited connection, sit behind an i
 ## Brand Commitments
 
 - The name is "Hop fetch". It is defined only in `web/src/app-name.ts`.
-- The interface languages are Traditional Chinese (`zh-Hant-TW`, the default) and English. The browser language decides, and a switch in Settings overrides it per browser. All copy has to work in both.
+- The interface languages are Traditional Chinese (`zh-Hant-TW`, the default) and English. The browser language decides, and a language menu in Settings overrides it per browser. All copy has to work in both.
 - The interface is dark-only, and that is deliberate. Do not add a light theme.
 
 ## Evidence on Hand

@@ -271,9 +271,10 @@ Corners are gentle and consistent: 4px for tooltips and keys, 8px for buttons, i
 ### Lamps
 - A 10px circle with a 2px border in its lamp color. Solid or hollow by state: queued hollow teal, downloading solid teal, paused solid mist, canceled hollow mist, done solid green without glow, failed red. Running lamps breathe their glow; a lamp that changes state blinks once from 55% scale.
 
-### Switch and segmented control
+### Switch, segmented control and select
 - **Switch:** 44 by 24px pill. Off is a well with a field-edge border and a mist knob; on is solid gold with a ground-colored knob. The knob is a clipped pill that stretches toward the middle while pressed.
 - **Segmented control:** a recessed well track with 3px padding; the chosen segment is a Selected Indigo face that slides between segments. An overflowing track scrolls inside itself and fades its right edge.
+- **Select:** for a choice out of a list that can grow, such as the interface language. The browser's own select in a 38px recessed slot with a field-edge bottom, like the number stepper, and a drawn mist chevron at its right end that turns star white on hover or focus. The open list is the browser's, on the panel color.
 
 ### Progress fill (signature)
 A 6px pill track in the deep well with a dark top edge. The fill always spans the full track width and slides in from the left by transform over 500ms linear, so its texture never stretches. Any visible fill is at least 8px long, so a few percent still reads as a bar. A downloading fill is teal carrying an irregular grain of brighter points from one authored 60px SVG tile, with a 3px leading edge lit 30% toward white: a strip of the stack, still collecting light. Completed fills settle to green mixed 60% into the well and keep the same grain tile, static, under a 75% wash of that green, so a finished frame keeps faint stars without an edge or glow; paused fills to mist mixed 62% into the well, failed fills to solid red. The track repeats the status lamp so empty bars still differ: a queued track carries a 1px teal inner ring, a canceled one a mist ring, and a failed one a red ring over the well tinted 28% red.
