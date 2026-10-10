@@ -200,6 +200,44 @@ def test_drive_answers_map_to_codes(drive, replies, code):
         assert info.value.params == {"provider": "Google Drive"}
 
 
+def test_a_resource_key_survives_the_confirm_form(drive):
+    fake = drive(page(200, CONFIRM_PAGE), file_bytes())
+    gdrive.GoogleDriveProvider().get_info(ref_for(f"https://drive.google.com/file/d/{FILE_ID}/view?resourcekey=0-Ab_c"))
+    assert fake.requests[1][0] == (f"https://drive.usercontent.google.com/download?resourcekey=0-Ab_c&id={FILE_ID}"
+                                   "&export=download&confirm=t&uuid=c5b64dcf-c931-4001-a34f-386e7e4ed44d")
+
+
+def test_the_confirm_form_is_read_in_any_attribute_order(drive):
+    reordered = (
+        '<form method="get" action="https://drive.usercontent.google.com/download" id="download-form">'
+        f'<input value="{FILE_ID}" name="id" type="hidden"><input name="confirm" type="hidden" value="t">'
+        '<input type="submit" name="ignored" value="x"></form>'
+    )
+    fake = drive(page(200, reordered), file_bytes())
+    gdrive.GoogleDriveProvider().get_info(ref_for())
+    assert fake.requests[1][0] == f"https://drive.usercontent.google.com/download?id={FILE_ID}&confirm=t"
+
+
+def test_a_partial_answer_is_the_file_whatever_its_type(drive):
+    drive((206, {"Content-Type": "text/html", "Content-Disposition": 'attachment; filename="page.html"',
+                 "Content-Range": "bytes 0-0/1234"}, "<"))
+    info = gdrive.GoogleDriveProvider().get_info(ref_for())
+    assert (info.name, info.size) == ("page.html", 1234)
+
+
+def test_a_whole_file_answer_gives_its_length(drive):
+    drive((200, {"Content-Type": "application/octet-stream", "Content-Length": "42"}, "x" * 42))
+    info = gdrive.GoogleDriveProvider().get_info(ref_for())
+    assert (info.name, info.size) == (FILE_ID, 42)
+
+
+def test_redirects_stop_after_max_hops(drive):
+    fake = drive(*[redirect("https://drive.google.com/uc?id=x")] * (gdrive.MAX_HOPS + 1))
+    with pytest.raises(ProviderError) as info:
+        gdrive.GoogleDriveProvider().get_info(ref_for())
+    assert info.value.code == "upstream_error" and len(fake.requests) == gdrive.MAX_HOPS + 1
+
+
 def test_generate_links_reports_errors_too(drive):
     drive(page(200, QUOTA_PAGE))
     with pytest.raises(ProviderError) as info:

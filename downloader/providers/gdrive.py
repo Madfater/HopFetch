@@ -21,14 +21,19 @@ USERCONTENT_PATTERN = rf"^https?://drive\.usercontent\.google\.com/download\?(?:
 DRIVE_HOSTS = {"drive.usercontent.google.com", "drive.google.com"}
 SIGN_IN_HOST = "accounts.google.com"
 MAX_HOPS = 3
-FORM = re.compile(r'<form[^>]*id="download-form"[^>]*>(.*?)</form>', re.S)
-FORM_ACTION = re.compile(r'<form[^>]*id="download-form"[^>]*action="([^"]+)"')
-HIDDEN_INPUT = re.compile(r'<input[^>]*type="hidden"[^>]*name="([^"]+)"[^>]*value="([^"]*)"')
+FORM = re.compile(r'(<form\b[^>]*\bid="download-form"[^>]*>)(.*?)</form>', re.S)
+INPUT = re.compile(r"<input\b[^>]*>")
+ATTRIBUTE = re.compile(r'\b([a-z-]+)="([^"]*)"')
 ERROR_CAPTION = re.compile(r'class="uc-error-(?:caption|subcaption)"[^>]*>(.*?)</p>', re.S)
 QUOTA_HINTS = ("too many users", "quota exceeded")
 DENIED_HINTS = ("access denied", "need access", "need permission", "not have permission", "sign in", "sign-in")
 FILENAME_STAR = re.compile(r"filename\*=(?:UTF-8|utf-8)''([^;]+)")
 FILENAME = re.compile(r'filename="([^"]*)"')
+
+
+def attributes(tag: str) -> dict[str, str]:
+    """Return the quoted attributes of an HTML tag, unescaped, in any order."""
+    return {name: html.unescape(value) for name, value in ATTRIBUTE.findall(tag)}
 
 
 def content_name(disposition: str) -> str | None:
@@ -110,16 +115,24 @@ class GoogleDriveProvider(Provider):
         log.info("gdrive page not understood: %s", text.strip()[:200])
         return ProviderError("upstream_error", provider=self.label)
 
-    def _confirm_url(self, page: str) -> str | None:
-        """Build the URL the virus scan warning's `download-form` submits to, or None."""
+    def _confirm_url(self, page: str, start_url: str) -> str | None:
+        """Build the URL the virus scan warning's `download-form` submits to, or None.
+
+        - The query is the form's hidden inputs, plus the `resourcekey` of the user's URL when
+          the form leaves it out.
+        """
         form = FORM.search(page)
         if not form:
             return None
-        action = FORM_ACTION.search(page)
-        target = html.unescape(action.group(1)) if action else DOWNLOAD_URL
+        target = attributes(form.group(1)).get("action") or DOWNLOAD_URL
         if urlsplit(target).hostname not in DRIVE_HOSTS:
             return None
-        params = {html.unescape(k): html.unescape(v) for k, v in HIDDEN_INPUT.findall(form.group(1))}
+        params = parse_qs(urlsplit(start_url).query)
+        params = {"resourcekey": params["resourcekey"][0]} if "resourcekey" in params else {}
+        for tag in INPUT.findall(form.group(2)):
+            found = attributes(tag)
+            if found.get("type") == "hidden" and found.get("name"):
+                params[found["name"]] = found.get("value", "")
         return f"{target}?{urlencode(params)}" if params.get("id") else None
 
     def _resolve(self, ref: FileRef) -> tuple[str, requests.Response]:
@@ -128,18 +141,20 @@ class GoogleDriveProvider(Provider):
         - Raises `not_found` on 404, `private` on 401/403 or a sign-in page, `quota_exceeded`
           on the quota page and `upstream_error` otherwise.
         """
-        url = self._start_url(ref)
+        url = start_url = self._start_url(ref)
         confirmed = False
         while True:
             resp = self._get(url)
             if resp.status_code == 404:
                 resp.close()
                 raise ProviderError("not_found")
+            if resp.status_code == 206:
+                return url, resp
             denied = resp.status_code in (401, 403)
             if resp.headers.get("Content-Type", "").lower().startswith("text/html"):
                 with resp:
                     page = resp.text
-                next_url = None if confirmed else self._confirm_url(page)
+                next_url = None if confirmed else self._confirm_url(page, start_url)
                 if next_url:
                     url, confirmed = next_url, True
                     continue
@@ -148,7 +163,7 @@ class GoogleDriveProvider(Provider):
             if denied:
                 resp.close()
                 raise ProviderError("private")
-            if resp.status_code not in (200, 206):
+            if resp.status_code != 200:
                 resp.close()
                 log.info("gdrive %s: status %s", ref.file_id, resp.status_code)
                 raise ProviderError("upstream_error", provider=self.label)
