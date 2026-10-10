@@ -195,7 +195,7 @@ export function Tasks() {
                   {STATE_WORDS.map((key) => <span key={key} data-word={t(key)} />)}
                 </span>
               </th>
-              <th scope="col" className={styles.colName}>{t('tasks.column.name')}</th>
+              <th scope="col">{t('tasks.column.name')}</th>
               <th scope="col" className={`${styles.colSize} ${styles.right}`}>{t('tasks.column.size')}</th>
               <th scope="col" className={styles.colProgress}>{t('tasks.column.progress')}</th>
               <th scope="col" className={`${styles.colActions} ${styles.right}`}>{t('tasks.column.actions')}</th>
