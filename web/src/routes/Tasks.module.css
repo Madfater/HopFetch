@@ -1,6 +1,12 @@
 /*
- * - A dense, left-aligned table up to 1200px wide; the name column takes the room the fixed
- *   columns leave.
+ * - A dense, left-aligned table up to 1200px wide. Status and size are as wide as their
+ *   content, progress and actions keep a set width, and the name column takes the rest; its
+ *   cell has no width of its own, so a long name is cut off instead of widening the table.
+ * - The status header holds every state word, stacked and invisible, each with the room of a
+ *   lamp before it, so the column fits the longest one in the current language, and is never
+ *   narrower than 8em, which keeps a state's detail note to a few lines.
+ * - The host mark sits before the file name in the muted text color, centered on its first
+ *   line; the notes under the name align with the name, not the mark.
  * - Rows light the panel face under a pointer. A row marked by `?focus` keeps that face, then
  *   fades it out; a row that arrives while the page is open flashes once, from the panel face,
  *   where its red notes still keep 4.5:1.
@@ -17,10 +23,11 @@
  * - An action inside a note is underlined, in the main text color; on a touch screen it grows
  *   to a 44px tall target without moving the text around it.
  * - Delete stands a little apart from the other actions.
- * - Below 768px each row is a grid of three lines: the name with its notes, wrapped to at most
- *   two lines; the status, with the percent and size at the right end; the progress bar beside
- *   the actions. The host is left to screen readers. The right column fits three actions, 32px
- *   or 44px on a touch screen, so every row's bar ends at the same place.
+ * - Below 768px the title shares its line with "clear completed", and the filter takes the
+ *   line below, filling it below 480px. Each row is a grid of three lines: the host mark and the
+ *   name with its notes, wrapped to at most two lines; the status, with the percent and size at
+ *   the right end; the progress bar beside the actions. The right column fits three actions,
+ *   32px or 44px on a touch screen, so every row's bar ends at the same place.
  */
 .head {
   display: flex;
@@ -45,7 +52,6 @@
 
 .table {
   width: 100%;
-  table-layout: fixed;
 }
 
 .table th {
@@ -85,16 +91,36 @@
   }
 }
 
-.colStatus {
-  width: 18%;
-}
-
-.colProvider {
-  width: 9%;
-}
-
+.colStatus,
 .colSize {
-  width: 8%;
+  width: 1px;
+  white-space: nowrap;
+}
+
+.statusSizer {
+  display: block;
+  min-width: 8em;
+  height: 0;
+  font-size: 1rem;
+  font-weight: 400;
+  visibility: hidden;
+}
+
+.statusSizer > span {
+  display: block;
+  padding-left: calc(10px + var(--space-2));
+}
+
+.statusSizer > span::before {
+  content: attr(data-word);
+}
+
+.cellName {
+  max-width: 0;
+}
+
+.cellSize {
+  white-space: nowrap;
 }
 
 .colProgress {
@@ -103,6 +129,30 @@
 
 .colActions {
   width: 132px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+}
+
+.host {
+  display: inline-flex;
+  flex: none;
+  margin-top: calc((1.5em - 16px) / 2);
+  color: var(--color-muted);
+}
+
+.host svg {
+  width: 16px;
+  height: 16px;
+}
+
+.file {
+  display: block;
+  flex: 1;
+  min-width: 0;
 }
 
 .name {
@@ -263,6 +313,27 @@
 }
 
 @media (max-width: 767px) {
+  .head {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-3);
+  }
+
+  .toolbar {
+    display: contents;
+  }
+
+  .toolbar > :first-child {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-self: start;
+  }
+
+  .clear {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
   .table thead {
     position: absolute;
     width: 1px;
@@ -333,6 +404,7 @@
   .cellName {
     grid-area: name;
     min-width: 0;
+    max-width: none;
   }
 
   .name {
@@ -357,15 +429,6 @@
   .cellStatus,
   .cellSize {
     align-self: first baseline;
-  }
-
-  .cellProvider {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 
   .cellSize {
@@ -393,5 +456,11 @@
 
   .cellActions {
     grid-area: actions;
+  }
+}
+
+@media (max-width: 479px) {
+  .toolbar > :first-child {
+    justify-self: stretch;
   }
 }

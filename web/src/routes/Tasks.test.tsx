@@ -143,6 +143,16 @@ describe('Tasks', () => {
     expect(screen.queryByRole('columnheader', { name: 'Time left' })).not.toBeInTheDocument()
   })
 
+  it('marks the host before the file name instead of in a column', async () => {
+    setup([task(), task({ id: 'job2', provider: 'mega', file_name: 'b.zip' })])
+    const mark = await screen.findByRole('img', { name: 'MEGA' })
+    expect(mark).toHaveAttribute('title', 'MEGA')
+    expect(mark.closest('td')).toHaveTextContent('b.zip')
+    expect(screen.getByRole('img', { name: 'Keep2Share' }).closest('td')).toHaveTextContent('a.rar')
+    expect(screen.queryByRole('columnheader', { name: 'Host' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader')).toHaveLength(5)
+  })
+
   it('shows the speed alone while time left is unknown', async () => {
     setup([task({ status: 'downloading', phase: 'downloading', speed: 4 * 2 ** 20, eta: null })])
     expect(await screen.findByText('4.00 MB/s')).toBeInTheDocument()
