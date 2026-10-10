@@ -240,3 +240,19 @@ def test_refresh_ends_quietly_when_the_cache_is_gone(monkeypatch, tmp_path, capl
     pool._refresh_thread.join(5)
     assert pool.all() == [None, "1.1.1.1:80"]
     assert "proxy refresh failed" in caplog.text
+
+
+def test_spread_puts_direct_and_user_first_then_sampled_public(tmp_path):
+    (tmp_path / "proxies.txt").write_text("\n".join(f"9.9.9.{i}:80" for i in range(10)))
+    pool = ProxyPool(tmp_path / "proxies.txt", user_proxies=["http://env:3128"],
+                     user_file=tmp_path / "missing.txt")
+    routes = pool.spread(5)
+    assert routes[:2] == [None, "http://env:3128"]
+    assert len(set(routes[2:])) == 3 and all(r.startswith("9.9.9.") for r in routes[2:])
+
+
+def test_spread_repeats_a_small_pool_and_skips_public_when_disabled(tmp_path):
+    (tmp_path / "proxies.txt").write_text("9.9.9.9:80")
+    pool = ProxyPool(tmp_path / "proxies.txt", enabled=False, user_proxies=["http://env:3128"],
+                     user_file=tmp_path / "missing.txt")
+    assert pool.spread(5) == [None, "http://env:3128", None, "http://env:3128", None]

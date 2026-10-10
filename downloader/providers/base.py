@@ -73,6 +73,7 @@ class LinkContext:
     - `set_status(phase, key, **params)` reports progress; phases are the `PHASE_*` constants
       and `key` is a `messages.*` translation key.
     - `proxies` is the shared proxy pool.
+    - `use_proxy` is the job's choice; when false, `connections()` holds only the direct one.
     - `cancelled` is set when the user pauses or deletes the job.
     """
 
@@ -80,6 +81,11 @@ class LinkContext:
     set_status: Callable[..., None]
     proxies: ProxyPool
     cancelled: threading.Event = field(default_factory=threading.Event)
+    use_proxy: bool = True
+
+    def connections(self) -> list[str | None]:
+        """The direct connection, then, when the job uses proxies, every proxy of the pool."""
+        return self.proxies.all() if self.use_proxy else [None]
 
     def check_cancelled(self) -> None:
         """Raise `Cancelled` when the job was stopped."""
@@ -128,6 +134,8 @@ class Provider(ABC):
       They use only syntax that Python and JavaScript read the same way: no named groups,
       no lookbehind, no inline flags.
     - `link_ttl` is how long generated links stay reusable, in seconds.
+    - `proxy_downloads` marks a platform that limits the IP fetching the bytes; when a job uses
+      proxies, each of its links is then fetched through its own connection from the pool.
     """
 
     name: str = ""
@@ -135,6 +143,7 @@ class Provider(ABC):
     icon: str = ""
     patterns: tuple[str, ...] = ()
     link_ttl: float = float("inf")
+    proxy_downloads: bool = False
 
     def match(self, url: str) -> str | None:
         """Return the file id when the normalized `url` matches one of `patterns`, else None."""

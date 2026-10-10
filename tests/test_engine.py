@@ -333,3 +333,64 @@ def test_assemble_runs_every_byte_through_the_decoder(server, content, tmp_path)
     assert out.read_bytes() == bytes(b ^ 0x5A for b in content)
     assert decoder.seen == len(content) and decoder.finished
     assert finish(download, tmp_path) == content
+
+
+class QuotaReply:
+    """A 509 answer, as MEGA sends once an IP used up its transfer quota."""
+
+    status_code = 509
+    headers: dict = {}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return False
+
+
+def test_links_go_through_their_own_proxy_and_dead_ones_are_dropped(server, tmp_path, monkeypatch):
+    import downloader.engine as engine
+
+    monkeypatch.setattr(engine, "RETRY_DELAY", 0.01)
+    real_get = engine.requests.get
+    routes: list[tuple[str, str | None]] = []
+
+    def get(url, proxies=None, **kwargs):
+        routes.append((url, proxies["https"] if proxies else None))
+        if url.endswith("/quota"):
+            return QuotaReply()
+        if proxies:
+            raise engine.requests.exceptions.ProxyError("refused")
+        return real_get(url, **kwargs)
+
+    monkeypatch.setattr(engine.requests, "get", get)
+    quota = server.url.replace("/file.bin", "/quota")
+    download = SegmentedDownload(
+        links=[server.url, server.url, quota], size=len(server.content), part_dir=tmp_path / "parts",
+        split_size=20_000, headers={}, cancelled=threading.Event(),
+        proxies=[None, "http://127.0.0.1:1", None],
+    )
+    download.run()
+    assert finish(download, tmp_path) == server.content
+    assert download._strikes == [0, 3, 3]
+    assert {proxy for url, proxy in routes if url == server.url} == {None, "http://127.0.0.1:1"}
+    assert all(proxy is None for url, proxy in routes if url == quota)
+
+
+def test_a_failing_direct_link_is_never_dropped(server, tmp_path, monkeypatch):
+    import downloader.engine as engine
+
+    monkeypatch.setattr(engine, "RETRY_DELAY", 0.01)
+    real_get = engine.requests.get
+    failures = []
+
+    def get(url, **kwargs):
+        if len(failures) < 4:
+            failures.append(url)
+            raise engine.requests.ConnectionError("reset")
+        return real_get(url, **kwargs)
+
+    monkeypatch.setattr(engine.requests, "get", get)
+    download = make(server, tmp_path, links=1)
+    download.run()
+    assert finish(download, tmp_path) == server.content and len(failures) == 4

@@ -87,7 +87,7 @@ class K2SProvider(Provider):
           up to MAX_COOLDOWN, then tries that IP once more.
         """
         ctx.set_status(PHASE_LINKS, "messages.loading_proxies")
-        candidates = ctx.proxies.all()
+        candidates = ctx.connections()
         captcha = list(self._solve_captcha(ctx))
         links: list[str] = []
         last_error = ProviderError("upstream_error", "errors.upstream_error_no_key", provider=self.label)

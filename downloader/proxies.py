@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import random
 import re
 import threading
 import time
@@ -207,6 +208,18 @@ class ProxyPool:
         """Return the direct connection, user proxies and, while enabled, public proxies."""
         self.load()
         return [None, *self._user, *(self._public if self.enabled else [])]
+
+    def spread(self, count: int) -> list[str | None]:
+        """Return `count` connections for parallel links, one per link.
+
+        - The direct connection and user proxies come first, then public proxies while enabled,
+          in random order so a new set of links reaches other IPs.
+        - Connections repeat when the pool holds fewer than `count`.
+        """
+        self.load()
+        public = self._public if self.enabled else []
+        ranked = [None, *self._user, *random.sample(public, min(len(public), count))]
+        return [ranked[i % len(ranked)] for i in range(count)]
 
     def status(self) -> dict:
         """Return pool counts without proxy addresses and without triggering a load."""

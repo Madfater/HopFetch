@@ -192,3 +192,12 @@ def test_get_info_success(monkeypatch):
         {"files": [{"name": "影片.mp4", "size": "1234", "access": "public", "is_available": True}]}))
     info = k2s.K2SProvider().get_info(REF)
     assert (info.name, info.size) == ("影片.mp4", 1234)
+
+
+def test_without_proxy_only_the_direct_connection_asks_for_a_key(monkeypatch, ctx):
+    ctx.use_proxy = False
+    fake = FakeK2S([{"status": "success", "time_wait": 9999}])
+    install(monkeypatch, fake)
+    with pytest.raises(ProviderError):
+        k2s.K2SProvider().generate_links(REF, 2, ctx)
+    assert [proxy for proxy, _ in fake.key_calls] == [None]

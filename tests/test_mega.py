@@ -179,3 +179,7 @@ def test_a_node_without_a_download_url_has_no_links(api):
     with pytest.raises(ProviderError) as info:
         mega.MegaProvider().generate_links(example_ref(), 2, ctx)
     assert info.value.key == "errors.upstream_error_no_links"
+
+
+def test_mega_downloads_bytes_through_proxies():
+    assert mega.MegaProvider.proxy_downloads is True
