@@ -1,5 +1,5 @@
 import { QueryClient } from '@tanstack/react-query'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { Task } from '../api/types'
 import { applyEvent, connectEvents, OFFLINE_DELAY_MS, resync } from './events'
 import { RESOLVE_KEY, STORAGE_KEY, TASKS_KEY } from './tasks'
@@ -169,6 +169,11 @@ class FakeSource {
 }
 
 describe('connectEvents', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.useRealTimers()
+  })
+
   it('reports offline only after the stream stays down for OFFLINE_DELAY_MS', () => {
     vi.useFakeTimers()
     vi.stubGlobal('EventSource', FakeSource)
@@ -189,7 +194,5 @@ describe('connectEvents', () => {
     expect(onConnection.mock.calls.map(([connected]) => connected)).toEqual([true, false])
 
     close()
-    vi.unstubAllGlobals()
-    vi.useRealTimers()
   })
 })
