@@ -1,5 +1,6 @@
 /*
  * - An icon-only button: a raised face appears on hover and it sinks slightly when pressed.
+ * - A danger button lights red while pointed at, like a danger confirm button.
  * - On a touch screen the button grows to a 44px target; the icon keeps its size.
  * - The tooltip floats on the raised surface and slides in from the side it opens on.
  */
@@ -31,6 +32,12 @@
 .button:hover:not(:disabled, [aria-disabled='true']) {
   border-color: var(--color-well-edge-bottom);
   background: var(--color-raised);
+}
+
+.danger:hover:not(:disabled, [aria-disabled='true']) {
+  border-color: var(--color-failed);
+  background: var(--color-failed);
+  color: var(--color-on-light);
 }
 
 .button:active:not(:disabled, [aria-disabled='true']) {

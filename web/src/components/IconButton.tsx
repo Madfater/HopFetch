@@ -7,6 +7,7 @@ import { Icon, type IconName } from './icons'
 //   rendered as a disabled button so it cannot be followed.
 // - A disabled button is marked `aria-disabled` rather than `disabled` and ignores clicks, so it
 //   stays in the tab order, is announced as dimmed, and still shows its tooltip, which says why.
+// - The `danger` tone marks an action that throws work away: it turns red while pointed at.
 
 interface Props {
   icon: IconName
@@ -15,16 +16,18 @@ interface Props {
   onClick?: () => void
   href?: string
   disabled?: boolean
+  tone?: 'danger'
 }
 
-export function IconButton({ icon, label, tooltip, onClick, href, disabled = false }: Props) {
+export function IconButton({ icon, label, tooltip, onClick, href, disabled = false, tone }: Props) {
+  const className = tone === 'danger' ? `${styles.button} ${styles.danger}` : styles.button
   const control =
     href && !disabled ? (
-      <a className={styles.button} href={href} download aria-label={label}>
+      <a className={className} href={href} download aria-label={label}>
         <Icon name={icon} />
       </a>
     ) : (
-      <button type="button" className={styles.button} aria-label={label}
+      <button type="button" className={className} aria-label={label}
         aria-disabled={disabled || undefined} onClick={disabled ? undefined : onClick}>
         <Icon name={icon} />
       </button>
