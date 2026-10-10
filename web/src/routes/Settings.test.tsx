@@ -46,7 +46,7 @@ describe('Settings', () => {
   it('puts the language under other settings and says it is kept per browser', async () => {
     setup()
     expect(await screen.findByRole('region', { name: 'Other settings' })).toBeInTheDocument()
-    expect(screen.getByRole('radiogroup', { name: 'Language' })).toHaveAccessibleDescription(
+    expect(screen.getByRole('combobox', { name: 'Language' })).toHaveAccessibleDescription(
       'Saved in this browser only; other devices keep their own.',
     )
   })
@@ -212,7 +212,7 @@ describe('Settings', () => {
 
   it('applies the language at once', async () => {
     const { user } = setup()
-    await user.click(await screen.findByRole('radio', { name: '繁體中文' }))
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Language' }), '繁體中文')
     expect(i18n.language).toBe('zh-Hant-TW')
     expect(await screen.findByRole('heading', { level: 1, name: '設定' })).toBeInTheDocument()
   })
