@@ -1,8 +1,8 @@
 /*
  * - A recessed slot like the number stepper: a darker top edge and the lit field edge below,
  *   which marks it as a control. The select fills the slot and leaves room for the chevron.
- * - Hover lightens the field edge and turns the chevron star white; the focus ring belongs to
- *   the slot, not to the select inside it.
+ * - Hover lightens the field edge, and hover or focus brightens the chevron to the text color;
+ *   the focus ring belongs to the slot, not to the select inside it.
  * - The open list is drawn by the browser on the panel color, in the dark color scheme.
  */
 .slot {

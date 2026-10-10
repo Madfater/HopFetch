@@ -1,5 +1,5 @@
-// - Line icons drawn on a 16-unit grid in the current text color; always decorative, since the
-//   buttons that hold them carry an aria-label.
+// - Line icons drawn on a 16-unit grid in the current text color; always hidden from assistive
+//   tech, since the control that holds them carries its own name.
 
 const PATHS = {
   pause: 'M5.5 3.5v9M10.5 3.5v9',
