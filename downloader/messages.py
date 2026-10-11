@@ -32,8 +32,10 @@ FORMATTERS = {"duration": _duration}
 PERMANENT_ERRORS = frozenset({
     "errors.not_found",
     "errors.private",
+    "errors.private_password",
     "errors.premium_only",
     "errors.invalid_url_key",
+    "errors.invalid_url_rlkey",
     "errors.upstream_error_no_size",
     "errors.range_unsupported",
 })

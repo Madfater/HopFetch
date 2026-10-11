@@ -70,6 +70,9 @@
     "interrupted": "服務重新啟動，下載中斷。按重試再試一次。",
     "invalid_state_not_resumable": "這個任務無法暫停，因為雲端不支援續傳。",
     "integrity_failed": "下載的檔案未通過完整性檢查。按重試重新下載。",
-    "invalid_url_key": "這個連結的解密金鑰不正確。請重新複製完整連結，包含 # 後面的部分。"
+    "invalid_url_key": "這個連結的解密金鑰不正確。請重新複製完整連結，包含 # 後面的部分。",
+    "upstream_error_captcha_wall": "{{provider}} 要求真人驗證，這個下載器無法通過。請稍後再試。",
+    "invalid_url_rlkey": "這個 Dropbox 連結缺少 rlkey 部分。請重新複製完整連結。",
+    "private_password": "這個檔案設有密碼，這個下載器目前還無法輸入密碼。"
   }
 }

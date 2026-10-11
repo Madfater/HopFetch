@@ -12,6 +12,7 @@ import { useBatch } from '../hooks/useBatch'
 import { useLastVisit } from '../hooks/useLastVisit'
 import { useNewIds } from '../hooks/useNewIds'
 import { useResolve, type ResolveState } from '../hooks/useResolve'
+import { useTextFits } from '../hooks/useTextFits'
 import { useTouchScreen } from '../hooks/useTouchScreen'
 import { useProviders, useTasks } from '../hooks/useTasks'
 import { useProxyChoice } from '../hooks/useProxyChoice'
@@ -44,8 +45,9 @@ import styles from './Home.module.css'
 //   button when it shows, so it outranks View task. Esc clears the input and the batch, except
 //   while a batch is starting.
 // - A link dragged over the slot lights its edge; the lamp keeps showing the link's state.
-//   While the input is empty, the placeholder names the supported sites, a hint under the
-//   slot says where links can go, and a row under it shows each supported site's mark and
+//   While the input is empty, the placeholder names the supported sites, or asks only for a
+//   share link when the names would not fit the input; a hint under the slot says where links
+//   can go, and a row under it shows each supported site's mark and
 //   name. On a touch screen the hint and the key hints are left out. Typing hides the row but
 //   keeps its space, so the recent list stays put; a preview or a batch takes its place.
 // - The input is described by the lamp's state, the status line and, while it shows, the hint.
@@ -281,7 +283,9 @@ export function Home() {
   const names = (providers.data ?? []).map((provider) => provider.name)
   const sites = formatList(i18n.language, names, 'conjunction')
   const anySite = formatList(i18n.language, names, 'disjunction')
-  const placeholder = names.length > 0 ? t('home.placeholder', { sites: anySite }) : t('home.placeholderPlain')
+  const named = names.length > 0 ? t('home.placeholder', { sites: anySite }) : ''
+  const namedFits = useTextFits(inputRef, named)
+  const placeholder = named && namedFits ? named : t('home.placeholderPlain')
   const lamp = inBatch ? batchLamp(view) : lampFor(state, plan, noneSupported, providers.isError)
   const status = inBatch
     ? batchStatus(t, view, providers.isError)
